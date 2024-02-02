@@ -7,11 +7,11 @@
 #include <ctype.h>
 #include <math.h>
 
-/* ==== debug flags ==== */
+/* == debug flags == */
 
 #define DBG_PRINT_SOURCE 1
 #define DBG_PRINT_TOKENS 0
-#define DBG_PRINT_NAMES 1
+#define DBG_PRINT_NAMES 0
 #define DBG_PRINT_POOL 1
 #define DBG_PRINT_OPCODES 1
 #define DBG_PRINT_STACK 1
@@ -19,13 +19,13 @@
 #define DBG_CHECK_MEMLEAKS 1
 #define DBG_ASSERT 1
 
-/* ==== optimization flags ==== */
+/* == optimization flags == */
 
 #define OPTZ_DEDUP_CONSTANTS 1
-#define OPTZ_EMIT_DUP 1
-#define OPTZ_PUSHPOP 1
+#define OPTZ_EMIT_DUP 0
+#define OPTZ_PUSHPOP 0
 
-/* ==== code limits ==== */
+/* == code limits == */
 
 #define CHUNK_MAX_CODE (UINT16_MAX + 1)
 #define CHUNK_MAX_POOL (UINT8_MAX + 1)
@@ -34,7 +34,7 @@
 #define MAX_CFRAMES 64
 #define MAX_PARAMS UINT8_MAX
 
-/* ==== debug macros ==== */
+/* == debug macros == */
 
 #if DBG_ASSERT
 #define deverr(msg) \
@@ -65,7 +65,7 @@ typedef struct {
 	ptrdiff_t memuse;
 } sylt_t;
 
-/* ==== error code + message macros ==== */
+/* == error code + message macros == */
 
 #define E_OUTOFMEM \
 	1, "out of memory"
@@ -120,7 +120,7 @@ void halt(
 	exit(EXIT_FAILURE);
 }
 
-/* ==== memory ==== */
+/* == memory == */
 
 void* ptr_resize(
 	void* p,
@@ -175,7 +175,7 @@ void* ptr_resize(
 	ptr_resize(p, sizeof(t) * (os), 0,\
 		__func__, ctx)
 
-/* ==== opcodes ==== */
+/* == opcodes == */
 
 typedef enum {
 	/* stack */
@@ -202,6 +202,7 @@ typedef enum {
 	OP_NOT,
 	/* control flow */
 	OP_JMP,
+	OP_JMPIF,
 	OP_JMPIFN,
 	OP_CALL,
 	OP_RET,
@@ -240,6 +241,7 @@ static opinfo_t OPINFO[] = {
 	[OP_NEQ] = {"neq", 0, -1},
 	[OP_NOT] = {"not", 0, 0},
 	[OP_JMP] = {"jmp", 2, 0},
+	[OP_JMPIF] = {"jmpif", 2, 0},
 	[OP_JMPIFN] = {"jmpifn", 2, 0},
 	[OP_CALL] = {"call", 1, 0},
 	[OP_RET] = {"ret", 0, 0},
@@ -679,17 +681,16 @@ void dbg_print_header(
 {
 	const chunk_t* chunk = &func->chunk;
 	
-	printf("\n---- FRAME ----\n");
+	printf("\n---- name: ");
+	string_print(chunk->name);
+	printf(" ----\n");
+	
 	printf("depth %d/%d, ",
 		(int)vm->nframes, MAX_CFRAMES);
 	
 	size_t used = vm->sp - vm->stack;
-	printf("stack usage %ld/%ld\n",
+	printf("stack %ld/%ld\n",
 		used, vm->maxstack);
-	
-	printf("name: ");
-	string_print(chunk->name);
-	putchar('\n');
 	
 	printf("%ld bytes, ", chunk->ncode);
 	printf("%ld constants, ", chunk->npool);
@@ -737,7 +738,7 @@ void dbg_print_instruction(
 void dbg_print_stack(
 	const vm_t* vm, const chunk_t* chunk)
 {
-	const int maxvals = 4;
+	const int maxvals = 2;
 	
 	/* don't print first iteration */
 	if (vm->fp->ip - 1 == chunk->code)
@@ -753,17 +754,18 @@ void dbg_print_stack(
 	
 	value_t* v = start;
 	
-	printf("  [ ");
+	if (diff > maxvals)
+		printf("  [ <+%ld, ", diff - maxvals);
+	else
+		printf("  [ ");
+	
 	for (; v != vm->sp; v++) {
 		val_print(*v, true, 12, vm->ctx);
 		if (v != vm->sp - 1)
 		  printf(", ");
 	}
 	
-	if (diff > maxvals)
-		printf(" ](+%ld)\n", diff - maxvals);
-	else
-		printf(" ]\n");
+	printf(" ]\n");
 }
 
 /* pushes a value on the sylt stack */
@@ -850,19 +852,13 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 		switch (op) {
 		/* stack */
 		case OP_PUSH: {
-			value_t val =
-				vm->fp->func->
-					chunk.pool[read()];
+			value_t val = vm->fp->func->
+				chunk.pool[read()];
 			push(val);
 			break;
 		}
 		case OP_POP: {
-			value_t val = pop();
-			putchar('=');
-			string_t* str =
-				val_tostring(val, vm->ctx);
-			string_print(str);
-			putchar('\n');
+			pop();
 			break;
 		}
 		case OP_DUP: {
@@ -938,12 +934,18 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			vm->fp->ip += offset;
 			break;
 		}
+		case OP_JMPIF: {
+			uint16_t offset = read16();
+			typecheck(
+				vm->ctx, peek(0), TYPE_BOOL);
+			if (getbool(peek(0)))
+				vm->fp->ip += offset;
+			break;
+		}
 		case OP_JMPIFN: {
 			uint16_t offset = read16();
 			typecheck(
-				vm->ctx,
-				peek(0),
-				TYPE_BOOL);
+				vm->ctx, peek(0), TYPE_BOOL);
 			if (!getbool(peek(0)))
 				vm->fp->ip += offset;
 			break;
@@ -969,7 +971,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 				push(result);
 				
 				#if DBG_PRINT_OPCODES
-				printf("---- CFUNC ----\n");
+				printf("\n");
 				#endif
 				
 				break;
@@ -1015,8 +1017,8 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 				vm->stack + vm->fp->offs - 1;
 			push(result);
 			
-			vm->fp = &vm->frames[
-				vm->nframes - 1];
+			vm->fp =
+				&vm->frames[vm->nframes - 1];
 			
 			#if DBG_PRINT_OPCODES
 			dbg_print_header(
@@ -1074,7 +1076,7 @@ void vm_math(vm_t* vm, op_t opcode) {
 #undef pop
 #undef peek
 
-/* ==== sylt standard library ==== */
+/* == standard library == */
 
 #define argc() (ctx->vm->fp->ip[-1])
 #define arg(n) (*(ctx->vm->sp - argc()))
@@ -1091,7 +1093,7 @@ value_t slib_ensure(sylt_t* ctx) {
 		halt(ctx, -1, "ensure failed");
 		unreachable();
 	}
-	return newnil();
+	return arg(0);
 }
 
 void slib_add(
@@ -1105,6 +1107,8 @@ void load_slib(sylt_t* ctx) {
 	slib_add(ctx, "ensure", slib_ensure, 1);
 }
 
+/* == compiler == */
+
 typedef enum {
 	T_NAME,
 	T_NIL,
@@ -1113,6 +1117,8 @@ typedef enum {
 	T_LET,
 	T_IF,
 	T_ELSE,
+	T_AND,
+	T_OR,
 	T_STRING,
 	T_NUMBER,
 	T_PLUS,
@@ -1151,6 +1157,8 @@ typedef struct {
 typedef enum {
 	PREC_NONE,
 	PREC_ASSIGN,
+	PREC_OR,
+	PREC_AND,
 	PREC_EQ,
 	PREC_CMP,
 	PREC_TERM,
@@ -1169,7 +1177,7 @@ typedef struct {
 	int depth;
 } symbol_t;
 
-/* compiler state */
+/* compiler + lexer & parser state */
 typedef struct comp_s {
 	/* output */
 	func_t* func;
@@ -1232,9 +1240,170 @@ void comp_free(comp_t* cmp) {
 		cmp->ctx);
 }
 
+/* == lexer == */
+
+/* scans the source code for the next token */
+token_t scan(comp_t* cmp) {
+	#define token(t) \
+		(token_t){t, start, cmp->pos - start}
+	#define step() cmp->pos++
+	#define peek() (*cmp->pos)
+	#define peek2() \
+		(eof() ? '\0' : cmp->pos[1])
+	#define eof() (peek() == '\0')
+	#define match(c) \
+		((!eof() && peek() == (c)) ? \
+			step(), true : false)
+	
+	/* skip any initial whitespace */
+	for (;;) {
+		if (!isspace(peek())) {
+			/* single-line comment */
+			if (peek() == '-'
+				&& peek2() == '-')
+			{
+				step();
+				while (peek() != '\n'
+					&& !eof())
+				{
+					step();
+				}
+				step();
+				cmp->line++;
+				break;
+			}
+			
+			if (peek() == '\n')
+				cmp->line++;
+			break;
+		}
+		
+		step();
+	}
+	
+	/* remember first non-whitespace char */
+	const char* start = cmp->pos;
+	if (eof())
+		return token(T_EOF);
+	
+	/* symbol name or keyword */
+	if (isalpha(peek()) || peek() == '_') {
+		while (isalnum(peek())
+			|| peek() == '_')
+			step();
+		
+		if (!strncmp(start, "nil", 3))
+			return token(T_NIL);
+		if (!strncmp(start, "true", 4))
+			return token(T_TRUE);
+		if (!strncmp(start, "false", 5))
+			return token(T_FALSE);
+		if (!strncmp(start, "let", 3))
+			return token(T_LET);
+		if (!strncmp(start, "if", 2))
+			return token(T_IF);
+		if (!strncmp(start, "else", 4))
+			return token(T_ELSE);
+		if (!strncmp(start, "and", 3))
+			return token(T_AND);
+		if (!strncmp(start, "or", 2))
+			return token(T_OR);
+		
+		return token(T_NAME);
+	}
+	
+	/* string literal */
+	if (peek() == '"') {
+		step();
+		while (
+			(peek() != '"'
+				|| cmp->pos[-1] == '\\')
+			&& !eof())
+		{
+			step();
+		}
+		
+		if (eof()) {
+			halt(cmp->ctx,
+				E_UNTERMSTRING);
+		}
+		
+		step();
+		return token(T_STRING);
+	}
+	
+	/* numbers begin with a digit */
+	if (isdigit(peek())) {
+		while (isdigit(peek()))
+			step();
+		
+		if (peek() == '.') {
+			step();
+			while (isdigit(peek()))
+				step();
+		}
+			
+		return token(T_NUMBER);
+	}
+	
+	/* see if we can find an operator */
+	switch (*step()) {
+	case '+': return token(T_PLUS);
+	case '-': return token(T_MINUS);
+	case '*': return token(T_STAR);
+	case '/': return token(T_SLASH);
+	case '%': return token(T_PERCENT);
+	case '<':
+		return token((!match('=')) ?
+			T_LESS :
+			T_LESS_EQ);
+	case '>':
+		return token((!match('=')) ?
+			T_GREATER : 
+			T_GREATER_EQ);
+	case '=':
+		return token((!match('=')) ?
+			T_EQ :
+			T_EQ_EQ);
+	case '!':
+		return token((!match('=')) ?
+			T_BANG :
+			T_BANG_EQ);
+	case '(': return token(T_LPAREN);
+	case ')': return token(T_RPAREN);
+	case '{': return token(T_LCURLY);
+	case '}': return token(T_RCURLY);
+	case ',': return token(T_COMMA);
+	}
+	
+	halt(cmp->ctx,
+		E_UNEXPECTEDCHAR(cmp->pos[-1]));
+	return token(-1);
+	
+	#undef token
+	#undef step
+	#undef peek
+	#undef peek2
+	#undef eof
+	#undef match
+}
+
+/* == codegen == */
+
 /* helper function to get the output chunk */
 chunk_t* comp_chunk(comp_t* cmp) {
 	return &cmp->func->chunk;
+}
+
+void comp_simstack(comp_t* cmp, int n) {
+	cmp->curslots += n;
+	assert(cmp->curslots >= 0);
+	assert(cmp->curslots <= STACK_MAX_SLOTS);
+	
+	/* record the largest stack size */
+	chunk_t* chunk = comp_chunk(cmp);
+	if (cmp->curslots > chunk->slots)
+		chunk->slots = cmp->curslots;
 }
 
 /* should not be used directly; use the
@@ -1242,17 +1411,7 @@ chunk_t* comp_chunk(comp_t* cmp) {
 void emit_op(
 	comp_t* cmp, op_t op)
 {
-	chunk_t* chunk = comp_chunk(cmp);
-	
-	/* keep track of how much stack
-	 * space we're using */
-	cmp->curslots += OPINFO[op].effect;
-	assert(cmp->curslots >= 0);
-	assert(cmp->curslots <= STACK_MAX_SLOTS);
-	
-	/* record the largest stack size */
-	if (cmp->curslots > chunk->slots)
-		chunk->slots = cmp->curslots;
+	comp_simstack(cmp, OPINFO[op].effect);
 	
 	#if OPTZ_PUSHPOP
 	/* prevents emitting code when pushing
@@ -1283,6 +1442,10 @@ void emit_op(
 				cmp->ctx);
 			chunk->npool--;
 		}
+		
+		/* shrink simulated stack size */
+		comp_simstack(cmp,
+			-OPINFO[cmp->lastop].effect);
 		
 		cmp->lastop = -1;
 		return;
@@ -1449,129 +1612,7 @@ void slib_add(
 	emit_value(cmp, newfunc(func));
 }
 
-/* scans the source code for the next token */
-token_t scan(comp_t* cmp) {
-	#define token(t) \
-		(token_t){t, start, cmp->pos - start}
-	#define step() cmp->pos++
-	#define peek() (*cmp->pos)
-	#define eof() (peek() == '\0')
-	#define match(c) \
-		((!eof() && peek() == (c)) ? \
-			step(), true : false)
-	
-	/* skip any initial whitespace */
-	for (;;) {
-		if (!isspace(peek())) {
-			if (peek() == '\n')
-				cmp->line++;
-			break;
-		}
-		
-		step();
-	}
-	
-	/* remember first non-whitespace char */
-	const char* start = cmp->pos;
-	if (eof())
-		return token(T_EOF);
-	
-	/* symbol name or keyword */
-	if (isalpha(peek()) || peek() == '_') {
-		while (isalnum(peek())
-			|| peek() == '_')
-			step();
-		
-		if (!strncmp(start, "nil", 3))
-			return token(T_NIL);
-		if (!strncmp(start, "true", 4))
-			return token(T_TRUE);
-		if (!strncmp(start, "false", 5))
-			return token(T_FALSE);
-		if (!strncmp(start, "let", 3))
-			return token(T_LET);
-		if (!strncmp(start, "if", 2))
-			return token(T_IF);
-		if (!strncmp(start, "else", 4))
-			return token(T_ELSE);
-		
-		return token(T_NAME);
-	}
-	
-	/* string literal */
-	if (peek() == '"') {
-		step();
-		while (
-			(peek() != '"'
-				|| cmp->pos[-1] == '\\')
-			&& !eof())
-		{
-			step();
-		}
-		
-		if (eof()) {
-			halt(cmp->ctx,
-				E_UNTERMSTRING);
-		}
-		
-		step();
-		return token(T_STRING);
-	}
-	
-	/* numbers begin with a digit */
-	if (isdigit(peek())) {
-		while (isdigit(peek()))
-			step();
-		
-		if (peek() == '.') {
-			step();
-			while (isdigit(peek()))
-				step();
-		}
-			
-		return token(T_NUMBER);
-	}
-	
-	/* see if we can find an operator */
-	switch (*cmp->pos++) {
-	case '+': return token(T_PLUS);
-	case '-': return token(T_MINUS);
-	case '*': return token(T_STAR);
-	case '/': return token(T_SLASH);
-	case '%': return token(T_PERCENT);
-	case '<':
-		return token((!match('=')) ?
-			T_LESS :
-			T_LESS_EQ);
-	case '>':
-		return token((!match('=')) ?
-			T_GREATER : 
-			T_GREATER_EQ);
-	case '=':
-		return token((!match('=')) ?
-			T_EQ :
-			T_EQ_EQ);
-	case '!':
-		return token((!match('=')) ?
-			T_BANG :
-			T_BANG_EQ);
-	case '(': return token(T_LPAREN);
-	case ')': return token(T_RPAREN);
-	case '{': return token(T_LCURLY);
-	case '}': return token(T_RCURLY);
-	case ',': return token(T_COMMA);
-	}
-	
-	halt(cmp->ctx,
-		E_UNEXPECTEDCHAR(cmp->pos[-1]));
-	return token(-1);
-	
-	#undef token
-	#undef step
-	#undef peek
-	#undef eof
-	#undef match
-}
+/* == parser == */
 
 /* steps the parser one token forward */
 void step(comp_t* cmp) {
@@ -1648,6 +1689,8 @@ static parserule_t RULES[] = {
 	[T_LET] = {let, NULL, PREC_NONE},
 	[T_IF] = {if_else, NULL, PREC_NONE},
 	[T_ELSE] = {NULL, NULL, PREC_NONE},
+	[T_AND] = {NULL, binary, PREC_AND},
+	[T_OR] = {NULL, binary, PREC_OR},
 	[T_STRING] = {string, NULL, PREC_NONE},
 	[T_NUMBER] = {number, NULL, PREC_NONE},
 	[T_PLUS] = {NULL, binary, PREC_TERM},
@@ -1850,7 +1893,6 @@ void binary(comp_t* cmp) {
 	
 	/* compile the right hand expression */
 	parserule_t* rule = &RULES[token];
-	expr(cmp, rule->prec + 1);
 	
 	op_t opcode;
 	switch (token) {
@@ -1868,12 +1910,36 @@ void binary(comp_t* cmp) {
 	/* equality */
 	case T_EQ_EQ: opcode = OP_EQ; break;
 	case T_BANG_EQ: opcode = OP_NEQ; break;
+	/* control flow */
+	case T_AND: {
+		/* if the left-hand side expression
+		 * is false we jump past the 
+		 * right-hand side expression */
+		int jump = emit_jump(cmp, OP_JMPIFN);
+		
+		emit_nullary(cmp, OP_POP);
+		expr(cmp, PREC_AND);
+		
+		patch_jump(cmp, jump);
+		return; /* early return */
+	}
+	case T_OR: {
+		int jump = emit_jump(cmp, OP_JMPIF);
+		
+		emit_nullary(cmp, OP_POP);
+		expr(cmp, PREC_OR);
+		
+		patch_jump(cmp, jump);
+		return; /* early return */
+	}
 	default: unreachable();
 	}
 	
+	expr(cmp, rule->prec + 1);
 	emit_nullary(cmp, opcode);
 }
 
+/* parses a function call */
 void call(comp_t* cmp) {
 	int argc = 0;
 	
@@ -1884,8 +1950,7 @@ void call(comp_t* cmp) {
 	) {
 		if (argc >= MAX_PARAMS) {
 			halt(cmp->ctx, 
-				E_TOOMANYARGS(
-					MAX_PARAMS));
+				E_TOOMANYARGS(MAX_PARAMS));
 			unreachable();
 		}
 			
@@ -1898,6 +1963,7 @@ void call(comp_t* cmp) {
 	eat(cmp, T_RPAREN, "expected ')'");
 	
 	emit_unary(cmp, OP_CALL, argc);
+	comp_simstack(cmp, -argc);
 }
 
 void comp_copystate(
@@ -2050,7 +2116,7 @@ void if_else(comp_t* cmp) {
 /* parses a block expression.
  * in essence, a block is a series of
  * expressions ultimately reduced down
- * to a single value, its "return value" */
+ * to a single value */
 void block(comp_t* cmp) {
 	cmp->depth++;
 	
@@ -2078,8 +2144,8 @@ void block(comp_t* cmp) {
 	
 	cmp->depth--;	
 	 
-	/* it's time to shrink the stack in order
-	 * to get rid of any lingering local
+	/* shrink the stack in order
+	 * to get rid of all local
 	 * variables; we start by counting
 	 * how many there are while also deleting
 	 * their names from the symbol table */
@@ -2176,7 +2242,7 @@ void sylt_free(sylt_t* ctx) {
 	/* free all objects */
 	obj_t* obj = ctx->objs;
 	for (; obj; obj = obj->next)
-		puts("z"), obj_free(obj, ctx);
+		obj_free(obj, ctx);
 		
 	comp_free(ctx->cmp);
 	ptr_free(ctx->cmp, comp_t, ctx);

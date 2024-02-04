@@ -14,7 +14,7 @@
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_POOL 1
 #define DBG_PRINT_OPCODES 1
-#define DBG_PRINT_STACK 1
+#define DBG_PRINT_STACK 0
 #define DBG_PRINT_ALLOCS 0
 #define DBG_CHECK_MEMLEAKS 1
 #define DBG_ASSERT 1
@@ -53,8 +53,16 @@
 #define unreachable()
 #endif
 
+typedef enum {
+	STATE_INIT,
+	STATE_COMPILING,
+	STATE_RUNNING,
+	STATE_FINISHED,
+} sylt_state_t;
+
 /* sylt API struct */
 typedef struct {
+	sylt_state_t state;
 	/* compiler */
 	struct comp_s* cmp;
 	/* virtual machine */
@@ -102,23 +110,10 @@ typedef struct {
 #define E_STACKOVERFLOW \
 	14, "stack overflow"
 
-/* halts with an error message,
- * use the above macros as arguments */
 void halt(
 	sylt_t* ctx,
 	int code,
-	const char* fmt, ...)
-{
-	char msg[1024];
-	
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(msg, 1024, fmt, args);
-	va_end(args);
-	
-	printf("error: %s\n", msg);
-	exit(EXIT_FAILURE);
-}
+	const char* fmt, ...);
 
 /* == memory == */
 
@@ -260,6 +255,9 @@ typedef struct {
 	size_t slots;
 	/* name, for errors and debugging */
 	struct string_s* name;
+	/* list of line numbers */
+	int32_t* lines;
+	size_t nlines;
 } chunk_t;
 
 /* value types */
@@ -558,6 +556,8 @@ void chunk_init(
 	chunk->npool = 0;
 	chunk->slots = 0;
 	chunk->name = name;
+	chunk->lines = NULL;
+	chunk->nlines = 0;
 }
 
 void chunk_free(
@@ -570,6 +570,9 @@ void chunk_free(
     arr_free(
     	chunk->pool, value_t, chunk->npool,
     	ctx);
+    arr_free(
+    	chunk->lines, int32_t, chunk->nlines,
+    	ctx);
     chunk_init(chunk, NULL);
 }
 
@@ -577,6 +580,7 @@ void chunk_free(
 void chunk_write(
 	chunk_t* chunk,
 	uint8_t byte,
+	int32_t line,
 	sylt_t* ctx)
 {
 	if (chunk->ncode >= CHUNK_MAX_CODE) {
@@ -594,6 +598,15 @@ void chunk_write(
 		chunk->ncode + 1,
 		ctx);
 	chunk->code[chunk->ncode++] = byte;
+	
+	/* map line number to byte */
+	chunk->lines = arr_resize(
+		chunk->lines,
+		uint32_t,
+		chunk->nlines,
+		chunk->nlines + 1,
+		ctx);
+	chunk->lines[chunk->nlines++] = line;
 }
 
 /* writes a value to the constant pool
@@ -631,6 +644,8 @@ size_t chunk_write_pool(
 	chunk->pool[chunk->npool++] = val;
 	return chunk->npool - 1;
 }
+
+/* == virtual machine == */
 
 /* execution state relative to the last
  * function call */
@@ -707,7 +722,7 @@ void dbg_print_header(
 	}
 	#endif
 		
-	puts("  addr opcode             hex");
+	puts("  addr  line opcode           hex");
 	printf("  ");
 	for (int i = 0; i < 40; i++)
 		putchar('-');
@@ -719,11 +734,21 @@ void dbg_print_instruction(
 {
 	op_t op = vm->fp->ip[-1];
 	size_t addr =
-		(size_t)(vm->fp->ip
-			- chunk->code - 1);
+		(size_t)
+			(vm->fp->ip - chunk->code - 1);
+	printf("  %05ld", addr);
+	
+	const int32_t* lines =
+		vm->fp->func->chunk.lines;
+	int32_t line = lines[addr];
+	
+	if (line > 0 && line != lines[addr - 1])
+		printf(" %-4d ", line);
+	else
+		printf(" |    ");
+		
 	const char* name = OPINFO[op].name;
-	printf("  %05ld %-18s",
-		addr, name);
+	printf("%-17s", name);
 		
 	/* hex values */
 	int rank = OPINFO[op].rank;
@@ -768,23 +793,24 @@ void dbg_print_stack(
 	printf(" ]\n");
 }
 
-/* pushes a value on the sylt stack */
+/* pushes a value on the stack */
 inline static void sylt_push(
 	vm_t* vm, value_t val)
 {
 	*vm->sp++ = val;
 }
 
-/* pops a value from the sylt stack */
+/* pops a value from the stack */
 inline static value_t sylt_pop(vm_t* vm) {
 	return *(--vm->sp);
 }
 
+/* returns the value n down the stack */
 inline static value_t sylt_peek(
-	vm_t* vm, int depth
+	vm_t* vm, int n
 ) {
 	//assert(depth > 0);
-	return vm->sp[-1 - (depth)];
+	return vm->sp[-1 - n];
 }
 
 /* virtual machine macros */
@@ -818,6 +844,8 @@ void vm_growstack(vm_t* vm, int needed) {
 }
 
 void vm_exec(vm_t* vm, const func_t* entry) {
+	vm->ctx->state = STATE_RUNNING;
+	
 	/* init stack */
 	vm_growstack(vm, entry->chunk.slots);
 	
@@ -1010,8 +1038,11 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			value_t result = pop();
 			
 			vm->nframes--;
-			if (vm->nframes == 0)
+			if (vm->nframes == 0) {
+				vm->ctx->state
+					= STATE_FINISHED;
 				return;
+			}
 				
 			vm->sp =
 				vm->stack + vm->fp->offs - 1;
@@ -1029,6 +1060,8 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 		default: unreachable(); return;
 		}
 	}
+	
+	unreachable();
 }
 
 void vm_math(vm_t* vm, op_t opcode) {
@@ -1196,7 +1229,7 @@ typedef struct comp_s {
 	/* scanner position */
 	char* pos;
 	/* scanner line */
-	size_t line;
+	int32_t line;
 	/* parsing tokens */
 	token_t prev;
 	token_t cur;
@@ -1269,14 +1302,14 @@ token_t scan(comp_t* cmp) {
 					step();
 				}
 				step();
-				cmp->line++;
 				break;
 			}
 			
-			if (peek() == '\n')
-				cmp->line++;
 			break;
 		}
+		
+		if (peek() == '\n')
+			cmp->line++;
 		
 		step();
 	}
@@ -1323,10 +1356,8 @@ token_t scan(comp_t* cmp) {
 			step();
 		}
 		
-		if (eof()) {
-			halt(cmp->ctx,
-				E_UNTERMSTRING);
-		}
+		if (eof())
+			halt(cmp->ctx, E_UNTERMSTRING);
 		
 		step();
 		return token(T_STRING);
@@ -1409,7 +1440,10 @@ void comp_simstack(comp_t* cmp, int n) {
 /* should not be used directly; use the
  * emit_ functions below instead */
 void emit_op(
-	comp_t* cmp, op_t op)
+	comp_t* cmp,
+	op_t op,
+	const uint8_t* args,
+	size_t nargs)
 {
 	comp_simstack(cmp, OPINFO[op].effect);
 	
@@ -1454,16 +1488,26 @@ void emit_op(
 	
 	/* write the instruction opcode */
 	chunk_write(
-		comp_chunk(cmp), op, cmp->ctx);
+		comp_chunk(cmp),
+		op,
+		cmp->line,
+		cmp->ctx);
 	cmp->lastop = op;
+	
+	/* write the arguments */
+	for (size_t i = 0; i < nargs; i++) {
+		chunk_write(
+			comp_chunk(cmp),
+			args[i],
+			cmp->line,
+			cmp->ctx);
+	}
 }
 
 /* emits an instruction with no operands */
-void emit_nullary(
-	comp_t* cmp, op_t op)
-{
+void emit_nullary(comp_t* cmp, op_t op) {
 	assert(OPINFO[op].rank == 0);
-	emit_op(cmp, op);
+	emit_op(cmp, op, NULL, 0);
 }
 
 /* emits an instruction with one operand */
@@ -1471,9 +1515,8 @@ void emit_unary(
 	comp_t* cmp, op_t op, uint8_t arg)
 {
 	assert(OPINFO[op].rank == 1);
-	emit_op(cmp, op);
-	chunk_write(
-		comp_chunk(cmp), arg, cmp->ctx);
+	const uint8_t args[] = {arg};
+	emit_op(cmp, op, args, 1);
 }
 
 /* emits an instruction with two operands */
@@ -1484,9 +1527,8 @@ void emit_binary(
 	uint8_t b)
 {
 	assert(OPINFO[op].rank == 2);
-	emit_op(cmp, op);
-	chunk_write(comp_chunk(cmp), a, cmp->ctx);
-	chunk_write(comp_chunk(cmp), b, cmp->ctx);
+	const uint8_t args[] = {a, b};
+	emit_op(cmp, op, args, 2);
 }
 
 /* emits an instruction to push a value
@@ -2226,9 +2268,52 @@ string_t* load_file(
 		bytes, len + 1, true, ctx);
 }
 
+/* halts with an error message */
+void halt(
+	sylt_t* ctx,
+	int code,
+	const char* fmt, ...)
+{
+	char msg[1024];
+	
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(msg, 1024, fmt, args);
+	va_end(args);
+	
+	/* print error message */
+	if (ctx->state == STATE_COMPILING) {
+		const chunk_t* chunk =
+			&ctx->cmp->func->chunk;
+		printf("error in ");
+		string_print(chunk->name);
+		printf(":%d: ", ctx->cmp->line);
+		
+	} else if (ctx->state == STATE_RUNNING) {
+		const chunk_t* chunk =
+			&ctx->vm->fp->func->chunk;
+		
+		size_t addr = (size_t)
+			(ctx->vm->fp->ip -
+				chunk->code - 1);
+		int32_t line = chunk->lines[addr];
+		
+		printf("error in ");
+		string_print(chunk->name);
+		printf(":%d: ", line);
+		
+	} else {
+		printf("error: ");
+	}
+	
+	printf("%s\n", msg);
+	exit(EXIT_FAILURE);
+}
+
 sylt_t* sylt_new(void) {
 	sylt_t* ctx =
 		ptr_alloc(sylt_t, NULL);
+	ctx->state = STATE_INIT;
 	ctx->cmp = ptr_alloc(comp_t, ctx);
 	ctx->vm = ptr_alloc(vm_t, ctx);
 	ctx->objs = NULL;
@@ -2288,6 +2373,7 @@ int main(int argc, char *argv[]) {
 			path, strlen(path), false, ctx);
 	}
 	
+	ctx->state = STATE_COMPILING;
 	comp_init(ctx->cmp, src, src_name, ctx);
 	load_slib(ctx);
 	func_t* func = compile(ctx->cmp);

@@ -14,7 +14,7 @@
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_POOL 1
 #define DBG_PRINT_OPCODES 1
-#define DBG_PRINT_STACK 0
+#define DBG_PRINT_STACK 1
 #define DBG_PRINT_ALLOCS 0
 #define DBG_CHECK_MEMLEAKS 1
 #define DBG_ASSERT 1
@@ -33,6 +33,7 @@
 #define STACK_MAX_SLOTS (UINT8_MAX + 1)
 #define MAX_CFRAMES 64
 #define MAX_PARAMS UINT8_MAX
+#define MAX_UPVALUES UINT8_MAX
 
 /* == debug macros == */
 
@@ -56,6 +57,7 @@
 typedef enum {
 	STATE_INIT,
 	STATE_COMPILING,
+	STATE_COMPILED,
 	STATE_RUNNING,
 	STATE_FINISHED,
 } sylt_state_t;
@@ -98,17 +100,20 @@ typedef struct {
 		(code)
 #define E_UNTERMSTRING \
 	10, "unterminated string"
-#define E_TOOMANYPARAMS(max) \
+#define E_TOOMANYPARAMS \
 	11, "too many parameters; limit is %d", \
-		(max)
-#define E_TOOMANYARGS(max) \
+		(MAX_PARAMS)
+#define E_TOOMANYARGS \
 	12, "too many arguments; limit is %d", \
-		(max)
+		(MAX_PARAMS)
 #define E_WRONGARGC(need, got) \
 	13, "expected %d arguments but got %d", \
 		(need), (got)
+#define E_TOOMANYUPVALUES \
+	14, "too many upvalues; max is %d", \
+		(MAX_UPVALUES)
 #define E_STACKOVERFLOW \
-	14, "stack overflow"
+	15, "stack overflow"
 
 void halt(
 	sylt_t* ctx,
@@ -175,10 +180,16 @@ void* ptr_resize(
 typedef enum {
 	/* stack */
 	OP_PUSH,
+	OP_PUSHFUNC,
 	OP_POP,
 	OP_DUP,
+	OP_SWAP,
 	OP_LOAD,
 	OP_STORE,
+	OP_LOADUP,
+	OP_MOVEHEAP,
+	OP_HIDERET,
+	OP_SHOWRET,
 	/* arithmetic */
 	OP_ADD,
 	OP_SUB,
@@ -218,10 +229,16 @@ typedef struct {
 /* can be indexed by an opcode byte */
 static opinfo_t OPINFO[] = {
 	[OP_PUSH] = {"push", 1, +1},
+	[OP_PUSHFUNC] = {"pushfunc", 1, +1},
 	[OP_POP] = {"pop", 0, -1},
 	[OP_DUP] = {"dup", 0, +1},
+	[OP_SWAP] = {"swap", 0, 0},
 	[OP_LOAD] = {"load", 1, +1},
 	[OP_STORE] = {"store", 1, 0},
+	[OP_LOADUP] = {"loadup", 1, +1},
+	[OP_MOVEHEAP] = {"moveheap", 0, -1},
+	[OP_HIDERET] = {"hideret", 0, -1},
+	[OP_SHOWRET] = {"showret", 0, +1},
 	[OP_ADD] = {"add", 0, -1},
 	[OP_SUB] = {"sub", 0, -1},
 	[OP_MUL] = {"mul", 0, -1},
@@ -267,15 +284,25 @@ typedef enum {
 	TYPE_NUM,
 	TYPE_STRING,
 	TYPE_FUNCTION,
+	TYPE_CLOSURE,
+	TYPE_UPVALUE,
 } type_t;
 
 static const char* TYPENAME[] = {
-	"Nil", "Bool", "Num", "String", "Function"
+	"Nil",
+	"Bool",
+	"Num",
+	"String",
+	"Function",
+	"Closure",
+	"Upvalue"
 };
 
 #define isheaptype(t) \
 	((t) == TYPE_STRING \
-		|| (t) == TYPE_FUNCTION)
+		|| (t) == TYPE_FUNCTION \
+		|| (t) == TYPE_CLOSURE \
+		|| (t) == TYPE_UPVALUE)
 
 /* heap-allocated object header */
 typedef struct obj_s {
@@ -283,6 +310,15 @@ typedef struct obj_s {
 	/* linked list of all objects */
 	struct obj_s* next;
 } obj_t;
+
+/* tagged enum representing a sylt value */
+typedef struct value_s {
+	type_t tag;
+	union {
+		double num;
+		obj_t* obj;
+	} data;
+} value_t;
 
 /* string object */
 typedef struct string_s {
@@ -307,7 +343,72 @@ typedef struct {
 	 * and the bytecode chunk is unused */
 	cfunc_t cfunc;
 	int params;
+	int upvalues;
 } func_t;
+
+/* closure object;
+ * wraps a function and captures its
+ * surrounding context, for example a
+ * variable declared outside of but
+ * referenced inside the function body */
+typedef struct {
+	obj_t obj;
+	func_t* func;
+	struct upvalue_s** upvals;
+	size_t nupvals;
+} closure_t;
+
+/* upvalue object;
+ * used to reference a value outside a
+ * functions local stack window */
+typedef struct upvalue_s {
+	obj_t obj;
+	/* points to a live value on the stack */
+	struct value_s* val;
+	/* if the value pointed to above goes
+	 * off the stack it gets copied here */
+	struct value_s closed;
+	struct upvalue_s* next;
+} upvalue_t;
+
+/* macros for creating a value_t
+ * from a raw value */
+#define newnil() \
+	(value_t){TYPE_NIL, {.num = 0}}
+#define newbool(v) \
+	(value_t){TYPE_BOOL, {.num = (v)}}
+#define newnum(v) \
+	(value_t){TYPE_NUM, {.num = (v)}}
+#define wrapstring(v) \
+	(value_t){TYPE_STRING, \
+		{.obj = (obj_t*)(v)}}
+#define wrapfunc(v) \
+	(value_t){TYPE_FUNCTION, \
+		{.obj = (obj_t*)(v)}}
+#define wrapclosure(v) \
+	(value_t){TYPE_CLOSURE, \
+		{.obj = (obj_t*)(v)}}
+
+/* macros for reading raw values from 
+ * value_t's. the type must be
+ * checked before accessing these to
+ * prevent undefined behaviour */
+#define getbool(v) (v).data.num
+#define getnum(v) (v).data.num
+#define getobj(v) (v).data.obj
+#define getstring(v) \
+	((string_t*)(v).data.obj)
+#define getfunc(v) \
+	((func_t*)(v).data.obj)
+#define getclosure(v) \
+	((closure_t*)(v).data.obj)
+
+#define typecheck(ctx, v, t) \
+	if (v.tag != t) \
+		halt(ctx, E_TYPE(t, v.tag))
+#define typecheck2(ctx, a, b, t) \
+	typecheck(ctx, a, t); \
+	typecheck(ctx, b, t)
 
 void chunk_init(chunk_t*, string_t*);
 void chunk_free(chunk_t*, sylt_t*);
@@ -344,6 +445,20 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 		func_t* func = (func_t*)obj;
 		chunk_free(&func->chunk, ctx);
 		ptr_free(func, func_t, ctx);
+		break;
+	}
+	case TYPE_CLOSURE: {
+		closure_t* cls = (closure_t*)obj;
+		arr_free(
+			cls->upvals,
+			upvalue_t*,
+			cls->nupvals,
+			ctx);
+		ptr_free(cls, closure_t, ctx);
+		break;
+	}
+	case TYPE_UPVALUE: {
+		ptr_free(obj, upvalue_t, ctx);
 		break;
 	}
 	default: unreachable();
@@ -385,10 +500,10 @@ func_t* func_new(
 ) {
 	func_t* func = (func_t*)obj_new(
 		sizeof(func_t), TYPE_FUNCTION, ctx);
-	
 	chunk_init(&func->chunk, name);
 	func->cfunc = NULL;
 	func->params = 0;
+	func->upvalues = 0;
 	return func;
 }
 
@@ -405,48 +520,35 @@ func_t* func_newc(
 	return func;
 }
 
-/* tagged enum representing a sylt value */
-typedef struct value_s {
-	type_t tag;
-	union {
-		double num;
-		obj_t* obj;
-	} data;
-} value_t;
+/* creates a new closure around a function */
+closure_t* closure_new(
+	sylt_t* ctx, func_t* func
+) {
+	upvalue_t** upvals = arr_alloc(
+		upvalue_t*, func->upvalues, ctx);
+	for (size_t i = 0;
+		i < func->upvalues; i++)
+		upvals[i] = NULL;
+		
+	closure_t* cls = (closure_t*)obj_new(
+		sizeof(closure_t), TYPE_CLOSURE, ctx);
+	cls->func = func;
+	cls->upvals = upvals;
+	cls->nupvals = func->upvalues;
+	return cls;
+}
 
-/* macros for creating a value_t
- * from a raw value */
-#define newnil() \
-	(value_t){TYPE_NIL, {.num = 0}}
-#define newbool(v) \
-	(value_t){TYPE_BOOL, {.num = (v)}}
-#define newnum(v) \
-	(value_t){TYPE_NUM, {.num = (v)}}
-#define newstring(v) \
-	(value_t){TYPE_STRING, \
-		{.obj = (obj_t*)(v)}}
-#define newfunc(v) \
-	(value_t){TYPE_FUNCTION, \
-		{.obj = (obj_t*)(v)}}
-
-/* macros for reading raw values from 
- * value_t's. the type must be
- * checked before accessing these to
- * prevent undefined behaviour */
-#define getbool(v) (v).data.num
-#define getnum(v) (v).data.num
-#define getobj(v) (v).data.obj
-#define getstring(v) \
-	((string_t*)(v).data.obj)
-#define getfunc(v) \
-	((func_t*)(v).data.obj)
-
-#define typecheck(ctx, v, t) \
-	if (v.tag != t) \
-		halt(ctx, E_TYPE(t, v.tag))
-#define typecheck2(ctx, a, b, t) \
-	typecheck(ctx, a, t); \
-	typecheck(ctx, b, t)
+/* creates a new upvalue */
+upvalue_t* upvalue_new(
+	sylt_t* ctx, struct value_s* val
+) {
+	upvalue_t* upval = (upvalue_t*)obj_new(
+		sizeof(upvalue_t), TYPE_UPVALUE, ctx);
+	upval->val = val;
+	upval->closed = newnil();
+	upval->next = NULL;
+	return upval;
+}
 
 /* returns true if the values are equal */
 bool val_eq(value_t a, value_t b) {
@@ -469,7 +571,9 @@ bool val_eq(value_t a, value_t b) {
 				bstr->bytes,
 				astr->len);
 	}
-	case TYPE_FUNCTION: {
+	case TYPE_FUNCTION:
+	case TYPE_CLOSURE:
+	case TYPE_UPVALUE: {
 		return getobj(a) == getobj(b);
 	}
 	default: unreachable();
@@ -508,6 +612,14 @@ string_t* val_tostring(
 	case TYPE_FUNCTION: {
 		return getfunc(val)->chunk.name;
 	}
+	case TYPE_CLOSURE: {
+		return getclosure(val)->
+			func->chunk.name;
+	}
+	case TYPE_UPVALUE: {
+		return string_new(
+			"upval", 5, false, ctx);
+	}
 	default: unreachable();
 	}
 	
@@ -542,7 +654,7 @@ void val_print(
 		printf("%.*s",
 			(int)str->len, str->bytes);
 		
-		if (val.tag == TYPE_FUNCTION)
+		if (val.tag == TYPE_CLOSURE)
 			printf("()");
 	}
 }
@@ -652,6 +764,8 @@ size_t chunk_write_pool(
 typedef struct {
 	/* prototype of called function */
 	const func_t* func;
+	/* closure wrapping the prototype */
+	const closure_t* cls;
 	/* points to the current instruction */
 	uint8_t* ip;
 	/* offset within global stack */
@@ -669,6 +783,10 @@ typedef struct vm_s {
 	size_t maxstack;
 	/* points to top of stack + 1 */
 	value_t* sp;
+	/* linked list of open upvalues */
+	upvalue_t* openups;
+	/* special slot for return value */
+	value_t hidden;
 	/* reference to API */
 	sylt_t* ctx;
 } vm_t;
@@ -679,6 +797,8 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->stack = NULL;
 	vm->maxstack = 0;
 	vm->sp = NULL;
+	vm->openups = NULL;
+	vm->hidden = newnil();
 	vm->ctx = ctx;
 }
 
@@ -763,7 +883,7 @@ void dbg_print_instruction(
 void dbg_print_stack(
 	const vm_t* vm, const chunk_t* chunk)
 {
-	const int maxvals = 2;
+	const int maxvals = 5;
 	
 	/* don't print first iteration */
 	if (vm->fp->ip - 1 == chunk->code)
@@ -819,9 +939,9 @@ inline static value_t sylt_peek(
 	(vm->fp->ip += 2, (uint16_t) \
 		((vm->fp->ip[-2] << 8) \
 			| vm->fp->ip[-1]))
-#define push(v) sylt_push(vm, v)
+#define push(v) sylt_push(vm, (v))
 #define pop() sylt_pop(vm)
-#define peek(d) sylt_peek(vm, d)
+#define peek(n) sylt_peek(vm, (n))
 
 void vm_math(vm_t* vm, op_t opcode);
 
@@ -841,6 +961,44 @@ void vm_growstack(vm_t* vm, int needed) {
 	vm->maxstack = needed;
 	
 	vm->sp = vm->stack + offset;
+}
+
+upvalue_t* capture_upval(
+	vm_t* vm, value_t* val)
+{
+	upvalue_t* prev = NULL;
+	upvalue_t* cur = vm->openups;
+	while (cur && cur->val > val) {
+		prev = cur;
+		cur = cur->next;
+	}
+	
+	if (cur && cur->val == val)
+		return cur;
+	
+	upvalue_t* fresh = upvalue_new(
+		vm->ctx, val);
+	
+	fresh->next = cur;
+	if (!prev)
+		vm->openups = fresh;
+	else
+		prev->next = fresh;
+	
+	return fresh;
+}
+
+void close_upvalues(
+	vm_t* vm, value_t* last)
+{
+	if (vm->openups
+		&& vm->openups->val >= last)
+	{
+		upvalue_t* upval = vm->openups;
+		upval->closed = *upval->val;
+		upval->val = &upval->closed;
+		vm->openups = upval->next;
+	}
 }
 
 void vm_exec(vm_t* vm, const func_t* entry) {
@@ -885,6 +1043,35 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			push(val);
 			break;
 		}
+		case OP_PUSHFUNC: {
+			func_t* func = 
+				getfunc(vm->fp->func->
+					chunk.pool[read()]);
+			
+			closure_t* cls =
+				closure_new(vm->ctx, func);
+			push(wrapclosure(cls));
+			
+			for (size_t i = 0;
+				i < cls->nupvals; i++)
+			{
+				uint8_t islocal = read();
+				uint8_t index = read();
+				if (islocal) {
+					value_t* val = vm->stack
+						+ vm->fp->offs
+						+ index;
+					cls->upvals[i] =
+						capture_upval(
+							vm, val);
+				} else {
+					cls->upvals[i] = vm->fp->
+						cls->upvals[index];
+				}
+			}
+			
+			break;
+		}
 		case OP_POP: {
 			pop();
 			break;
@@ -894,18 +1081,45 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			push(val);
 			break;
 		}
+		case OP_SWAP: {
+			value_t tmp = vm->sp[-2];
+			vm->sp[-2] = vm->sp[-1];
+			vm->sp[-1] = tmp;
+			break;
+		}
 		case OP_LOAD: {
-			value_t val = *(vm->stack
-				+ vm->fp->offs
-				+ read());
+			value_t val =
+				*(vm->stack
+					+ vm->fp->offs
+					+ read());
 			push(val);
 			break;
 		}
 		case OP_STORE: {
-			value_t val = vm->sp[-1];
+			value_t val = peek(0);
 			*(vm->stack
 				+ vm->fp->offs
 				+ read()) = val;
+			break;
+		}
+		case OP_LOADUP: {
+			uint8_t index = read();
+			value_t val = *vm->fp->cls->
+				upvals[index]->val;
+			push(val);
+			break;
+		}
+		case OP_MOVEHEAP: {
+			close_upvalues(vm, vm->sp - 1);
+			pop();
+			break;
+		}
+		case OP_HIDERET: {
+			vm->hidden = pop();
+			break;
+		}
+		case OP_SHOWRET: {
+			push(vm->hidden);
 			break;
 		}
 		/* arithmetic */
@@ -920,10 +1134,9 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 		case OP_UMIN: {
 			typecheck(
 				vm->ctx,
-				vm->sp[-1],
+				peek(0),
 				TYPE_NUM);
-			vm->sp[-1].data.num =
-				-vm->sp[-1].data.num;
+			push(newnum(-getnum(pop())));
 			break;
 		}
 		/* comparison */
@@ -952,8 +1165,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 				vm->ctx,
 				vm->sp[-1],
 				TYPE_BOOL);
-			vm->sp[-1].data.num =
-				!vm->sp[-1].data.num;
+			push(newbool(!getbool(pop())));
 			break;
 		}
 		/* control flow */
@@ -980,8 +1192,14 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 		}
 		case OP_CALL: {
 			uint8_t argc = read();
-			func_t* func =
-				getfunc(peek(argc));
+			typecheck(
+				vm->ctx,
+				peek(argc),
+				TYPE_CLOSURE);
+			
+			closure_t* cls =
+				getclosure(peek(argc));
+			func_t* func = cls->func;
 				
 			if (func->params != argc) {
 				halt(vm->ctx, E_WRONGARGC(
@@ -1021,6 +1239,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			/* push a new call frame */
 			cframe_t frame;
 			frame.func = func;
+			frame.cls = cls;
 			frame.ip = func->chunk.code;
 			frame.offs = used - argc;
 			vm->frames[vm->nframes++] = frame;
@@ -1036,6 +1255,8 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 		}
 		case OP_RET: {
 			value_t result = pop();
+			close_upvalues(vm,
+				vm->stack + vm->fp->offs);
 			
 			vm->nframes--;
 			if (vm->nframes == 0) {
@@ -1065,10 +1286,10 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 }
 
 void vm_math(vm_t* vm, op_t opcode) {
-	typecheck(vm->ctx, vm->sp[-1], TYPE_NUM);
+	typecheck(vm->ctx, peek(0), TYPE_NUM);
 	double b = getnum(pop());
 	
-	typecheck(vm->ctx, vm->sp[-1], TYPE_NUM);
+	typecheck(vm->ctx, peek(0), TYPE_NUM);
 	double a = getnum(pop());
 	
 	switch (opcode) {
@@ -1204,14 +1425,22 @@ typedef enum {
 const int ANY_PREC = PREC_ASSIGN;
 
 typedef struct {
-	const char* name;
-	size_t len;
+	token_t name;
 	/* scope depth */
 	int depth;
+	/* captured by a closure */
+	bool capped;
 } symbol_t;
+
+typedef struct {
+	bool islocal;
+	uint8_t index;
+} cmp_upvalue_t;
 
 /* compiler + lexer & parser state */
 typedef struct comp_s {
+	/* for nested function declarations */
+	struct comp_s* parent;
 	/* output */
 	func_t* func;
 	/* current (simulated) stack size */
@@ -1238,6 +1467,8 @@ typedef struct comp_s {
 	size_t nnames;
 	/* current scope depth */
 	int depth;
+	/* upvalues */
+	cmp_upvalue_t upvals[MAX_UPVALUES];
 	/* reference to API */
 	sylt_t* ctx;
 } comp_t;
@@ -1248,6 +1479,7 @@ void comp_init(
 	string_t* src_name,
 	sylt_t* ctx)
 {
+	cmp->parent = NULL;
 	cmp->func = func_new(ctx, src_name);
 	cmp->curslots = 0;
 	
@@ -1450,7 +1682,10 @@ void emit_op(
 	#if OPTZ_PUSHPOP
 	/* prevents emitting code when pushing
 	 * a value and immediately popping it */
-	bool waspush = cmp->lastop == OP_PUSH;
+	bool waspush =
+		cmp->lastop == OP_PUSH;
+		&& cmp->lastop == OP_CLOSE;
+	
 	if (op == OP_POP && waspush) {
 		int shrink =
 			1 + OPINFO[cmp->lastop].rank;
@@ -1467,7 +1702,7 @@ void emit_op(
 		
 		/* delete the value from the value
 		 * pool if one was written */
-		if (cmp->lastop == OP_PUSH) {
+		if (true) {
 			chunk->pool = arr_resize(
 				chunk->pool,
 				value_t,
@@ -1547,7 +1782,13 @@ void emit_value(
 	
 	size_t slot = chunk_write_pool(
 		comp_chunk(cmp), val, cmp->ctx);
-	emit_unary(cmp, OP_PUSH, slot);
+		
+	if (val.tag == TYPE_FUNCTION) {
+		emit_unary(cmp, OP_PUSHFUNC, slot);
+	
+	} else {
+		emit_unary(cmp, OP_PUSH, slot);
+	}
 	
 	cmp->lastpush = val;
 }
@@ -1585,19 +1826,18 @@ void patch_jump(comp_t* cmp, int addr) {
 
 /* adds a name to the symbol table and
  * returns the index */
-int add_symbol(
-	comp_t* cmp, const char* name, size_t len)
-{
+int add_symbol(comp_t* cmp, token_t name) {
 	#if DBG_PRINT_NAMES
 	for (int i = 0; i < cmp->depth; i++)
 		printf("  ");
-	printf("(sym) %.*s\n", (int)len, name);
+	printf("(sym) %.*s\n",
+		(int)name.len, name.start);
 	#endif
 	
 	symbol_t sym;
 	sym.name = name;
-	sym.len = len;
 	sym.depth = cmp->depth;
+	sym.capped = false;
 	
 	cmp->names = arr_resize(
 		cmp->names,
@@ -1612,9 +1852,7 @@ int add_symbol(
 
 /* returns the index of a local variable
  * in the symbol table or -1 if not found */
-int find_symbol(
-	comp_t* cmp, const char* name, size_t len)
-{
+int find_symbol(comp_t* cmp, token_t name) {
 	if (cmp->nnames == 0)
 		return -1;
 	
@@ -1622,10 +1860,16 @@ int find_symbol(
 	 * shadowed variable names */
 	int start = cmp->nnames - 1;
 	for (int i = start; i >= 0; i--) {
-		symbol_t* other = &cmp->names[i];
-		bool equal = other->len == len
-			&& memcmp(other->name, name, len)
-				== 0;
+		token_t other = cmp->names[i].name;
+		//printf("%.*s\n",
+		//	(int)other.len, other.start);
+		
+		bool equal = name.len == other.len
+			&& memcmp(
+				name.start,
+				other.start,
+				name.len
+			) == 0;
 		if (equal)
 			return i;
 	}
@@ -1633,25 +1877,57 @@ int find_symbol(
 	return -1;
 }
 
-void slib_add(
-	sylt_t* ctx,
-	const char* name,
-	cfunc_t cfunc,
-	int params)
+int add_upvalue(
+	comp_t* cmp, uint8_t index, bool islocal)
 {
-	comp_t* cmp = ctx->cmp;
-	add_symbol(cmp, name, strlen(name));
+	size_t n = cmp->func->upvalues;
 	
-	func_t* func = func_newc(
-		ctx,
-		string_new(
-			name,
-			strlen(name),
-			false,
-			ctx),
-		cfunc,
-		params);
-	emit_value(cmp, newfunc(func));
+	/* check if one already exists */
+	for (size_t i = 0; i < n; i++) {
+		cmp_upvalue_t* upval =
+			&cmp->upvals[i];
+		if (upval->index == index
+			&& upval->islocal == islocal)
+		{
+			return i;
+		}
+	}
+	
+	if (n == MAX_UPVALUES) {
+		halt(cmp->ctx, E_TOOMANYUPVALUES);
+		unreachable();
+	}
+	
+	cmp->upvals[n].islocal = islocal;
+	cmp->upvals[n].index = index;
+	return cmp->func->upvalues++;
+}
+
+int find_upvalue(comp_t* cmp, token_t name) {
+	if (!cmp->parent)
+		return -1;
+	
+	/* search for a local variable in the
+	 * enclosing function */
+	int local =
+		find_symbol(cmp->parent, name);
+	if (local != -1) {
+		cmp->parent->names[local].capped =
+			true;
+		
+		return add_upvalue(cmp, local, true);
+	}
+	
+	/* recursively search for an upvalue
+	 * higher up */
+	int upvalue =
+		find_upvalue(cmp->parent, name);
+	if (upvalue != -1) {
+		return
+			add_upvalue(cmp, upvalue, false);
+	}
+	
+	return -1;
 }
 
 /* == parser == */
@@ -1802,27 +2078,28 @@ void literal(comp_t* cmp) {
 
 /* parses a symbol name */
 void name(comp_t* cmp) {
-	int index = find_symbol(
-		cmp,
-		cmp->prev.start,
-		cmp->prev.len);
-	
-	if (index == -1) {
-		halt(cmp->ctx, E_UNDEFINED(
-			cmp->prev.len,
-			cmp->prev.start));
+	int index = find_symbol(cmp, cmp->prev);
+	if (index != -1) {
+		#if OPTZ_EMIT_DUP
+		if (index == cmp->lastload) {
+			emit_nullary(cmp, OP_DUP);
+			return;
+		}
+		cmp->lastload = index;
+		#endif
+		
+		emit_unary(cmp, OP_LOAD, index);
 		return;
 	}
 	
-	#if OPTZ_EMIT_DUP
-	if (index == cmp->lastload) {
-		emit_nullary(cmp, OP_DUP);
+	index = find_upvalue(cmp, cmp->prev);
+	if (index != -1) {
+		emit_unary(cmp, OP_LOADUP, index);
 		return;
 	}
-	#endif
 	
-	emit_unary(cmp, OP_LOAD, index);
-	cmp->lastload = index;
+	halt(cmp->ctx, E_UNDEFINED(
+		cmp->prev.len, cmp->prev.start));
 }
 
 /* parses a string literal */
@@ -1890,7 +2167,7 @@ void string(comp_t* cmp) {
 	 * to free it */
 	string_t* strobj = string_new(
 		str, strlen, true, cmp->ctx);
-	emit_value(cmp, newstring(strobj));
+	emit_value(cmp, wrapstring(strobj));
 }
 
 /* parses a numeric literal */
@@ -1991,8 +2268,7 @@ void call(comp_t* cmp) {
 		&& !check(cmp, T_EOF)
 	) {
 		if (argc >= MAX_PARAMS) {
-			halt(cmp->ctx, 
-				E_TOOMANYARGS(MAX_PARAMS));
+			halt(cmp->ctx, E_TOOMANYARGS);
 			unreachable();
 		}
 			
@@ -2017,6 +2293,8 @@ void comp_copystate(
 	to->cur = from->cur;
 }
 
+void parse_func(comp_t* cmp, token_t name);
+
 /* parses a variable declaration */
 void let(comp_t* cmp) {
 	eat(cmp, T_NAME,
@@ -2026,74 +2304,12 @@ void let(comp_t* cmp) {
 	token_t name = cmp->prev;
 	
 	if (match(cmp, T_LPAREN)) {
-		/* parse a function declaration
-		 * in the form of
-		 * let name(p1, p2, ..) = body */
-		 
-		/* setup a new compiler instance
-		 * in order to parse the function */
-		comp_t fcmp;
-		comp_init(
-			&fcmp,
-			cmp->src,
-			string_new(
-				name.start,
-				name.len,
-				false,
-				cmp->ctx),
-			cmp->ctx);
-		comp_copystate(cmp, &fcmp);
-		
-		/* parse parameter list */
-		while (
-			!check(&fcmp, T_RPAREN)
-			&& !check(&fcmp, T_EOF)
-		) {
-			if (fcmp.func->params
-				>= MAX_PARAMS)
-			{
-				halt(fcmp.ctx, 
-					E_TOOMANYPARAMS(
-						MAX_PARAMS));
-				unreachable();
-			}
-			
-			eat(&fcmp, T_NAME,
-				"expected parameter name");
-			
-			token_t name = fcmp.prev;
-			add_symbol(
-				&fcmp,
-				name.start,
-				name.len);
-			fcmp.func->params++;
-			
-			if (!match(&fcmp, T_COMMA))
-				break;
-		}
-		
-		eat(&fcmp, T_RPAREN,
-			"expected ')' or a parameter "
-			"name");
-		
-		eat(&fcmp, T_EQ,
-			"expected '=' after ')'");
-			
-		/* function body */
-		expr(&fcmp, ANY_PREC);
-		emit_nullary(&fcmp, OP_RET);
-		
-		/* push the function on the stack */
-		emit_value(cmp, newfunc(fcmp.func));
-			
-		comp_copystate(&fcmp, cmp);
-		comp_free(&fcmp);
+		 parse_func(cmp, name);
 		
 	} else {
 		/* parse a variable declaration 
 		 * in the form of 
 		 * let name = expr */
-		
 		eat(cmp, T_EQ,
 			"expected '=' after "
 			"variable name");
@@ -2101,12 +2317,95 @@ void let(comp_t* cmp) {
 		/* compile the right hand side
 	 	* of the expression */
 		expr(cmp, ANY_PREC);
+		add_symbol(cmp, name);
 	}
-	
-	add_symbol(cmp, name.start, name.len);
 	
 	/* expression yields a 'nil' */
 	emit_value(cmp, newnil());
+}
+
+/* parse a function declaration
+ * in the form of
+ * let name(p1, p2, ..) = body */
+void parse_func(comp_t* cmp, token_t name) {
+	/* add symbol first in order
+	 * to support recursion */
+	add_symbol(cmp, name);
+	
+	/* setup a new compiler instance
+	* in order to parse the function */
+	comp_t fcmp;
+	comp_init(
+		&fcmp,
+		cmp->src,
+		string_new(
+			name.start,
+				name.len,
+				false,
+				cmp->ctx),
+			cmp->ctx);
+		comp_copystate(cmp, &fcmp);
+		fcmp.parent = cmp;
+		
+	/* parse parameter list */
+	while (
+		!check(&fcmp, T_RPAREN)
+		&& !check(&fcmp, T_EOF)
+	) {
+		if (fcmp.func->params
+			>= MAX_PARAMS)
+		{
+			halt(fcmp.ctx,
+				E_TOOMANYPARAMS);
+			unreachable();
+		}
+			
+		eat(&fcmp, T_NAME,
+			"expected parameter name");
+			
+		token_t name = fcmp.prev;
+		add_symbol(&fcmp, name);
+		fcmp.func->params++;
+			
+		if (!match(&fcmp, T_COMMA))
+			break;
+	}
+		
+	eat(&fcmp, T_RPAREN,
+		"expected ')' or a parameter "
+		"name");
+	
+	eat(&fcmp, T_EQ,
+		"expected '=' after ')'");
+			
+	/* function body */
+	expr(&fcmp, ANY_PREC);
+	emit_nullary(&fcmp, OP_RET);
+	
+	func_t* func = fcmp.func;
+		
+	/* push the function on the stack */
+	emit_value(cmp, wrapfunc(func));
+	
+	/* write arguments to OP_PUSHFUNC */
+	for (size_t i = 0;
+		i < func->upvalues; i++)
+	{
+		cmp_upvalue_t* upval =
+			&fcmp.upvals[i];
+			
+		chunk_write(&cmp->func->chunk,
+			upval->islocal,
+			cmp->line,
+			cmp->ctx);
+		chunk_write(&cmp->func->chunk,
+			upval->index,
+			cmp->line,
+			cmp->ctx);
+	}
+		
+	comp_copystate(&fcmp, cmp);
+	comp_free(&fcmp);
 }
 
 /* parses an if/else expression */
@@ -2162,6 +2461,9 @@ void if_else(comp_t* cmp) {
 void block(comp_t* cmp) {
 	cmp->depth++;
 	
+	/*emit_value(cmp, newnil());
+	int result = cmp->curslots - 1;*/
+	
 	/* a block must return a value even
 	 * when it contains zero expressions */
 	if (match(cmp, T_RCURLY)) {
@@ -2184,44 +2486,58 @@ void block(comp_t* cmp) {
 	}
 	eat(cmp, T_RCURLY, "expected '}'");
 	
-	cmp->depth--;	
+	cmp->depth--;
 	 
-	/* shrink the stack in order
-	 * to get rid of all local
-	 * variables; we start by counting
-	 * how many there are while also deleting
-	 * their names from the symbol table */
+	/* count the number of local variables */
 	int locals = 0;
+	int index = cmp->nnames - 1;
+	while (index >= 0 &&
+		cmp->names[index].depth > cmp->depth)
+	{
+		locals++;
+		index--;
+	}
+	
+	if (locals == 0)
+		return;
+		
+	/* move the result of the expression
+	 * to a safe place on the stack */
+	/*int safe =
+		cmp->curslots - locals - 1;*/
+	//emit_unary(cmp, OP_STORE, result);
+	emit_nullary(cmp, OP_HIDERET);
+	
+	/* pop the locals */
 	while (cmp->nnames > 0 &&
 		cmp->names[cmp->nnames - 1].depth
 			> cmp->depth)
 	{
-		locals++;
+		symbol_t* name =
+			&cmp->names[cmp->nnames - 1];
 		cmp->nnames--;
-	}
-	
-	if (locals > 0) {
-		/* shrink symbol table */
-		cmp->names = arr_resize(
-			cmp->names,
-			symbol_t,
-			cmp->nnames + locals,
-			cmp->nnames,
-			cmp->ctx);
 		
-		/* move the result of the expression
-		 * to a safe place on the stack */
-		int safe =
-			cmp->curslots - locals - 1;
-		emit_unary(cmp, OP_STORE, safe);
+		//emit_nullary(cmp, OP_SWAP);
 		
-		/* pop the locals */
-		for (size_t i = 0; i < locals; i++)
+		if (name->capped)
+			emit_nullary(cmp, OP_MOVEHEAP);
+		else
 			emit_nullary(cmp, OP_POP);
 	}
+	
+	emit_nullary(cmp, OP_SHOWRET);
+	
+	/* shrink symbol table */
+	cmp->names = arr_resize(
+		cmp->names,
+		symbol_t,
+		cmp->nnames + locals,
+		cmp->nnames,
+		cmp->ctx);
 }
 
 func_t* compile(comp_t* cmp) {
+	cmp->ctx->state = STATE_COMPILING;
 	printf("compiling...\n");
 	
 	#if DBG_PRINT_SOURCE
@@ -2239,7 +2555,32 @@ func_t* compile(comp_t* cmp) {
 	
 	printf("done\n");
 	emit_nullary(cmp, OP_RET);
+	
+	cmp->ctx->state = STATE_COMPILED;
 	return cmp->func;
+}
+
+void slib_add(
+	sylt_t* ctx,
+	const char* name,
+	cfunc_t cfunc,
+	int params)
+{
+	comp_t* cmp = ctx->cmp;
+	token_t token =
+		(token_t){T_NAME, name, strlen(name)};
+	add_symbol(cmp, token);
+	
+	func_t* func = func_newc(
+		ctx,
+		string_new(
+			name,
+			strlen(name),
+			false,
+			ctx),
+		cfunc,
+		params);
+	emit_value(cmp, wrapfunc(func));
 }
 
 string_t* load_file(
@@ -2248,7 +2589,7 @@ string_t* load_file(
 	FILE* fp = fopen(path, "rb");
 	if (!fp) {
 		halt(ctx, E_IO(
-			"failed to open %s", path));
+			"failed to open", path));
 		return NULL;
 	}
 	
@@ -2324,11 +2665,13 @@ sylt_t* sylt_new(void) {
 }
 
 void sylt_free(sylt_t* ctx) {
-	/* free all objects */
 	obj_t* obj = ctx->objs;
-	for (; obj; obj = obj->next)
+	while (obj) {
+		obj_t* next = obj->next;
 		obj_free(obj, ctx);
-		
+		obj = next;
+	}
+	
 	comp_free(ctx->cmp);
 	ptr_free(ctx->cmp, comp_t, ctx);
 	
@@ -2373,7 +2716,6 @@ int main(int argc, char *argv[]) {
 			path, strlen(path), false, ctx);
 	}
 	
-	ctx->state = STATE_COMPILING;
 	comp_init(ctx->cmp, src, src_name, ctx);
 	load_slib(ctx);
 	func_t* func = compile(ctx->cmp);

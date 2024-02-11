@@ -27,10 +27,10 @@
 
 /* == code limits == */
 
-#define CHUNK_MAX_CODE (UINT16_MAX + 1)
-#define CHUNK_MAX_POOL (UINT8_MAX + 1)
-#define JUMP_MAX_DISTANCE UINT16_MAX
-#define STACK_MAX_SLOTS (UINT8_MAX + 1)
+#define MAX_CODE (UINT16_MAX + 1)
+#define MAX_DATA (UINT8_MAX + 1)
+#define MAX_STACK (UINT8_MAX + 1)
+#define MAX_JUMP UINT16_MAX
 #define MAX_CFRAMES 64
 #define MAX_PARAMS UINT8_MAX
 #define MAX_UPVALUES UINT8_MAX
@@ -79,41 +79,49 @@ typedef struct {
 
 #define E_OUTOFMEM \
 	1, "out of memory"
-#define E_OUTOFBOUNDS(msg, i, n) \
-	2, "%s (%d/%d)", (msg), (i), (n)
+#define E_NOINPUT \
+	2, "no input"
+#define E_CODELIMIT \
+	3, "bytecode limit (%d) reached", MAX_CODE
+#define E_DATALIMIT \
+	4, "data limit (%d) reached", MAX_DATA
+#define E_STACKLIMIT \
+	5, "stack limit (%d) reached", MAX_STACK
+#define E_JUMPLIMIT \
+	6, "jump distance too far (>%d)", MAX_JUMP
 #define E_IO(msg, path) \
-	3, "%s %s", (msg), (path)
+	7, "%s %s", (msg), (path)
 #define E_DIVBYZERO \
-	4, "division by zero"
+	8, "division by zero"
 #define E_UNEXPECTEDCHAR(c) \
-	5, "unknown character '%c'", (c)
+	9, "unknown character '%c'", (c)
 #define E_SYNTAX(msg) \
-	6, "%s", (msg)
+	10, "%s", (msg)
 #define E_TYPE(ex, got) \
-	7, "expected %s but got %s", \
+	11, "expected %s but got %s", \
 		TYPENAME[(ex)], TYPENAME[(got)]
 #define E_UNDEFINED(name, len) \
-	8, "undefined variable '%.*s'", \
+	12, "undefined variable '%.*s'", \
 		(name), (len)
 #define E_ESCAPESEQ(code) \
-	9, "unknown escape sequence '\\%c'", \
+	13, "unknown escape sequence '\\%c'", \
 		(code)
 #define E_UNTERMSTRING \
-	10, "unterminated string"
+	14, "unterminated string literal"
 #define E_TOOMANYPARAMS \
-	11, "too many parameters; limit is %d", \
+	15, "too many parameters; limit is %d", \
 		(MAX_PARAMS)
 #define E_TOOMANYARGS \
-	12, "too many arguments; limit is %d", \
+	16, "too many arguments; limit is %d", \
 		(MAX_PARAMS)
 #define E_WRONGARGC(need, got) \
-	13, "expected %d arguments but got %d", \
+	17, "expected %d arguments but got %d", \
 		(need), (got)
 #define E_TOOMANYUPVALUES \
-	14, "too many upvalues; max is %d", \
+	18, "too many upvalues; max is %d", \
 		(MAX_UPVALUES)
 #define E_STACKOVERFLOW \
-	15, "stack overflow"
+	19, "stack overflow"
 
 void halt(
 	sylt_t* ctx,
@@ -180,12 +188,14 @@ void* ptr_resize(
 typedef enum {
 	/* stack */
 	OP_PUSH,
+	OP_PUSHLIST,
 	OP_PUSHFUNC,
 	OP_POP,
 	OP_DUP,
 	OP_SWAP,
 	OP_LOAD,
 	OP_STORE,
+	OP_LOADLIST,
 	OP_LOADUP,
 	OP_MOVEHEAP,
 	OP_HIDERET,
@@ -229,12 +239,14 @@ typedef struct {
 /* can be indexed by an opcode byte */
 static opinfo_t OPINFO[] = {
 	[OP_PUSH] = {"push", 1, +1},
+	[OP_PUSHLIST] = {"pushlist", 1, +1},
 	[OP_PUSHFUNC] = {"pushfunc", 1, +1},
 	[OP_POP] = {"pop", 0, -1},
 	[OP_DUP] = {"dup", 0, +1},
 	[OP_SWAP] = {"swap", 0, 0},
 	[OP_LOAD] = {"load", 1, +1},
 	[OP_STORE] = {"store", 1, 0},
+	[OP_LOADLIST] = {"loadlist", 0, -1},
 	[OP_LOADUP] = {"loadup", 1, +1},
 	[OP_MOVEHEAP] = {"moveheap", 0, -1},
 	[OP_HIDERET] = {"hideret", 0, -1},
@@ -266,8 +278,8 @@ typedef struct {
 	/* constant data; stores any
 	 * literal values found in
 	 * the source code */
-	struct value_s* pool;
-	size_t npool;
+	struct value_s* data;
+	size_t ndata;
 	/* total stack slots needed */
 	size_t slots;
 	/* name, for errors and debugging */
@@ -282,8 +294,12 @@ typedef enum {
 	TYPE_NIL,
 	TYPE_BOOL,
 	TYPE_NUM,
+	TYPE_LIST,
 	TYPE_STRING,
 	TYPE_FUNCTION,
+	/* the types below are for internal
+	 * use only and should not be exposed
+	 * to the user */
 	TYPE_CLOSURE,
 	TYPE_UPVALUE,
 } type_t;
@@ -292,6 +308,7 @@ static const char* TYPENAME[] = {
 	"Nil",
 	"Bool",
 	"Num",
+	"List",
 	"String",
 	"Function",
 	"Closure",
@@ -299,7 +316,8 @@ static const char* TYPENAME[] = {
 };
 
 #define isheaptype(t) \
-	((t) == TYPE_STRING \
+	((t) == TYPE_LIST \
+		|| (t) == TYPE_STRING \
 		|| (t) == TYPE_FUNCTION \
 		|| (t) == TYPE_CLOSURE \
 		|| (t) == TYPE_UPVALUE)
@@ -320,6 +338,13 @@ typedef struct value_s {
 	} data;
 } value_t;
 
+/* list object */
+typedef struct {
+	obj_t obj;
+	value_t* items;
+	size_t len;
+} list_t;
+
 /* string object */
 typedef struct string_s {
 	obj_t obj;
@@ -330,7 +355,7 @@ typedef struct string_s {
 } string_t;
 
 /* function pointer to a sylt library
- * function */
+ * function written in C*/
 typedef struct value_s (*cfunc_t)
 	(sylt_t* ctx);
 
@@ -353,7 +378,7 @@ typedef struct {
  * referenced inside the function body */
 typedef struct {
 	obj_t obj;
-	func_t* func;
+	const func_t* func;
 	struct upvalue_s** upvals;
 	size_t nupvals;
 } closure_t;
@@ -372,13 +397,16 @@ typedef struct upvalue_s {
 } upvalue_t;
 
 /* macros for creating a value_t
- * from a raw value */
+ * struct from a raw value */
 #define newnil() \
 	(value_t){TYPE_NIL, {.num = 0}}
 #define newbool(v) \
 	(value_t){TYPE_BOOL, {.num = (v)}}
 #define newnum(v) \
 	(value_t){TYPE_NUM, {.num = (v)}}
+#define wraplist(v) \
+	(value_t){TYPE_LIST, \
+		{.obj = (obj_t*)(v)}}
 #define wrapstring(v) \
 	(value_t){TYPE_STRING, \
 		{.obj = (obj_t*)(v)}}
@@ -389,13 +417,15 @@ typedef struct upvalue_s {
 	(value_t){TYPE_CLOSURE, \
 		{.obj = (obj_t*)(v)}}
 
-/* macros for reading raw values from 
- * value_t's. the type must be
+/* macros for getting the raw value from 
+ * a value_t. the type must be
  * checked before accessing these to
  * prevent undefined behaviour */
 #define getbool(v) (v).data.num
 #define getnum(v) (v).data.num
 #define getobj(v) (v).data.obj
+#define getlist(v) \
+	((list_t*)(v).data.obj)
 #define getstring(v) \
 	((string_t*)(v).data.obj)
 #define getfunc(v) \
@@ -430,6 +460,16 @@ obj_t* obj_new(
 
 void obj_free(obj_t* obj, sylt_t* ctx) {
 	switch (obj->tag) {
+	case TYPE_LIST: {
+		list_t* list = (list_t*)obj;
+		arr_free(
+			list->items,
+			value_t,
+			list->len,
+			ctx);
+		ptr_free(list, list_t, ctx);
+		break;
+	}
 	case TYPE_STRING: {
 		string_t* str = (string_t*)obj;
 		arr_free(
@@ -465,6 +505,58 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 	}
 }
 
+/* creates an empty list */
+list_t* list_new(sylt_t* ctx) {
+	list_t* ls = (list_t*)obj_new(
+		sizeof(list_t), TYPE_LIST, ctx);
+	ls->items = NULL;
+	ls->len = 0;
+	return ls;
+}
+
+/* returns the item at the given index */
+value_t list_get(list_t* ls, int index) {
+	if (index < 0) {
+		int mod = ls->len + index;
+		if (mod < 0)
+			return newnil();
+		return ls->items[mod];
+	}
+	
+	if (index > ls->len - 1)
+		return newnil();
+	return ls->items[index];
+}
+
+/* appends an item to the end of the list */
+void list_push(
+	list_t* ls, value_t val, sylt_t* ctx)
+{
+	ls->items = arr_resize(
+		ls->items,
+		value_t,
+		ls->len,
+		ls->len + 1,
+		ctx);
+	ls->items[ls->len++] = val;
+}
+
+/* deletes and returns the last item
+ * in the list */
+value_t list_pop(list_t* ls, sylt_t* ctx) {
+	if (ls->len == 0)
+		return newnil();
+	value_t last = list_get(ls, -1);
+	ls->items = arr_resize(
+		ls->items,
+		value_t,
+		ls->len,
+		ls->len - 1,
+		ctx);
+	ls->len--;
+	return last;
+}
+
 /* creates a new string
  * if [take] is true we take ownership of the
  * buffer, otherwise we create a copy */
@@ -490,14 +582,70 @@ string_t* string_new(
 	return str;
 }
 
+/* helper function for creating a new 
+ * string object from a C string literal */
+string_t* string_lit(
+	const char* lit, sylt_t* ctx)
+{
+	return string_new(
+		lit, strlen(lit), false, ctx);
+}
+
+/* creates a new formatted string */
+string_t* string_fmt(
+	sylt_t* ctx, const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	
+	size_t len = vsnprintf(
+		NULL, 0, fmt, args);
+		
+	char* bytes =
+		arr_alloc(char, len, ctx);
+	vsnprintf(
+		bytes, len + 1, fmt, args);
+	va_end(args);
+	
+	return string_new(
+		bytes, len, true, ctx);
+}
+
+/* concatenates two strings */
+string_t* string_concat(
+	const string_t* a,
+	const string_t* b,
+	sylt_t* ctx)
+{
+	size_t len = a->len + b->len;
+	uint8_t* bytes =
+		arr_alloc(uint8_t, len, ctx);
+		
+	memcpy(bytes, a->bytes, a->len);
+	memcpy(bytes + a->len, b->bytes, b->len);
+	
+	return string_new(
+		(const char*)bytes,
+		len, true, ctx);
+}
+
+/* appends src to dst */
+void string_append(
+	string_t** dst,
+	const string_t* src,
+	sylt_t* ctx)
+{
+	*dst = string_concat(*dst, src, ctx);	
+}
+
 void string_print(string_t* str) {
 	printf("%.*s", (int)str->len, str->bytes);
 }
 
 /* creates a new function */
 func_t* func_new(
-	sylt_t* ctx, string_t* name
-) {
+	sylt_t* ctx, string_t* name)
+{
 	func_t* func = (func_t*)obj_new(
 		sizeof(func_t), TYPE_FUNCTION, ctx);
 	chunk_init(&func->chunk, name);
@@ -512,8 +660,8 @@ func_t* func_newc(
 	sylt_t* ctx,
 	string_t* name,
 	cfunc_t cfunc,
-	int params
-) {
+	int params)
+{
 	func_t* func = func_new(ctx, name);
 	func->cfunc = cfunc;
 	func->params = params;
@@ -522,8 +670,8 @@ func_t* func_newc(
 
 /* creates a new closure around a function */
 closure_t* closure_new(
-	sylt_t* ctx, func_t* func
-) {
+	sylt_t* ctx, const func_t* func)
+{
 	upvalue_t** upvals = arr_alloc(
 		upvalue_t*, func->upvalues, ctx);
 	for (size_t i = 0;
@@ -540,8 +688,8 @@ closure_t* closure_new(
 
 /* creates a new upvalue */
 upvalue_t* upvalue_new(
-	sylt_t* ctx, struct value_s* val
-) {
+	sylt_t* ctx, struct value_s* val)
+{
 	upvalue_t* upval = (upvalue_t*)obj_new(
 		sizeof(upvalue_t), TYPE_UPVALUE, ctx);
 	upval->val = val;
@@ -562,6 +710,8 @@ bool val_eq(value_t a, value_t b) {
 		return getbool(a) == getbool(b);
 	case TYPE_NUM:
 		return getnum(a) == getnum(b);
+	case TYPE_LIST:
+		return getobj(a) == getobj(b);
 	case TYPE_STRING: {
 		string_t* astr = getstring(a);
 		string_t* bstr = getstring(b);
@@ -582,29 +732,51 @@ bool val_eq(value_t a, value_t b) {
 
 /* converts a value to a printable string */
 string_t* val_tostring(
-	value_t val, sylt_t* ctx
-) {
+	value_t val, sylt_t* ctx)
+{
 	switch (val.tag) {
-	case TYPE_NIL:
-		return string_new(
-			"nil", 3, false, ctx);
-	case TYPE_BOOL:
+	case TYPE_NIL: {
+		return string_lit("nil", ctx);
+	}
+	case TYPE_BOOL: {
 		if (getbool(val))
-			return string_new(
-				"true", 4, false, ctx);
+			return string_lit("true", ctx);
 		else
-			return string_new(
-				"false", 5, false, ctx);
+			return string_lit("false", ctx);
+	}
 	case TYPE_NUM: {
 		size_t len = snprintf(
-			NULL, 0, "%g", getnum(val)) + 1;
+			NULL, 0, "%g", getnum(val));
+		
 		char* bytes =
 			arr_alloc(char, len, ctx);
 		snprintf(
-			bytes, len, "%g", getnum(val));
+			bytes,
+			len + 1, "%g", getnum(val));
 		
 		return string_new(
 			bytes, len, true, ctx);
+	}
+	case TYPE_LIST: {
+		string_t* str = string_lit("[", ctx);
+		
+		/* print items */
+		list_t* ls = getlist(val);
+		for (size_t i = 0; i < ls->len; i++) {
+			string_t* vstr = val_tostring(
+				ls->items[i], ctx);
+			string_append(&str, vstr, ctx);
+			
+			/* add ', ' between items */
+			if (i < ls->len - 1) {
+				string_t* sep =
+					string_lit(", ", ctx);
+				string_append(&str, sep, ctx);
+			}
+		}
+		
+		return string_concat(
+			str, string_lit("]", ctx), ctx);
 	}
 	case TYPE_STRING: {
 		return getstring(val);
@@ -617,8 +789,7 @@ string_t* val_tostring(
 			func->chunk.name;
 	}
 	case TYPE_UPVALUE: {
-		return string_new(
-			"upval", 5, false, ctx);
+		return string_lit("upval", ctx);
 	}
 	default: unreachable();
 	}
@@ -626,46 +797,72 @@ string_t* val_tostring(
 	return NULL;
 }
 
-/* prints a value to stdout */
-void val_print(
+string_t* val_tostring_opts(
 	value_t val,
 	bool quotestr,
 	int maxlen,
-	sylt_t* ctx
-) {
-	string_t* str =
+	sylt_t* ctx)
+{
+	string_t* str = string_new(
+		"", 0, false, ctx);
+	string_t* vstr =
 		val_tostring(val, ctx);
 	
 	if (quotestr && val.tag == TYPE_STRING) {
-		int len = str->len;
+		int len = vstr->len;
 		bool shortened = false;
 		
 		if (maxlen > 0 && len > maxlen) {
 			len = maxlen;
 			shortened = true;
 		}
-	
-		printf("'%.*s'", len, str->bytes);
+		
+		string_append(
+			&str,
+			string_fmt(
+				ctx,
+				"'%.*s'", len, vstr->bytes),
+			ctx);
 		
 		if (shortened)
-			printf("(+%ld)",
-				str->len - maxlen);
+			string_append(
+				&str,
+				string_fmt(
+					ctx,
+					"(..+%ld)",
+					str->len - maxlen),
+				ctx);
 	} else {
-		printf("%.*s",
-			(int)str->len, str->bytes);
+		str = vstr;
 		
 		if (val.tag == TYPE_CLOSURE)
-			printf("()");
+			string_append(
+				&str,
+				string_lit("()", ctx),
+				ctx);
 	}
+	
+	return str;
+}
+
+/* prints a value to stdout */
+void val_print(
+	value_t val,
+	bool quotestr,
+	int maxlen,
+	sylt_t* ctx)
+{
+	string_print(val_tostring_opts(
+		val, quotestr, maxlen, ctx));
 }
 
 void chunk_init(
-	chunk_t* chunk, string_t* name
-) {
+	chunk_t* chunk, string_t* name)
+{
 	chunk->code = NULL;
 	chunk->ncode = 0;
-	chunk->pool = NULL;
-	chunk->npool = 0;
+	chunk->data = NULL;
+	chunk->ndata = 0;
 	chunk->slots = 0;
 	chunk->name = name;
 	chunk->lines = NULL;
@@ -680,7 +877,7 @@ void chunk_free(
 		chunk->code, uint8_t, chunk->ncode,
 		ctx);
     arr_free(
-    	chunk->pool, value_t, chunk->npool,
+    	chunk->data, value_t, chunk->ndata,
     	ctx);
     arr_free(
     	chunk->lines, int32_t, chunk->nlines,
@@ -695,11 +892,8 @@ void chunk_write(
 	int32_t line,
 	sylt_t* ctx)
 {
-	if (chunk->ncode >= CHUNK_MAX_CODE) {
-		halt(ctx, E_OUTOFBOUNDS(
-			"chunk bytecode limit reached",
-			chunk->ncode,
-			CHUNK_MAX_CODE));
+	if (chunk->ncode >= MAX_CODE) {
+		halt(ctx, E_CODELIMIT);
 		return;
 	}
 	
@@ -721,9 +915,9 @@ void chunk_write(
 	chunk->lines[chunk->nlines++] = line;
 }
 
-/* writes a value to the constant pool
+/* writes a value to the constant data table
  * and returns the index it was written to */
-size_t chunk_write_pool(
+size_t chunk_write_data(
 	chunk_t* chunk, value_t val, sylt_t* ctx)
 {
 	#if OPTZ_DEDUP_CONSTANTS
@@ -731,36 +925,33 @@ size_t chunk_write_pool(
 	 * value already exists and if so
 	 * return its index */
 	for (
-		size_t i = 0; i < chunk->npool; i++)
+		size_t i = 0; i < chunk->ndata; i++)
 	{
-		if (val_eq(val, chunk->pool[i]))
+		if (val_eq(chunk->data[i], val))
 			return i;
 	}
 	#endif
 	
-	if (chunk->npool >= CHUNK_MAX_POOL) {
-		halt(ctx, E_OUTOFBOUNDS(
-			"chunk constant limit reached",
-			chunk->npool,
-			CHUNK_MAX_POOL));
-		return SIZE_MAX;
+	if (chunk->ndata >= MAX_DATA) {
+		halt(ctx, E_DATALIMIT);
+		unreachable();
 	}
 		
-	chunk->pool = arr_resize(
-		chunk->pool,
+	chunk->data = arr_resize(
+		chunk->data,
 		value_t,
-		chunk->npool,
-		chunk->npool + 1,
+		chunk->ndata,
+		chunk->ndata + 1,
 		ctx);
 	
-	chunk->pool[chunk->npool++] = val;
-	return chunk->npool - 1;
+	chunk->data[chunk->ndata++] = val;
+	return chunk->ndata - 1;
 }
 
 /* == virtual machine == */
 
-/* execution state relative to the last
- * function call */
+/* call frame; execution state relative
+ * to the last function call */
 typedef struct {
 	/* prototype of called function */
 	const func_t* func;
@@ -812,8 +1003,9 @@ void vm_free(vm_t* vm) {
 }
 
 void dbg_print_header(
-	const vm_t* vm, const func_t* func)
+	const vm_t* vm, const closure_t* cls)
 {
+	const func_t* func = cls->func;
 	const chunk_t* chunk = &func->chunk;
 	
 	printf("\n---- name: ");
@@ -828,15 +1020,18 @@ void dbg_print_header(
 		used, vm->maxstack);
 	
 	printf("%ld bytes, ", chunk->ncode);
-	printf("%ld constants, ", chunk->npool);
+	printf("%ld constants, ", chunk->ndata);
 	printf("%ld stack slots\n", chunk->slots);
+	
+	printf("%d parameters, ", func->params);
+	printf("%ld upvalues\n", cls->nupvals);
 	
 	#if DBG_PRINT_POOL
 	puts("  constants:");
-	for (size_t i = 0; i < chunk->npool; i++)
+	for (size_t i = 0; i < chunk->ndata; i++)
 	{
 		printf("    #%-2ld -- ", i);
-		val_print(chunk->pool[i],
+		val_print(chunk->data[i],
 			true, 24, vm->ctx);
 		putchar('\n');
 	}
@@ -917,6 +1112,11 @@ void dbg_print_stack(
 inline static void sylt_push(
 	vm_t* vm, value_t val)
 {
+	#if DBG_ASSERT
+	size_t used = vm->sp - vm->stack;
+	assert(used <= vm->maxstack);
+	#endif
+	
 	*vm->sp++ = val;
 }
 
@@ -1013,13 +1213,14 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 	/* setup first call frame */
 	cframe_t frame;
 	frame.func = entry;
+	frame.cls = closure_new(vm->ctx, entry);
 	frame.ip = entry->chunk.code;
 	frame.offs = 0;
 	vm->frames[vm->nframes++] = frame;
 	vm->fp = &vm->frames[vm->nframes - 1];
 	
 	#if DBG_PRINT_OPCODES
-	dbg_print_header(vm, vm->fp->func);
+	dbg_print_header(vm, vm->fp->cls);
 	#endif
 	
 	for (;;) {
@@ -1039,14 +1240,30 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 		/* stack */
 		case OP_PUSH: {
 			value_t val = vm->fp->func->
-				chunk.pool[read()];
+				chunk.data[read()];
 			push(val);
+			break;
+		}
+		case OP_PUSHLIST: {
+			uint8_t len = read();
+			list_t* ls = list_new(vm->ctx);
+			
+			push(wraplist(ls)); /* for GC */
+			for (int i = len; i > 0; i--) {
+				list_push(
+					ls, peek(i), vm->ctx);
+			}
+			pop();
+			
+			vm->sp -= len;
+			
+			push(wraplist(ls));
 			break;
 		}
 		case OP_PUSHFUNC: {
 			func_t* func = 
 				getfunc(vm->fp->func->
-					chunk.pool[read()]);
+					chunk.data[read()]);
 			
 			closure_t* cls =
 				closure_new(vm->ctx, func);
@@ -1100,6 +1317,20 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			*(vm->stack
 				+ vm->fp->offs
 				+ read()) = val;
+			break;
+		}
+		case OP_LOADLIST: {
+			value_t index = pop();
+			typecheck(
+				vm->ctx, index, TYPE_NUM);
+				
+			value_t list = pop();
+			typecheck(
+				vm->ctx, list, TYPE_LIST);
+			
+			push(list_get(
+				getlist(list),
+				getnum(index)));
 			break;
 		}
 		case OP_LOADUP: {
@@ -1199,7 +1430,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			
 			closure_t* cls =
 				getclosure(peek(argc));
-			func_t* func = cls->func;
+			const func_t* func = cls->func;
 				
 			if (func->params != argc) {
 				halt(vm->ctx, E_WRONGARGC(
@@ -1248,13 +1479,15 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 				
 			#if DBG_PRINT_OPCODES
 			dbg_print_header(vm,
-				vm->fp->func);
+				vm->fp->cls);
 			#endif
 			
 			break;
 		}
 		case OP_RET: {
+			/* save return value */
 			value_t result = pop();
+			
 			close_upvalues(vm,
 				vm->stack + vm->fp->offs);
 			
@@ -1264,9 +1497,13 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 					= STATE_FINISHED;
 				return;
 			}
-				
+			
+			/* shrink stack to get rid of
+			 * function and arguments */
 			vm->sp =
 				vm->stack + vm->fp->offs - 1;
+				
+			/* restore return value */
 			push(result);
 			
 			vm->fp =
@@ -1274,7 +1511,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			
 			#if DBG_PRINT_OPCODES
 			dbg_print_header(
-				vm, vm->fp->func);
+				vm, vm->fp->cls);
 			#endif
 			break;
 		}
@@ -1300,14 +1537,14 @@ void vm_math(vm_t* vm, op_t opcode) {
 	case OP_DIV:
 		if (b == 0.0f) {
 			halt(vm->ctx, E_DIVBYZERO);
-			push(newnum(0.0f));
+			unreachable();
 		}
 		push(newnum(a / b));
 		break;
 	case OP_EDIV: {
 		if (b == 0.0f) {
 			halt(vm->ctx, E_DIVBYZERO);
-			push(newnum(0.0f));
+			unreachable();
 		}
 		double res = fmod(a, b);
 		if (res < 0)
@@ -1350,6 +1587,27 @@ value_t slib_ensure(sylt_t* ctx) {
 	return arg(0);
 }
 
+value_t slib_length(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	return newnum(getlist(arg(0))->len);
+}
+
+value_t slib_push(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	list_push(getlist(arg(0)), arg(1), ctx);
+	return newnil();
+}
+
+value_t slib_pop(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	return list_pop(getlist(arg(0)), ctx);
+}
+
+value_t slib_abs(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return newnum(fabs(getnum(arg(0))));
+}
+
 void slib_add(
 	sylt_t* ctx,
 	const char* name,
@@ -1357,8 +1615,15 @@ void slib_add(
 	int params);
 
 void load_slib(sylt_t* ctx) {
+	/* prelude */
 	slib_add(ctx, "put", slib_put, 1);
 	slib_add(ctx, "ensure", slib_ensure, 1);
+	slib_add(ctx, "length", slib_length, 1);
+	slib_add(ctx, "push", slib_push, 2);
+	slib_add(ctx, "pop", slib_pop, 1);
+	
+	/* math */
+	slib_add(ctx, "abs", slib_abs, 1);
 }
 
 /* == compiler == */
@@ -1392,6 +1657,8 @@ typedef enum {
 	T_RPAREN,
 	T_LCURLY,
 	T_RCURLY,
+	T_LSQUARE,
+	T_RSQUARE,
 	T_COMMA,
 	T_EOF,
 } token_type_t;
@@ -1419,6 +1686,7 @@ typedef enum {
 	PREC_FACTOR,
 	PREC_UNARY,
 	PREC_CALL,
+	PREC_INDEX,
 	PREC_PRIMARY,
 } prec_t;
 
@@ -1636,6 +1904,8 @@ token_t scan(comp_t* cmp) {
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
 	case '}': return token(T_RCURLY);
+	case '[': return token(T_LSQUARE);
+	case ']': return token(T_RSQUARE);
 	case ',': return token(T_COMMA);
 	}
 	
@@ -1661,7 +1931,11 @@ chunk_t* comp_chunk(comp_t* cmp) {
 void comp_simstack(comp_t* cmp, int n) {
 	cmp->curslots += n;
 	assert(cmp->curslots >= 0);
-	assert(cmp->curslots <= STACK_MAX_SLOTS);
+	
+	if (cmp->curslots > MAX_STACK) {
+		halt(cmp->ctx, E_STACKLIMIT);
+		unreachable();
+	}
 	
 	/* record the largest stack size */
 	chunk_t* chunk = comp_chunk(cmp);
@@ -1780,7 +2054,7 @@ void emit_value(
 	}
 	#endif
 	
-	size_t slot = chunk_write_pool(
+	size_t slot = chunk_write_data(
 		comp_chunk(cmp), val, cmp->ctx);
 		
 	if (val.tag == TYPE_FUNCTION) {
@@ -1809,11 +2083,8 @@ int emit_jump(comp_t* cmp, op_t opcode) {
 void patch_jump(comp_t* cmp, int addr) {
 	int dist =
 		comp_chunk(cmp)->ncode - addr - 2;
-	if (dist > JUMP_MAX_DISTANCE) {
-		halt(cmp->ctx, E_OUTOFBOUNDS(
-			"tried to jump too many bytes",
-			dist,
-			JUMP_MAX_DISTANCE));
+	if (dist > MAX_JUMP) {
+		halt(cmp->ctx, E_JUMPLIMIT);
 		return;
 	}
 	
@@ -1979,12 +2250,14 @@ void eat(
 void expr(comp_t*, prec_t);
 void literal(comp_t*);
 void name(comp_t*);
+void list(comp_t*);
 void string(comp_t*);
 void number(comp_t*);
 void grouping(comp_t*);
 void unary(comp_t*);
 void binary(comp_t*);
 void call(comp_t*);
+void index(comp_t*);
 void let(comp_t*);
 void if_else(comp_t*);
 void block(comp_t*);
@@ -2028,6 +2301,8 @@ static parserule_t RULES[] = {
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
 	[T_LCURLY] = {block, NULL, PREC_NONE},
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
+	[T_LSQUARE] = {list, index, PREC_INDEX},
+	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -2044,8 +2319,10 @@ void expr(comp_t* cmp, prec_t prec) {
 	/* first token in an expression
 	 * must have a prefix rule */
 	if (!prefix) {
-		halt(cmp->ctx, E_SYNTAX(
-			"expected expression"));
+		halt(cmp->ctx, -1,
+			"expected expression, got '%.*s'",
+			(int)cmp->prev.len,
+			cmp->prev.start);
 		return;
 	}
 	
@@ -2100,6 +2377,23 @@ void name(comp_t* cmp) {
 	
 	halt(cmp->ctx, E_UNDEFINED(
 		cmp->prev.len, cmp->prev.start));
+}
+
+/* parses a list literal */
+void list(comp_t* cmp) {
+	int len = 0;
+	while (!check(cmp, T_RPAREN)
+		&& !check(cmp, T_EOF))
+	{
+		expr(cmp, PREC_OR);
+		len++;
+		
+		if (!match(cmp, T_COMMA))
+			break;
+	}
+	
+	eat(cmp, T_RSQUARE, "expected ']'");
+	emit_unary(cmp, OP_PUSHLIST, len);
 }
 
 /* parses a string literal */
@@ -2258,15 +2552,14 @@ void binary(comp_t* cmp) {
 	emit_nullary(cmp, opcode);
 }
 
-/* parses a function call */
+/* parses a function call operator */
 void call(comp_t* cmp) {
 	int argc = 0;
 	
 	/* parse argument list */
-	while (
-		!check(cmp, T_RPAREN)
-		&& !check(cmp, T_EOF)
-	) {
+	while (!check(cmp, T_RPAREN)
+		&& !check(cmp, T_EOF))
+	{
 		if (argc >= MAX_PARAMS) {
 			halt(cmp->ctx, E_TOOMANYARGS);
 			unreachable();
@@ -2278,19 +2571,17 @@ void call(comp_t* cmp) {
 		if (!match(cmp, T_COMMA))
 			break;
 	}
-	eat(cmp, T_RPAREN, "expected ')'");
 	
+	eat(cmp, T_RPAREN, "expected ')'");
 	emit_unary(cmp, OP_CALL, argc);
 	comp_simstack(cmp, -argc);
 }
 
-void comp_copystate(
-	const comp_t* from, comp_t* to
-) {
-	to->pos = from->pos;
-	to->line = from->line;
-	to->prev = from->prev;
-	to->cur = from->cur;
+/* parses a subscript operator */
+void index(comp_t* cmp) {
+	expr(cmp, PREC_OR);
+	eat(cmp, T_RSQUARE, "expected ']'");
+	emit_nullary(cmp, OP_LOADLIST);
 }
 
 void parse_func(comp_t* cmp, token_t name);
@@ -2324,6 +2615,15 @@ void let(comp_t* cmp) {
 	emit_value(cmp, newnil());
 }
 
+void comp_copystate(
+	const comp_t* from, comp_t* to
+) {
+	to->pos = from->pos;
+	to->line = from->line;
+	to->prev = from->prev;
+	to->cur = from->cur;
+}
+
 /* parse a function declaration
  * in the form of
  * let name(p1, p2, ..) = body */
@@ -2344,19 +2644,15 @@ void parse_func(comp_t* cmp, token_t name) {
 				false,
 				cmp->ctx),
 			cmp->ctx);
-		comp_copystate(cmp, &fcmp);
-		fcmp.parent = cmp;
+	comp_copystate(cmp, &fcmp);
+	fcmp.parent = cmp;
 		
 	/* parse parameter list */
-	while (
-		!check(&fcmp, T_RPAREN)
-		&& !check(&fcmp, T_EOF)
-	) {
-		if (fcmp.func->params
-			>= MAX_PARAMS)
-		{
-			halt(fcmp.ctx,
-				E_TOOMANYPARAMS);
+	while (!check(cmp, T_RPAREN)
+		&& !check(cmp, T_EOF))
+	{
+		if (fcmp.func->params >= MAX_PARAMS) {
+			halt(fcmp.ctx, E_TOOMANYPARAMS);
 			unreachable();
 		}
 			
@@ -2461,9 +2757,6 @@ void if_else(comp_t* cmp) {
 void block(comp_t* cmp) {
 	cmp->depth++;
 	
-	/*emit_value(cmp, newnil());
-	int result = cmp->curslots - 1;*/
-	
 	/* a block must return a value even
 	 * when it contains zero expressions */
 	if (match(cmp, T_RCURLY)) {
@@ -2501,11 +2794,8 @@ void block(comp_t* cmp) {
 	if (locals == 0)
 		return;
 		
-	/* move the result of the expression
-	 * to a safe place on the stack */
-	/*int safe =
-		cmp->curslots - locals - 1;*/
-	//emit_unary(cmp, OP_STORE, result);
+	/* the return value is on top of the
+	 * stack so we need to hide it */
 	emit_nullary(cmp, OP_HIDERET);
 	
 	/* pop the locals */
@@ -2517,14 +2807,13 @@ void block(comp_t* cmp) {
 			&cmp->names[cmp->nnames - 1];
 		cmp->nnames--;
 		
-		//emit_nullary(cmp, OP_SWAP);
-		
 		if (name->capped)
 			emit_nullary(cmp, OP_MOVEHEAP);
 		else
 			emit_nullary(cmp, OP_POP);
 	}
 	
+	/* restore the return value */
 	emit_nullary(cmp, OP_SHOWRET);
 	
 	/* shrink symbol table */
@@ -2566,10 +2855,9 @@ void slib_add(
 	cfunc_t cfunc,
 	int params)
 {
-	comp_t* cmp = ctx->cmp;
 	token_t token =
 		(token_t){T_NAME, name, strlen(name)};
-	add_symbol(cmp, token);
+	add_symbol(ctx->cmp, token);
 	
 	func_t* func = func_newc(
 		ctx,
@@ -2580,7 +2868,7 @@ void slib_add(
 			ctx),
 		cfunc,
 		params);
-	emit_value(cmp, wrapfunc(func));
+	emit_value(ctx->cmp, wrapfunc(func));
 }
 
 string_t* load_file(
@@ -2652,8 +2940,7 @@ void halt(
 }
 
 sylt_t* sylt_new(void) {
-	sylt_t* ctx =
-		ptr_alloc(sylt_t, NULL);
+	sylt_t* ctx = ptr_alloc(sylt_t, NULL);
 	ctx->state = STATE_INIT;
 	ctx->cmp = ptr_alloc(comp_t, ctx);
 	ctx->vm = ptr_alloc(vm_t, ctx);
@@ -2672,10 +2959,7 @@ void sylt_free(sylt_t* ctx) {
 		obj = next;
 	}
 	
-	comp_free(ctx->cmp);
 	ptr_free(ctx->cmp, comp_t, ctx);
-	
-	vm_free(ctx->vm);
 	ptr_free(ctx->vm, vm_t, ctx);
 	
 	ptrdiff_t bytesleft =
@@ -2688,6 +2972,24 @@ void sylt_free(sylt_t* ctx) {
 	assert(!bytesleft);
 }
 
+void sylt_dofile(
+	sylt_t* ctx,
+	const char* path)
+{
+	string_t* src = load_file(path, ctx);
+	string_t* src_name = string_new(
+		path, strlen(path), false, ctx);
+	
+	comp_init(ctx->cmp, src, src_name, ctx);
+	load_slib(ctx);
+	func_t* func = compile(ctx->cmp);
+	comp_free(ctx->cmp);
+	
+	vm_init(ctx->vm, ctx);
+	vm_exec(ctx->vm, func);
+	vm_free(ctx->vm);
+}
+
 int main(int argc, char *argv[]) {
 	#if DBG_PRINT_ALLOCS
 	printf("sizeof(string_t) = %ld\n",
@@ -2696,33 +2998,13 @@ int main(int argc, char *argv[]) {
 		sizeof(func_t));
 	#endif
 	
-	sylt_t* ctx = sylt_new();
-	string_t* src = NULL;
-	string_t* src_name = NULL;
-	
 	if (argc == 1) {
-		char* raw =
-			"let x = 20 "
-			"let y = 40 "
-			"y / x let z = 90";
-		src = string_new(
-			raw, strlen(raw), false, ctx);
-		src_name = string_new(
-			"input", 5, false, ctx);
-	} else if (argc >= 2) {
-		const char* path = argv[1];
-		src = load_file(path, ctx);
-		src_name = string_new(
-			path, strlen(path), false, ctx);
+		printf("Usage: sylt [file]\n");
+		return EXIT_SUCCESS;
 	}
 	
-	comp_init(ctx->cmp, src, src_name, ctx);
-	load_slib(ctx);
-	func_t* func = compile(ctx->cmp);
-	
-	vm_init(ctx->vm, ctx);
-	vm_exec(ctx->vm, func);
-		
+	sylt_t* ctx = sylt_new();
+	sylt_dofile(ctx, argv[1]);
 	sylt_free(ctx);
 	
 	return EXIT_SUCCESS;

@@ -1711,6 +1711,7 @@ typedef enum {
 	T_TRUE,
 	T_FALSE,
 	T_LET,
+	T_FUN,
 	T_IF,
 	T_ELSE,
 	T_AND,
@@ -1910,6 +1911,8 @@ token_t scan(comp_t* cmp) {
 			return token(T_FALSE);
 		if (keyword("let"))
 			return token(T_LET);
+		if (keyword("fun"))
+			return token(T_FUN);
 		if (keyword("if"))
 			return token(T_IF);
 		if (keyword("else"))
@@ -2360,6 +2363,7 @@ void binary(comp_t*);
 void call(comp_t*);
 void index(comp_t*);
 void let(comp_t*);
+void fun(comp_t*);
 void if_else(comp_t*);
 void block(comp_t*);
 
@@ -2379,6 +2383,7 @@ static parserule_t RULES[] = {
 	[T_TRUE] = {literal, NULL, PREC_NONE},
 	[T_FALSE] = {literal, NULL, PREC_NONE},
 	[T_LET] = {let, NULL, PREC_NONE},
+	[T_FUN] = {fun, NULL, PREC_NONE},
 	[T_IF] = {if_else, NULL, PREC_NONE},
 	[T_ELSE] = {NULL, NULL, PREC_NONE},
 	[T_AND] = {NULL, binary, PREC_AND},
@@ -2687,7 +2692,7 @@ void index(comp_t* cmp) {
 
 void parse_func(comp_t* cmp, token_t name);
 
-/* parses a variable declaration */
+/* parses a variable or function binding */
 void let(comp_t* cmp) {
 	eat(cmp, T_NAME,
 		"expected variable name after 'let'");
@@ -2696,6 +2701,9 @@ void let(comp_t* cmp) {
 	token_t name = cmp->prev;
 	
 	if (match(cmp, T_LPAREN)) {
+		 /* add symbol first in order
+	 	 * to support recursion */
+		 add_symbol(cmp, name);
 		 parse_func(cmp, name);
 		
 	} else {
@@ -2714,6 +2722,16 @@ void let(comp_t* cmp) {
 	
 	/* expression yields a 'nil' */
 	emit_value(cmp, newnil());
+}
+
+/* parses an anonymous function */
+void fun(comp_t* cmp) {
+	eat(cmp, T_LPAREN,
+		"expected '(' after 'fun' keyword");
+	
+	token_t name =
+		(token_t){T_NAME, "_", 1};
+	parse_func(cmp, name);
 }
 
 void comp_copystate(
@@ -2741,10 +2759,6 @@ void comp_setfullname(
  * in the form of
  * let name(p1, p2, ..) = body */
 void parse_func(comp_t* cmp, token_t name) {
-	/* add symbol first in order
-	 * to support recursion */
-	add_symbol(cmp, name);
-	
 	string_t* funcname = string_new(
 		name.start,
 		name.len,
@@ -2786,8 +2800,7 @@ void parse_func(comp_t* cmp, token_t name) {
 	}
 		
 	eat(&fcmp, T_RPAREN,
-		"expected ')' or a parameter "
-		"name");
+		"expected ')' or a parameter name");
 	
 	eat(&fcmp, T_EQ,
 		"expected '=' after ')'");

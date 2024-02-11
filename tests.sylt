@@ -1,4 +1,28 @@
 
+## helper functions
+
+let times(n, f) = {
+	let loop(i) =
+		if i < n {
+			f(i)
+			loop(i + 1)
+		}
+		
+	loop(0)
+}
+	
+let foreach(ls, f) = {
+	let loop(i) =
+		if i < length(ls) {
+			f(i, ls[i])
+			loop(i + 1)
+		}
+		
+	loop(0)
+}
+
+## test functions
+
 let names() = {
 	let value = "whatever"
 	
@@ -11,8 +35,14 @@ let names() = {
 	let name_123 = value
 	
 	## names that start with keywords
+	let nilpotent = value
+	let true_to_life = value
+	let falsetto = value
 	let letter = value
+	let iffy = value
 	let elsewhere = value
+	let andante = value
+	let oracle = value
 }
 
 let numbers() = {
@@ -24,7 +54,7 @@ let strings() = {
 	let alpha = "abcDEFGHijklMNOPqrstUVWxyz"
 	
 	## escape sequences
-	##let backslash = "\\"
+	let backslash = "\\"
 	let quote = "\""
 	let carriage_return = "\r"
 	let newline = "\n"
@@ -116,6 +146,36 @@ let comparison() = {
 	let same = 70
 	ensure(same <= same)
 	ensure(same >= same)
+}
+
+let equality() = {
+	let func_val() = 1 > 2
+	
+	## contains a value of each type
+	let values = [
+		nil,        ## Nil
+		true,       ## Bool
+		235,	    ## Num
+		[123],	  ## List
+		"'_'",	  ## String
+		func_val,   ## Func
+	]
+	
+	let check_equality(slot, val) = {
+		## equal to itself
+		ensure(val == val)
+		
+		## not equal to a value of any other
+		## type
+		let check_inequality(idx, v) =
+			if idx != slot {
+				ensure(val != v)
+			}
+		
+		foreach(values, check_inequality)
+	}
+	
+	foreach(values, check_equality)
 }
 
 let bool_not() = {
@@ -210,21 +270,31 @@ let mathlib() = {
 	ensure(abs(-8) == 8)
 }
 
+## run all tests
+
 names()
 numbers()
 strings()
+
 addition()
 subtraction()
 multiplication()
 division()
 euclidean_division()
 unary_minus()
+
 comparison()
+equality()
+
 bool_not()
 bool_and()
 bool_or()
+
 blocks()
 if_else()
 functions()
 recursion()
+
 mathlib()
+
+put("all tests passed")

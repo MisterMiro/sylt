@@ -39,19 +39,19 @@
 /* == debug macros == */
 
 #if DBG_ASSERT
-#define deverr(msg) \
+#define dbgerr(msg) \
 	printf("%s in %s:%d", \
 		(msg), __FILE__, __LINE__); \
 	exit(EXIT_FAILURE);
 #define assert(cond) \
 	if (!(cond)) { \
-		deverr("assertion failed"); \
+		dbgerr("assertion failed"); \
 	}
 #define unreachable() \
-	deverr("unreachable code entered");
+	dbgerr("unreachable code entered");
 #else
-#define deverr(msg)
-#define assert(cond)
+#define dbgerr(msg) (void)msg
+#define assert(cond) (void)cond
 #define unreachable()
 #endif
 
@@ -68,8 +68,6 @@ typedef struct {
 	struct obj_s* objs;
 	/* total allocation size */
 	ptrdiff_t bytes;
-	/* total allocation count */
-	ptrdiff_t allocs;
 } mem_t;
 
 /* sylt API struct */
@@ -1041,7 +1039,7 @@ void dbg_print_header(
 	const chunk_t* chunk = &func->chunk;
 	
 	printf("\n-> ");
-	string_print(chunk->name);
+	string_print(chunk->fullname);
 	printf(" \n");
 	
 	printf("depth %d/%d, ",
@@ -1862,21 +1860,19 @@ token_t scan(comp_t* cmp) {
 	#define peek() (*cmp->pos)
 	#define peek2() \
 		(eof() ? '\0' : cmp->pos[1])
-	#define eof() (peek() == '\0')
+	#define is(c) (peek() == (c))
+	#define next_is(c) (peek2() == (c))
+	#define eof() is('\0')
 	#define match(c) \
-		((!eof() && peek() == (c)) ? \
+		((!eof() && is(c)) ? \
 			step(), true : false)
 	
 	/* skip any initial whitespace */
 	for (;;) {
 		if (!isspace(peek())) {
 			/* single-line comment */
-			if (peek() == '-'
-				&& peek2() == '-')
-			{
-				while (peek() != '\n'
-					&& !eof())
-				{
+			if (is('#') && next_is('#')) {
+				while (!is('\n') && !eof()) {
 					step();
 				}
 				
@@ -1885,7 +1881,7 @@ token_t scan(comp_t* cmp) {
 			}
 		}
 		
-		if (peek() == '\n')
+		if (is('\n'))
 			cmp->line++;
 		
 		step();
@@ -1897,40 +1893,53 @@ token_t scan(comp_t* cmp) {
 		return token(T_EOF);
 	
 	/* symbol name or keyword */
-	if (isalpha(peek()) || peek() == '_') {
-		while (isalnum(peek())
-			|| peek() == '_')
+	if (isalpha(peek()) || is('_')) {
+		while (isalnum(peek()) || is('_'))
 			step();
 		
-		if (!strncmp(start, "nil", 3))
+		size_t len = cmp->pos - start;
+		#define keyword(lit) \
+			(len == strlen(lit) && !strncmp( \
+				start, (lit), strlen(lit)))
+		
+		if (keyword("nil"))
 			return token(T_NIL);
-		if (!strncmp(start, "true", 4))
+		if (keyword("true"))
 			return token(T_TRUE);
-		if (!strncmp(start, "false", 5))
+		if (keyword("false"))
 			return token(T_FALSE);
-		if (!strncmp(start, "let", 3))
+		if (keyword("let"))
 			return token(T_LET);
-		if (!strncmp(start, "if", 2))
+		if (keyword("if"))
 			return token(T_IF);
-		if (!strncmp(start, "else", 4))
+		if (keyword("else"))
 			return token(T_ELSE);
-		if (!strncmp(start, "and", 3))
+		if (keyword("and"))
 			return token(T_AND);
-		if (!strncmp(start, "or", 2))
+		if (keyword("or"))
 			return token(T_OR);
+			
+		#undef keyword
 		
 		return token(T_NAME);
 	}
 	
 	/* string literal */
-	if (peek() == '"') {
+	if (is('"')) {
 		step();
-		while (
-			(peek() != '"'
-				|| cmp->pos[-1] == '\\')
-			&& !eof())
-		{
+		while (!is('"') && !eof()) {
 			step();
+			
+			/* don't terminate the string if
+			 * we find a '\"', unless the
+			 * backslash is part of a '\\' */
+			bool ignore_close = is('"')
+				&& cmp->pos - start >= 2
+				&& (cmp->pos[-1] == '\\'
+					&& cmp->pos[-2] != '\\');
+					
+			if (ignore_close)
+				step();
 		}
 		
 		if (eof())
@@ -1945,7 +1954,7 @@ token_t scan(comp_t* cmp) {
 		while (isdigit(peek()))
 			step();
 		
-		if (peek() == '.') {
+		if (is('.')) {
 			step();
 			while (isdigit(peek()))
 				step();
@@ -1994,6 +2003,8 @@ token_t scan(comp_t* cmp) {
 	#undef step
 	#undef peek
 	#undef peek2
+	#undef is
+	#undef next_is
 	#undef eof
 	#undef match
 }

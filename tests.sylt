@@ -1,0 +1,230 @@
+
+let names() = {
+	let value = "whatever"
+	
+	let name = value
+	let Name = value
+	let NAME = value
+	let _name = value
+	let _name_ = value
+	let name123 = value
+	let name_123 = value
+	
+	## names that start with keywords
+	let letter = value
+	let elsewhere = value
+}
+
+let numbers() = {
+	let whole = 12345
+	let fraction = 3.141592
+}
+
+let strings() = {
+	let alpha = "abcDEFGHijklMNOPqrstUVWxyz"
+	
+	## escape sequences
+	##let backslash = "\\"
+	let quote = "\""
+	let carriage_return = "\r"
+	let newline = "\n"
+	let tab = "\t"
+	let null = "\0"
+}
+
+let addition() = {
+	let x = 8
+	let y = 12
+	let sum = 20
+	
+	ensure(x + y == sum)
+	
+	## commutative
+	ensure(y + x == sum)
+	ensure(x + y == y + x)
+}
+
+let subtraction() = {
+	let x = 20
+	let y = 12
+	let difference = 8
+	
+	ensure(x - y == difference)
+	
+	## not commutative
+	ensure(y - x != difference)
+	ensure(x - y != y - x)
+}
+
+let multiplication() = {
+	let x = 5
+	let y = 16
+	let product = 80
+	
+	ensure(x * y == product)
+	
+	## commutative
+	ensure(y * x == product)
+	ensure(x * y == y * x)
+}
+
+let division() = {
+	let x = 33
+	let y = 3
+	let quotient = 11
+	
+	ensure(x / y == quotient)
+	
+	## not commutative
+	ensure(y / x != quotient)
+	ensure(x / y != y / x)
+}
+
+let euclidean_division() = {
+	let x = 17
+	let y = 12
+	let remainder = 5
+	
+	ensure(x % y == remainder)
+	
+	## not commutative
+	ensure(y % x != remainder)
+	ensure(x % y != y % x)
+	
+	## remainder is always positive
+	ensure(7 % 3 == 1)
+	ensure(7 % -3 == 1)
+	ensure(-7 % 3 == 2)
+	ensure(-7 % -3 == 2)
+}
+
+let unary_minus() = {
+	let x = 25
+	ensure(-x == 0 - x)
+}
+
+let comparison() = {
+	let hi = 100
+	let lo = -100
+	
+	ensure(lo < hi)
+	ensure(lo <= hi)
+	
+	ensure(hi > lo)
+	ensure(hi >= lo)
+	
+	let same = 70
+	ensure(same <= same)
+	ensure(same >= same)
+}
+
+let bool_not() = {
+	ensure(true == !false)
+	ensure(false == !true)
+}
+
+let bool_and() = {
+	ensure((false and false) == false)
+	ensure((false and true) == false)
+	ensure((true and false) == false)
+	ensure((true and true) == true)
+	
+	## short-circuit evaluation
+	let would_crash() = ensure(false)
+	false and would_crash()
+}
+
+let bool_or() = {
+	ensure((false or false) == false)
+	ensure((false or true) == true)
+	ensure((true or false) == true)
+	ensure((true or true) == true)
+	
+	## short-circuit evaluation
+	let would_crash() = ensure(false)
+	true or would_crash()
+}
+
+let blocks() = {
+	## empty block returns nil
+	let result = {}
+	ensure(result == nil)
+	
+	## last expression is returned
+	let result = {123}
+	ensure(result == 123)
+}
+
+let if_else() = {
+	## implicit nil
+	let result = if false {}
+	ensure(result == nil)
+	
+	## if branch
+	let result = if true { "A" } else { "B" }
+	ensure(result == "A")
+	
+	## else branch
+	let result = if false { "A" } else { "B" }
+	ensure(result == "B")
+}
+
+let functions() = {
+	## empty body returns nil
+	let empty() = {}
+	ensure(empty() == nil)
+	
+	## arguments
+	let add(a, b) = a + b
+	ensure(add(3, 4) == 7)
+	
+	## accessing variable outside of
+	## a functions stack window
+	let outside = "outside"
+	let f() = outside
+	ensure(f() == outside)
+	
+	## moving surrounding context to
+	## the heap if necessary
+	let f() = {
+		let keep = "jewel"
+		let f2() = keep
+		f2
+	}
+	ensure(f()() == "jewel")
+}
+
+let recursion() = {
+	let clear(ls) =
+		if length(ls) > 0 {
+			pop(ls)
+			clear(ls)
+		}
+		
+	let list = [1, 2, 3]
+	clear(list)
+	ensure(length(list) == 0)
+}
+
+let mathlib() = {
+	ensure(abs(-8) == 8)
+}
+
+names()
+numbers()
+strings()
+addition()
+subtraction()
+multiplication()
+division()
+euclidean_division()
+unary_minus()
+comparison()
+bool_not()
+bool_and()
+bool_or()
+blocks()
+if_else()
+functions()
+recursion()
+mathlib()

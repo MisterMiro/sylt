@@ -1,7 +1,7 @@
 
 ## helper functions
 
-let times(n, f) = {
+let repn(n, f) = {
 	let loop(i) =
 		if i < n {
 			f(i)
@@ -19,6 +19,19 @@ let foreach(ls, f) = {
 		}
 		
 	loop(0)
+}
+
+let map(ls, f) = {
+	let newls = []
+	foreach(ls, fun(_, v) = push(newls, f(v)))
+	newls
+}
+
+let concat(a, b) = {
+	let result = []
+	foreach(a, fun(_, v) = push(result, v))
+	foreach(b, fun(_, v) = push(result, v))
+	result
 }
 
 ## test functions
@@ -39,15 +52,11 @@ let names() = {
 	let true_to_life = value
 	let falsetto = value
 	let letter = value
+	let funambulism = value
 	let iffy = value
 	let elsewhere = value
 	let andante = value
 	let oracle = value
-}
-
-let numbers() = {
-	let whole = 12345
-	let fraction = 3.141592
 }
 
 let strings() = {
@@ -60,6 +69,11 @@ let strings() = {
 	let newline = "\n"
 	let tab = "\t"
 	let null = "\0"
+}
+
+let numbers() = {
+	let integer = 123456789
+	let fractional = 3.141592
 }
 
 let addition() = {
@@ -133,6 +147,12 @@ let unary_minus() = {
 	ensure(-x == 0 - x)
 }
 
+let arithmetic() = {
+	let a = 1
+	let b = a + 2
+	ensure(a + b == a - (-b))
+}
+
 let comparison() = {
 	let hi = 100
 	let lo = -100
@@ -161,21 +181,31 @@ let equality() = {
 		func_val,   ## Func
 	]
 	
-	let check_equality(slot, val) = {
+	foreach(values, fun(slot, target) = {
 		## equal to itself
-		ensure(val == val)
+		ensure(target == target)
 		
 		## not equal to a value of any other
 		## type
-		let check_inequality(idx, v) =
+		foreach(values, fun(idx, v) =
 			if idx != slot {
-				ensure(val != v)
+				ensure(target != v)
 			}
-		
-		foreach(values, check_inequality)
-	}
+		)
+	})
 	
-	foreach(values, check_equality)
+	## perform more type-specific tests
+	
+	ensure(true != false)
+	
+	ensure([] == [])
+	ensure([[]] == [[]])
+	ensure([0] != [1])
+	
+	ensure("" == "")
+	ensure("ABC" != "abc")
+	
+	ensure(raise != sqrt)
 }
 
 let bool_not() = {
@@ -210,8 +240,25 @@ let blocks() = {
 	let result = {}
 	ensure(result == nil)
 	
-	## last expression is returned
+	## last expression is returned and...
 	let result = {123}
+	ensure(result == 123)
+	
+	## ...variables do not break anything...
+	let result = {
+		let v1 = 13
+		let v2 = 17
+		123
+	}
+	ensure(result == 123)
+	
+	## ...and neither do captured values
+	let c = 35
+	let result = {
+		let v = 9
+		let sum = c + v
+		123
+	}
 	ensure(result == 123)
 }
 
@@ -252,6 +299,10 @@ let functions() = {
 		f2
 	}
 	ensure(f()() == "jewel")
+	
+	## anonymous functions using 'fun'
+	let anon = fun(r, s, t) = r * s * t
+	ensure(anon(2, 4, 8) == 64)
 }
 
 let recursion() = {
@@ -266,35 +317,79 @@ let recursion() = {
 	ensure(length(list) == 0)
 }
 
-let mathlib() = {
-	ensure(abs(-8) == 8)
+let prelude_lib() = {
+	## repn
+	let nums = []
+	repn(3, fun(i) = push(nums, (i + 1) * 3))
+	ensure(nums == [3, 6, 9])
+	
+	## map
+	let list = map([4, 8], fun(x) = x * 2)
+	ensure(list == [8, 16])
+
+	## concat
+	let a = [1, 2]
+	let b = [3, 4]
+	let conced = concat(a, b)
+	ensure(conced == [1, 2, 3, 4])
 }
 
-## run all tests
+let math_lib() = {
+	ensure(abs(-8) == 8)
+	
+	ensure(raise(2, 8) == 256)
+	ensure(sqrt(256) == 16)
+	
+	let x = 32
+	##ensure(raise(x, 0.5) == sqrt(x))
+}
 
-names()
-numbers()
-strings()
+## tests to run
 
-addition()
-subtraction()
-multiplication()
-division()
-euclidean_division()
-unary_minus()
+let parser = [
+	names,
+	strings,
+	numbers,
+]
 
-comparison()
-equality()
+let numbers = [
+	addition,
+	subtraction,
+	multiplication,
+	division,
+	euclidean_division,
+	unary_minus,
+	arithmetic,
+]
 
-bool_not()
-bool_and()
-bool_or()
+let boolean_ops = [
+	comparison, equality,
+	bool_not, bool_and, bool_or,
+]
 
-blocks()
-if_else()
-functions()
-recursion()
+let control_flow = [
+	blocks,
+	if_else,
+	functions,
+	recursion,
+]
 
-mathlib()
+let standard_lib = [
+	prelude_lib,
+	math_lib,
+]
+
+let run = []
+concat(run, parser)
+concat(run, numbers)
+concat(run, boolean_ops)
+concat(run, control_flow)
+concat(run, standard_lib)
+
+## let's go
+
+let iterations = 1
+repn(iterations, fun(_) = foreach(run,
+	fun(_, f) = f()))
 
 put("all tests passed")

@@ -14,10 +14,10 @@
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_OPCODES 1
-#define DBG_PRINT_STACK 0
+#define DBG_PRINT_STACK 1
 #define DBG_PRINT_ALLOCS 0
-#define DBG_CHECK_MEMLEAKS 1
-#define DBG_ASSERT 1
+#define DBG_PRINT_MEM_STATS 1
+#define DBG_ASSERTIONS 1
 
 /* == optimization flags == */
 
@@ -38,7 +38,7 @@
 
 /* == debug macros == */
 
-#if DBG_ASSERT
+#if DBG_ASSERTIONS
 #define dbgerr(msg) \
 	printf("%s in %s:%d", \
 		(msg), __FILE__, __LINE__); \
@@ -66,8 +66,12 @@ typedef enum {
 typedef struct {
 	/* linked list of all objects */
 	struct obj_s* objs;
-	/* total allocation size */
+	/* current allocation size */
 	ptrdiff_t bytes;
+	/* highest usage at any one time */
+	ptrdiff_t highest;
+	/* total allocation count */
+	size_t count;
 } mem_t;
 
 /* sylt API struct */
@@ -146,8 +150,15 @@ void* ptr_resize(
 	/* keep track of heap size.
 	 * the null check is for when we
 	 * allocate the ctx struct itself */
-	if (ctx)
+	if (ctx) {
 		ctx->mem.bytes += ns - os;
+		
+		if (ctx->mem.bytes > ctx->mem.highest)
+			ctx->mem.highest =
+				ctx->mem.bytes;
+				
+		ctx->mem.count++;
+	}
 	
 	#if DBG_PRINT_ALLOCS
 	printf("  %+ld bytes (%s)\n",
@@ -729,7 +740,7 @@ upvalue_t* upvalue_new(
 	return upval;
 }
 
-/* returns true if the values are equal */
+/* returns true if the two values are equal */
 bool val_eq(value_t a, value_t b) {
 	if (a.tag != b.tag)
 		return false;
@@ -741,16 +752,35 @@ bool val_eq(value_t a, value_t b) {
 		return getbool(a) == getbool(b);
 	case TYPE_NUM:
 		return getnum(a) == getnum(b);
-	case TYPE_LIST:
-		return getobj(a) == getobj(b);
+	case TYPE_LIST: {
+		list_t* lsa = getlist(a);
+		list_t* lsb = getlist(b);
+		if (lsa == lsb)
+			return true;
+		
+		if (lsa->len != lsb->len)
+			return false;
+		
+		for (int i = 0; i < lsa->len; i++) {
+			if (!val_eq(
+				lsa->items[i],
+				lsb->items[i]))
+				return false;
+		}
+		
+		return true;
+	}
 	case TYPE_STRING: {
-		string_t* astr = getstring(a);
-		string_t* bstr = getstring(b);
-		return astr->len == bstr->len
-			&& !memcmp(
-				astr->bytes,
-				bstr->bytes,
-				astr->len);
+		string_t* stra = getstring(a);
+		string_t* strb = getstring(b);
+		if (stra == strb)
+			return true;
+		
+		return stra->len == strb->len
+			&& memcmp(
+				stra->bytes,
+				strb->bytes,
+				stra->len) == 0;
 	}
 	case TYPE_FUNCTION:
 	case TYPE_CLOSURE:
@@ -800,9 +830,10 @@ string_t* val_tostring(
 			
 			/* add ', ' between items */
 			if (i < ls->len - 1) {
-				string_t* sep =
-					string_lit(", ", ctx);
-				string_append(&str, sep, ctx);
+				string_append(
+					&str,
+					string_lit(", ", ctx),
+					ctx);
 			}
 		}
 		
@@ -1142,7 +1173,7 @@ void dbg_print_stack(
 inline static void sylt_push(
 	vm_t* vm, value_t val)
 {
-	#if DBG_ASSERT
+	#if DBG_ASSERTIONS
 	size_t used = vm->sp - vm->stack;
 	assert(used <= vm->maxstack);
 	#endif
@@ -1628,7 +1659,7 @@ void vm_math(vm_t* vm, op_t opcode) {
 /* == standard library == */
 
 #define argc() (ctx->vm->fp->ip[-1])
-#define arg(n) (*(ctx->vm->sp - argc()))
+#define arg(n) (*(ctx->vm->sp - argc() + (n)))
 
 /* == prelude == */
 
@@ -2182,8 +2213,8 @@ int emit_jump(comp_t* cmp, op_t opcode) {
 
 /* takes the return value of emit_jump
  * after we've emitted the code we need to
- * jump over and backpatches the jump target
- * short to the correct offset */
+ * jump over and then backpatches the
+ * jump target short to the correct offset */
 void patch_jump(comp_t* cmp, int addr) {
 	int dist =
 		comp_chunk(cmp)->ncode - addr - 2;
@@ -2701,9 +2732,14 @@ void let(comp_t* cmp) {
 	token_t name = cmp->prev;
 	
 	if (match(cmp, T_LPAREN)) {
+		 /* parse a function declaration
+ 		 * in the form of
+ 		 * let name(p1, p2, ..) = body */
+ 
 		 /* add symbol first in order
 	 	 * to support recursion */
 		 add_symbol(cmp, name);
+		 
 		 parse_func(cmp, name);
 		
 	} else {
@@ -2755,9 +2791,6 @@ void comp_setfullname(
 	cmp->func->chunk.fullname = full;
 }
 
-/* parse a function declaration
- * in the form of
- * let name(p1, p2, ..) = body */
 void parse_func(comp_t* cmp, token_t name) {
 	string_t* funcname = string_new(
 		name.start,
@@ -3075,6 +3108,8 @@ sylt_t* sylt_new(void) {
 	/* has to be done manually when
 	 * allocating ctx struct itself */
 	ctx->mem.bytes += sizeof(sylt_t);
+	ctx->mem.highest = 0;
+	ctx->mem.count = 0;
 	return ctx;
 }
 
@@ -3089,12 +3124,23 @@ void sylt_free(sylt_t* ctx) {
 	ptr_free(ctx->cmp, comp_t, ctx);
 	ptr_free(ctx->vm, vm_t, ctx);
 	
+	/* ensure that no memory was leaked */
 	ptrdiff_t bytesleft =
 		ctx->mem.bytes - sizeof(sylt_t);
 	if (bytesleft)
 		printf("%ld bytes leaked\n",
 			bytesleft);
 	assert(!bytesleft);
+	
+	#if DBG_PRINT_MEM_STATS
+	printf("\n[memory stats & info]\n");
+	printf("  leaked: %ld bytes\n",
+		bytesleft);
+	printf("  highest usage: %ld bytes\n",
+		ctx->mem.highest);
+	printf("  allocations: %ld\n",
+		ctx->mem.count);
+	#endif
 	
 	ptr_free(ctx, sylt_t, ctx);
 }
@@ -3118,17 +3164,21 @@ void sylt_dofile(
 }
 
 int main(int argc, char *argv[]) {
-	#if DBG_PRINT_ALLOCS
-	printf("sizeof(list_t) = %ld\n",
-		sizeof(list_t));
-	printf("sizeof(string_t) = %ld\n",
-		sizeof(string_t));
-	printf("sizeof(func_t) = %ld\n",
-		sizeof(func_t));
-	printf("sizeof(closure_t) = %ld\n",
-		sizeof(closure_t));
-	printf("sizeof(upvalue_t) = %ld\n",
-		sizeof(upvalue_t));
+	#if DBG_PRINT_MEM_STATS
+	#define print_size(t) \
+		printf("sizeof(%s) = %ld\n", \
+			#t, sizeof(t))
+	
+	print_size(int);
+	print_size(size_t);
+	print_size(value_t);
+	print_size(list_t);
+	print_size(string_t);
+	print_size(func_t);
+	print_size(closure_t);
+	print_size(upvalue_t);
+	
+	#undef print_size
 	#endif
 	
 	if (argc == 1) {

@@ -9,18 +9,27 @@
 
 /* == configuration == */
 
+/* 1 = use doubles
+ * 0 = use floats */
 #define SYLT_USE_DOUBLES 1
 
-/* == debug flags == */
+/* functions used for printing standard, error
+ * and debug output, respectively */
+#define sylt_printf printf
+#define sylt_eprintf printf
+#define sylt_dprintf printf
 
-#define DBG_PRINT_SOURCE 1
+/* == debug options == */
+
+#define DBG_PRINT_STATE_CHANGE 1
+#define DBG_PRINT_SOURCE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_DATA 0
-#define DBG_PRINT_OPCODES 1
-#define DBG_PRINT_STACK 1
+#define DBG_PRINT_OPCODES 0
+#define DBG_PRINT_STACK 0
 #define DBG_PRINT_ALLOCS 0
-#define DBG_PRINT_MEM_STATS 1
+#define DBG_PRINT_MEM_STATS 0
 #define DBG_ASSERTIONS 1
 
 /* == optimization flags == */
@@ -44,7 +53,7 @@
 
 #if DBG_ASSERTIONS
 #define dbgerr(msg) \
-	printf("%s in %s:%d", \
+	sylt_dprintf("%s in %s:%d", \
 		(msg), __FILE__, __LINE__); \
 	exit(EXIT_FAILURE);
 #define assert(cond) \
@@ -60,12 +69,24 @@
 #endif
 
 typedef enum {
-	STATE_INIT,
-	STATE_COMPILING,
-	STATE_COMPILED,
-	STATE_RUNNING,
-	STATE_FINISHED,
+	SYLT_STATE_INIT,
+	SYLT_STATE_COMPILING,
+	SYLT_STATE_COMPILED,
+	SYLT_STATE_RUNNING,
+	SYLT_STATE_FINISHED,
+	SYLT_STATE_FREEING,
+	SYLT_STATE_FREE,
 } sylt_state_t;
+
+static const char* SYLT_STATE_NAME[] = {
+	"INIT",
+	"COMPILING",
+	"COMPILED",
+	"RUNNING",
+	"FINISHED",
+	"FREEING",
+	"FREE",
+};
 
 typedef struct {
 	/* linked list of all objects */
@@ -88,6 +109,17 @@ typedef struct {
 	/* memory */
 	mem_t mem;
 } sylt_t;
+
+static void sylt_set_state(
+	sylt_t* ctx, sylt_state_t state)
+{
+	ctx->state = state;
+	
+	#if DBG_PRINT_STATE_CHANGE
+	sylt_dprintf("[%s]\n",
+		SYLT_STATE_NAME[state]);
+	#endif
+}
 
 /* == error code + message macros == */
 
@@ -165,7 +197,7 @@ void* ptr_resize(
 	}
 	
 	#if DBG_PRINT_ALLOCS
-	printf("  %+ld bytes (%s)\n",
+	sylt_dprintf("  %+ld bytes (%s)\n",
 		ns - os, func);
 	#endif
 	
@@ -697,12 +729,6 @@ void string_append_lit(
 		*dst, string_lit(src, ctx), ctx);	
 }
 
-/* %s can not be used since sylt strings are
- * not required to be zero-terminated */
-void string_print(string_t* str) {
-	printf("%.*s", (int)str->len, str->bytes);
-}
-
 /* creates a new function */
 func_t* func_new(
 	sylt_t* ctx, string_t* name)
@@ -869,15 +895,11 @@ static string_t* val_tostring(
 	case TYPE_STRING: {
 		return getstring(val);
 	}
-	case TYPE_FUNCTION: {
-		return getfunc(val)->chunk.name;
-	}
 	case TYPE_CLOSURE: {
-		return getclosure(val)->
-			func->chunk.name;
-	}
-	case TYPE_UPVALUE: {
-		return string_lit("upval", ctx);
+		return string_concat(
+			getclosure(val)->func->chunk.name,
+			string_lit("()", ctx),
+			ctx);
 	}
 	default: unreachable();
 	}
@@ -936,8 +958,9 @@ void val_print(
 	int maxlen,
 	sylt_t* ctx)
 {
-	string_print(val_tostring_opts(
-		val, quotestr, maxlen, ctx));
+	string_t* str = val_tostring_opts(
+		val, quotestr, maxlen, ctx);
+	printf("%.*s", (int)str->len, str->bytes);
 }
 
 void chunk_init(
@@ -1093,40 +1116,53 @@ void dbg_print_header(
 	const func_t* func = cls->func;
 	const chunk_t* chunk = &func->chunk;
 	
-	printf("\n-> ");
-	string_print(chunk->fullname);
-	printf(" \n");
+	sylt_dprintf("\n-> %.*s\n",
+		(int)chunk->fullname->len,
+		chunk->fullname->bytes);
 	
-	printf("depth %d/%d, ",
+	sylt_dprintf("depth %d/%d, ",
 		(int)vm->nframes, MAX_CFRAMES);
 	
 	size_t used = vm->sp - vm->stack;
-	printf("stack %ld/%ld\n",
+	sylt_dprintf("stack %ld/%ld\n",
 		used, vm->maxstack);
 	
-	printf("%ld bytes, ", chunk->ncode);
-	printf("%ld constants, ", chunk->ndata);
-	printf("%ld stack slots, ", chunk->slots);
-	
-	printf("%d params, ", func->params);
-	printf("%ld upvalues\n", cls->nupvals);
+	sylt_dprintf(
+		"%ld bytes, "
+		"%ld constants, "
+		"%ld slots, "
+		"%d params, "
+		"%ld upvals\n",
+		chunk->ncode,
+		chunk->ndata,
+		chunk->slots,
+		func->params,
+		cls->nupvals);
 	
 	#if DBG_PRINT_DATA
-	puts("  constants:");
+	sylt_dprintf("  constants:");
 	for (size_t i = 0; i < chunk->ndata; i++)
 	{
-		printf("    #%-2ld -- ", i);
-		val_print(chunk->data[i],
-			true, 24, vm->ctx);
-		putchar('\n');
+		string_t* str = val_tostring_opts(
+			chunk->data[i],
+			true,
+			24,
+			vm->ctx);
+		
+		sylt_dprintf(
+			"    #%-2ld -- %.*s\n",
+			i,
+			(int)str->len,
+			str->start);
 	}
 	#endif
 		
-	puts("  addr  line opcode           hex");
-	printf("  ");
+	sylt_dprintf(
+		"  addr  line opcode            hex");
+	sylt_dprintf("  ");
 	for (int i = 0; i < 40; i++)
-		putchar('-');
-	putchar('\n');
+		sylt_dprintf("-");
+	sylt_dprintf("\n");
 }
 
 void dbg_print_instruction(
@@ -1136,28 +1172,28 @@ void dbg_print_instruction(
 	size_t addr =
 		(size_t)
 			(vm->fp->ip - chunk->code - 1);
-	printf("  %05ld", addr);
+	sylt_dprintf("  %05ld", addr);
 	
 	const int32_t* lines =
 		vm->fp->func->chunk.lines;
 	int32_t line = lines[addr];
 	
 	if (line > 0 && line != lines[addr - 1])
-		printf(" %-4d ", line);
+		sylt_dprintf(" %-4d ", line);
 	else
-		printf(" |    ");
+		sylt_dprintf(" |    ");
 		
 	const char* name = OPINFO[op].name;
-	printf("%-17s", name);
+	sylt_dprintf("%-17s", name);
 		
 	/* hex values */
 	int rank = OPINFO[op].rank;
 	for (int i = -1; i < rank; i++) {
 		uint8_t arg = vm->fp->ip[i];
-		printf("%02d ", arg);
+		sylt_dprintf("%02d ", arg);
 	}
 		
-	printf("\n");
+	sylt_dprintf("\n");
 }
 
 void dbg_print_stack(
@@ -1180,17 +1216,18 @@ void dbg_print_stack(
 	value_t* v = start;
 	
 	if (diff > maxvals)
-		printf("  [ <+%ld, ", diff - maxvals);
+		sylt_dprintf("  [ <+%ld, ",
+			diff - maxvals);
 	else
-		printf("  [ ");
+		sylt_dprintf("  [ ");
 	
 	for (; v != vm->sp; v++) {
 		val_print(*v, true, 12, vm->ctx);
 		if (v != vm->sp - 1)
-		  printf(", ");
+		  sylt_dprintf(", ");
 	}
 	
-	printf(" ]\n");
+	sylt_dprintf(" ]\n");
 }
 
 /* pushes a value on the stack */
@@ -1295,7 +1332,8 @@ void vm_closeupvals(
 }
 
 void vm_exec(vm_t* vm, const func_t* entry) {
-	vm->ctx->state = STATE_RUNNING;
+	sylt_set_state(vm->ctx,
+		SYLT_STATE_RUNNING);
 	
 	const int INIT_STACK = 0;
 	int init_stack_size = entry->chunk.slots;
@@ -1559,7 +1597,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 				push(result);
 				
 				#if DBG_PRINT_OPCODES
-				printf("\n");
+				sylt_dprintf("\n");
 				#endif
 				
 				break;
@@ -1606,8 +1644,8 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			
 			vm->nframes--;
 			if (vm->nframes == 0) {
-				vm->ctx->state
-					= STATE_FINISHED;
+				sylt_set_state(vm->ctx,
+					SYLT_STATE_FINISHED);
 				return;
 			}
 			
@@ -1692,10 +1730,19 @@ void vm_math(vm_t* vm, op_t opcode) {
 /* == prelude == */
 
 /* prints arg(0) to the standard output
- * followed by a newline (\n) character */
+ * and flushes the stream  */
 value_t slib_put(sylt_t* ctx) {
-	for (int i = 0; i < argc(); i++)
-		val_print(arg(0), false, 0, ctx);
+	val_print(arg(0), false, 0, ctx);
+	fflush(stdout);
+	return newnil();
+}
+
+/* prints arg(0) to the standard output,
+ * followed by a newline (\n) character
+ * (which flushes the stream automatically) */
+value_t slib_putln(sylt_t* ctx) {
+	val_print(arg(0), false, 0, ctx);
+	sylt_printf("\n");
 	return newnil();
 }
 
@@ -1799,6 +1846,7 @@ void slib_add(
 void load_slib(sylt_t* ctx) {
 	/* prelude */
 	slib_add(ctx, "put", slib_put, 1);
+	slib_add(ctx, "putln", slib_putln, 1);
 	slib_add(ctx, "stringify", 
 		slib_stringify, 1);
 	slib_add(ctx, "typeof", slib_typeof, 1);
@@ -2315,8 +2363,8 @@ void patch_jump(comp_t* cmp, int addr) {
 int add_symbol(comp_t* cmp, token_t name) {
 	#if DBG_PRINT_NAMES
 	for (int i = 0; i < cmp->depth; i++)
-		printf("  ");
-	printf("(sym) %.*s\n",
+		sylt_dprintf("  ");
+	sylt_dprintf("(sym) %.*s\n",
 		(int)name.len, name.start);
 	#endif
 	
@@ -2347,7 +2395,7 @@ int find_symbol(comp_t* cmp, token_t name) {
 	int start = cmp->nnames - 1;
 	for (int i = start; i >= 0; i--) {
 		token_t other = cmp->names[i].name;
-		//printf("%.*s\n",
+		//sylt_dprintf("%.*s\n",
 		//	(int)other.len, other.start);
 		
 		bool equal = name.len == other.len
@@ -2423,7 +2471,7 @@ void step(comp_t* cmp) {
 	cmp->prev = cmp->cur;
 	
 	#if DBG_PRINT_TOKENS
-	printf("%-4d '%.*s'\n",
+	sylt_dprintf("%-4d '%.*s'\n",
 		cmp->prev.tag,
 		cmp->prev.len,
 		cmp->prev.start);
@@ -3071,8 +3119,8 @@ void block(comp_t* cmp) {
 }
 
 func_t* compile(comp_t* cmp) {
-	cmp->ctx->state = STATE_COMPILING;
-	printf("compiling...\n");
+	sylt_set_state(cmp->ctx,
+		SYLT_STATE_COMPILING);
 	
 	#if DBG_PRINT_SOURCE
 	puts((char*)cmp->src->bytes);
@@ -3087,10 +3135,10 @@ func_t* compile(comp_t* cmp) {
 		emit_nullary(cmp, OP_POP);
 	}
 	
-	printf("done\n");
 	emit_nullary(cmp, OP_RET);
 	
-	cmp->ctx->state = STATE_COMPILED;
+	sylt_set_state(cmp->ctx,
+		SYLT_STATE_COMPILED);
 	return cmp->func;
 }
 
@@ -3144,6 +3192,7 @@ void halt(
 	int code,
 	const char* fmt, ...)
 {
+	/* TODO: don't use a static size */
 	char msg[1024];
 	
 	va_list args;
@@ -3151,15 +3200,19 @@ void halt(
 	vsnprintf(msg, 1024, fmt, args);
 	va_end(args);
 	
-	/* print error message */
-	if (ctx->state == STATE_COMPILING) {
+	/* print message prefix */
+	sylt_state_t state = ctx->state;
+	if (state == SYLT_STATE_COMPILING) {
 		const chunk_t* chunk =
 			&ctx->cmp->func->chunk;
-		printf("error in ");
-		string_print(chunk->fullname);
-		printf(":%d: ", ctx->cmp->line);
 		
-	} else if (ctx->state == STATE_RUNNING) {
+		/* TODO: use correct line number */
+		sylt_eprintf("error in %.*s:%d: ",
+			(int)chunk->fullname->len,
+			chunk->fullname->bytes,
+			ctx->cmp->line);
+		
+	} else if (state == SYLT_STATE_RUNNING) {
 		const chunk_t* chunk =
 			&ctx->vm->fp->func->chunk;
 		
@@ -3168,21 +3221,25 @@ void halt(
 				chunk->code - 1);
 		int32_t line = chunk->lines[addr];
 		
-		printf("error in ");
-		string_print(chunk->fullname);
-		printf(":%d: ", line);
+		sylt_eprintf("error in %.*s:%d: ",
+			(int)chunk->fullname->len,
+			chunk->fullname->bytes,
+			line);
 		
 	} else {
-		printf("error: ");
+		sylt_eprintf("error: ");
 	}
 	
-	printf("%s\n", msg);
+	/* print error message */
+	sylt_eprintf("%s\n", msg);
+	
+	/* TODO: don't do this, clearly */
 	exit(EXIT_FAILURE);
 }
 
 sylt_t* sylt_new(void) {
 	sylt_t* ctx = ptr_alloc(sylt_t, NULL);
-	ctx->state = STATE_INIT;
+	sylt_set_state(ctx, SYLT_STATE_INIT);
 	ctx->cmp = ptr_alloc(comp_t, ctx);
 	ctx->vm = ptr_alloc(vm_t, ctx);
 	ctx->mem.objs = NULL;
@@ -3194,7 +3251,46 @@ sylt_t* sylt_new(void) {
 	return ctx;
 }
 
+static void dbg_print_mem_stats(sylt_t* ctx) {
+	#if DBG_PRINT_MEM_STATS
+	sylt_dprintf(
+		"\n[memory information]\n"
+		"  leaked: %ld bytes\n"
+		"  highest usage: %ld bytes\n"
+		"  allocations: %ld\n",
+		ctx->mem.bytes - sizeof(sylt_t),
+		ctx->mem.highest,
+		ctx->mem.count);
+	sylt_dprintf("\n");
+	
+	#define print_size(t) \
+		sylt_dprintf("  sizeof(%s) = %ld\n", \
+			#t, sizeof(t))
+	
+	sylt_dprintf("system types:\n");
+	print_size(int);
+	print_size(short);
+	print_size(long);
+	print_size(size_t);
+	print_size(ptrdiff_t);
+	print_size(float);
+	print_size(double);
+	
+	sylt_dprintf("\nsylt types\n");
+	print_size(value_t);
+	print_size(list_t);
+	print_size(string_t);
+	print_size(func_t);
+	print_size(closure_t);
+	print_size(upvalue_t);
+	print_size(sylt_t);
+	#undef print_size
+	
+	#endif
+}
+
 void sylt_free(sylt_t* ctx) {
+	sylt_set_state(ctx, SYLT_STATE_FREEING);
 	obj_t* obj = ctx->mem.objs;
 	while (obj) {
 		obj_t* next = obj->next;
@@ -3209,19 +3305,12 @@ void sylt_free(sylt_t* ctx) {
 	ptrdiff_t bytesleft =
 		ctx->mem.bytes - sizeof(sylt_t);
 	if (bytesleft)
-		printf("%ld bytes leaked\n",
+		sylt_dprintf("%ld bytes leaked\n",
 			bytesleft);
 	assert(!bytesleft);
 	
-	#if DBG_PRINT_MEM_STATS
-	printf("\n[memory stats & info]\n");
-	printf("  leaked: %ld bytes\n",
-		bytesleft);
-	printf("  highest usage: %ld bytes\n",
-		ctx->mem.highest);
-	printf("  allocations: %ld\n",
-		ctx->mem.count);
-	#endif
+	dbg_print_mem_stats(ctx);
+	sylt_set_state(ctx, SYLT_STATE_FREE);
 	
 	ptr_free(ctx, sylt_t, ctx);
 }
@@ -3245,29 +3334,13 @@ void sylt_dofile(
 }
 
 int main(int argc, char *argv[]) {
-	#if DBG_PRINT_MEM_STATS
-	#define print_size(t) \
-		printf("sizeof(%s) = %ld\n", \
-			#t, sizeof(t))
-	
-	print_size(int);
-	print_size(size_t);
-	print_size(value_t);
-	print_size(list_t);
-	print_size(string_t);
-	print_size(func_t);
-	print_size(closure_t);
-	print_size(upvalue_t);
-	
-	#undef print_size
-	#endif
-	
 	if (argc == 1) {
-		printf("Usage: sylt [file]\n");
+		sylt_printf("Usage: sylt [file]\n");
 		return EXIT_SUCCESS;
 	}
 	
 	sylt_t* ctx = sylt_new();
+	sylt_dofile(ctx, argv[1]);
 	sylt_dofile(ctx, argv[1]);
 	sylt_free(ctx);
 	

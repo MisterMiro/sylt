@@ -7,6 +7,10 @@
 #include <ctype.h>
 #include <math.h>
 
+/* == configuration == */
+
+#define SYLT_USE_DOUBLE 1
+
 /* == debug flags == */
 
 #define DBG_PRINT_SOURCE 1
@@ -109,7 +113,7 @@ typedef struct {
 	10, "%s", (msg)
 #define E_TYPE(ex, got) \
 	11, "expected %s but got %s", \
-		TYPENAME[(ex)], TYPENAME[(got)]
+		type_name(ex), type_name(got)
 #define E_UNDEFINED(name, len) \
 	12, "undefined variable '%.*s'", \
 		(name), (len)
@@ -328,16 +332,17 @@ typedef enum {
 	TYPE_UPVALUE,
 } type_t;
 
-static const char* TYPENAME[] = {
-	"Nil",
-	"Bool",
-	"Num",
-	"List",
-	"String",
-	"Function",
-	"Closure",
-	"Upvalue"
-};
+static const char* type_name(type_t tag) {
+	switch (tag) {
+	case TYPE_NIL: return "Nil";
+	case TYPE_BOOL: return "Bool";
+	case TYPE_NUM: return "Num";
+	case TYPE_LIST: return "List";
+	case TYPE_STRING: return "String";
+	case TYPE_CLOSURE: return "Function";
+	default: unreachable();
+	}
+}
 
 #define isheaptype(t) \
 	((t) == TYPE_LIST \
@@ -353,11 +358,17 @@ typedef struct obj_s {
 	struct obj_s* next;
 } obj_t;
 
+#if SYLT_USE_DOUBLE
+typedef double sylt_num_t;
+#else
+typedef float sylt_num_t;
+#endif
+
 /* tagged enum representing a sylt value */
 typedef struct value_s {
 	type_t tag;
 	union {
-		double num;
+		sylt_num_t num;
 		obj_t* obj;
 	} data;
 } value_t;
@@ -420,6 +431,14 @@ typedef struct upvalue_s {
 	struct value_s closed;
 	struct upvalue_s* next;
 } upvalue_t;
+
+/* selects a function depending on whether
+ * sylt_num_t is a float or a double */
+#if SYLT_USE_DOUBLE
+#define num_func(flt, dbl) dbl
+#else
+#define num_func(flt, dbl) flt
+#endif
 
 /* macros for creating a value_t
  * struct from a raw value */
@@ -791,8 +810,11 @@ bool val_eq(value_t a, value_t b) {
 	}
 }
 
+string_t* val_tostring_opts(
+	value_t, bool, int, sylt_t*);
+
 /* converts a value to a printable string */
-string_t* val_tostring(
+static string_t* val_tostring(
 	value_t val, sylt_t* ctx)
 {
 	switch (val.tag) {
@@ -824,8 +846,12 @@ string_t* val_tostring(
 		/* print items */
 		list_t* ls = getlist(val);
 		for (size_t i = 0; i < ls->len; i++) {
-			string_t* vstr = val_tostring(
-				ls->items[i], ctx);
+			string_t* vstr =
+				val_tostring_opts(
+				ls->items[i],
+				true,
+				0,
+				ctx);
 			string_append(&str, vstr, ctx);
 			
 			/* add ', ' between items */
@@ -855,8 +881,6 @@ string_t* val_tostring(
 	}
 	default: unreachable();
 	}
-	
-	return NULL;
 }
 
 string_t* val_tostring_opts(
@@ -881,7 +905,7 @@ string_t* val_tostring_opts(
 			&str,
 			string_fmt(
 				ctx,
-				"'%.*s'", len, vstr->bytes),
+				"\"%.*s\"", len, vstr->bytes),
 			ctx);
 		
 		if (shortened)
@@ -1613,10 +1637,10 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 
 void vm_math(vm_t* vm, op_t opcode) {
 	typecheck(vm->ctx, peek(0), TYPE_NUM);
-	double b = getnum(pop());
+	sylt_num_t b = getnum(pop());
 	
 	typecheck(vm->ctx, peek(0), TYPE_NUM);
-	double a = getnum(pop());
+	sylt_num_t a = getnum(pop());
 	
 	switch (opcode) {
 	/* arithmetic */
@@ -1628,6 +1652,7 @@ void vm_math(vm_t* vm, op_t opcode) {
 			halt(vm->ctx, E_DIVBYZERO);
 			unreachable();
 		}
+		
 		push(newnum(a / b));
 		break;
 	case OP_EDIV: {
@@ -1635,7 +1660,10 @@ void vm_math(vm_t* vm, op_t opcode) {
 			halt(vm->ctx, E_DIVBYZERO);
 			unreachable();
 		}
-		double res = fmod(a, b);
+		
+		sylt_num_t res =
+			num_func(fmodf, fmod)(a, b);
+		
 		if (res < 0)
 			res += fabs(b);
 		push(newnum(res));
@@ -1663,32 +1691,54 @@ void vm_math(vm_t* vm, op_t opcode) {
 
 /* == prelude == */
 
+/* prints arg(0) to the standard output
+ * followed by a newline (\n) character */
 value_t slib_put(sylt_t* ctx) {
 	for (int i = 0; i < argc(); i++)
 		val_print(arg(0), false, 0, ctx);
 	return newnil();
 }
 
+/* returns arg(0) converted to a string */
+value_t slib_stringify(sylt_t* ctx) {
+	string_t* str =
+		val_tostring(arg(0), ctx);
+	return wrapstring(str);
+}
+
+/* returns the type of arg(0) as a string */
+value_t slib_typeof(sylt_t* ctx) {
+	return wrapstring(string_lit(
+		type_name(arg(0).tag), ctx));
+}
+
+/* meant for debug builds, halts the VM with
+ * an error if arg(0) evaluates to false */
 value_t slib_ensure(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_BOOL);
 	if (!getbool(arg(0))) {
 		halt(ctx, -1, "ensure failed");
 		unreachable();
 	}
+	
 	return arg(0);
 }
 
+/* returns the length of arg(0) */
 value_t slib_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return newnum(getlist(arg(0))->len);
 }
 
+/* appends a value to the end of arg(0) */
 value_t slib_push(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	list_push(getlist(arg(0)), arg(1), ctx);
 	return newnil();
 }
 
+/* removes and returns the last value of
+ * arg(0), or nil if it was empty */
 value_t slib_pop(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return list_pop(getlist(arg(0)), ctx);
@@ -1696,22 +1746,48 @@ value_t slib_pop(sylt_t* ctx) {
 
 /* == math == */
 
-value_t slib_abs(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	return newnum(fabs(getnum(arg(0))));
+/* returns true if arg(0) is nearly equal
+ * to arg(1), within a tolerance of arg(2) */
+value_t slib_nearly(sylt_t* ctx) {
+	sylt_num_t a = getnum(arg(0));
+	sylt_num_t b = getnum(arg(1));
+	if (a == b)
+		return newbool(true);
+	
+	sylt_num_t epsilon = getnum(arg(2));
+	sylt_num_t diff =
+		num_func(fabsf, fabs)(a - b);
+	
+	return newbool(diff < epsilon);
 }
 
+/* returns the absolute value of arg(0) */
+value_t slib_abs(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	sylt_num_t result = num_func(fabsf, fabs)
+		(getnum(arg(0)));
+	return newnum(result);
+}
+
+/* returns arg(0) raised
+ * to the power of arg(1) */
 value_t slib_raise(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
-	return newnum(powf(
-			getnum(arg(0)),
-			getnum(arg(1))));
+	
+	sylt_num_t a = getnum(arg(0));
+	sylt_num_t b = getnum(arg(1));
+	sylt_num_t result =
+		num_func(powf, pow)(a, b);
+	return newnum(result);
 }
 
+/* returns the square root of arg(0) */
 value_t slib_sqrt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return newnum(sqrt(getnum(arg(0))));
+	sylt_num_t result =
+		num_func(sqrtf, sqrt)(getnum(arg(0)));
+	return newnum(result);
 }
 
 void slib_add(
@@ -1723,12 +1799,16 @@ void slib_add(
 void load_slib(sylt_t* ctx) {
 	/* prelude */
 	slib_add(ctx, "put", slib_put, 1);
+	slib_add(ctx, "stringify", 
+		slib_stringify, 1);
+	slib_add(ctx, "typeof", slib_typeof, 1);
 	slib_add(ctx, "ensure", slib_ensure, 1);
 	slib_add(ctx, "length", slib_length, 1);
 	slib_add(ctx, "push", slib_push, 2);
 	slib_add(ctx, "pop", slib_pop, 1);
 	
 	/* math */
+	slib_add(ctx, "nearly", slib_nearly, 3);
 	slib_add(ctx, "abs", slib_abs, 1);
 	slib_add(ctx, "raise", slib_raise, 2);
 	slib_add(ctx, "sqrt", slib_sqrt, 1);
@@ -2603,8 +2683,9 @@ void string(comp_t* cmp) {
 
 /* parses a numeric literal */
 void number(comp_t* cmp) {
-	double num =
-		strtod(cmp->prev.start, NULL);
+	sylt_num_t num = num_func(strtof, strtod)
+		(cmp->prev.start, NULL);
+	
 	emit_value(cmp, newnum(num));
 }
 

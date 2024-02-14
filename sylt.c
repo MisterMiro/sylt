@@ -79,13 +79,13 @@ typedef enum {
 } sylt_state_t;
 
 static const char* SYLT_STATE_NAME[] = {
-	"INIT",
-	"COMPILING",
-	"COMPILED",
-	"RUNNING",
-	"FINISHED",
-	"FREEING",
-	"FREE",
+	"Init",
+	"Compiling",
+	"Compiled",
+	"Running",
+	"Finished",
+	"Freeing",
+	"Free",
 };
 
 typedef struct {
@@ -116,7 +116,7 @@ static void sylt_set_state(
 	ctx->state = state;
 	
 	#if DBG_PRINT_STATE_CHANGE
-	sylt_dprintf("[%s]\n",
+	sylt_dprintf("[state: %s]\n",
 		SYLT_STATE_NAME[state]);
 	#endif
 }
@@ -190,8 +190,7 @@ void* ptr_resize(
 		ctx->mem.bytes += ns - os;
 		
 		if (ctx->mem.bytes > ctx->mem.highest)
-			ctx->mem.highest =
-				ctx->mem.bytes;
+			ctx->mem.highest = ctx->mem.bytes;
 				
 		ctx->mem.count++;
 	}
@@ -1251,8 +1250,25 @@ inline static value_t sylt_pop(vm_t* vm) {
 inline static value_t sylt_peek(
 	vm_t* vm, int n
 ) {
-	//assert(depth > 0);
-	return vm->sp[-1 - n];
+	value_t* ptr = vm->sp + (-1 - n);
+	
+	#if DBG_ASSERTIONS
+	bool out_of_bounds = ptr < vm->stack
+		|| ptr > vm->sp;
+	
+	if (out_of_bounds) {
+		sylt_dprintf(
+			"access: %p\n"
+			"base: %p\n"
+			"top: %p\n",
+			ptr,
+			vm->stack,
+			vm->sp);
+		dbgerr("value stack overflowed");
+	}
+	#endif
+	
+	return *ptr;
 }
 
 /* virtual machine macros */
@@ -1793,6 +1809,16 @@ value_t slib_pop(sylt_t* ctx) {
 
 /* == math == */
 
+/* returns pi */
+value_t slib_pi(sylt_t* ctx) {
+	return newnum(M_PI);
+}
+
+/* returns euler's number */
+value_t slib_eulers(sylt_t* ctx) {
+	return newnum(M_E);
+}
+
 /* returns true if arg(0) is nearly equal
  * to arg(1), within a tolerance of arg(2) */
 value_t slib_nearly(sylt_t* ctx) {
@@ -1816,8 +1842,40 @@ value_t slib_abs(sylt_t* ctx) {
 	return newnum(result);
 }
 
-/* returns arg(0) raised
- * to the power of arg(1) */
+/* returns the exponent to which the base
+ * arg(1) needs to be raised in order to 
+ * produce the target value arg(0) */
+value_t slib_log(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	
+	sylt_num_t x = getnum(arg(0));
+	sylt_num_t base = getnum(arg(1));
+	sylt_num_t result = 1;
+	
+	/* optimize for common bases */
+	if (base == 2) {
+		/* binary */
+		result = num_func(log2f, log2)(x);
+	
+	} else if (base == M_E) {
+		/* natural */
+		result = num_func(log, logf)(x);
+	
+	} else if (base == 10) {
+		/* common */
+		result = num_func(log10, log10f)(x);
+	
+	} else {
+		result = num_func(logf, log)(x)
+			/ num_func(logf, log)(base);
+	}
+	
+	return newnum(result);
+}
+
+/* returns arg(0) raised to the power of
+ * arg(1) */
 value_t slib_raise(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -1835,6 +1893,31 @@ value_t slib_sqrt(sylt_t* ctx) {
 	sylt_num_t result =
 		num_func(sqrtf, sqrt)(getnum(arg(0)));
 	return newnum(result);
+}
+
+/* returns arg(0) rounded towards -infinity */
+value_t slib_floor(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return newnum(
+		num_func(floorf, floor)
+		(getnum(arg(0))));
+}
+
+/* returns arg(0) rounded towards +infinity */
+value_t slib_ceil(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return newnum(
+		num_func(ceilf, ceil)
+		(getnum(arg(0))));
+}
+
+/* returns the nearest value to arg(0), 
+ * rounding halfway cases away from zero */
+value_t slib_round(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return newnum(
+		num_func(roundf, round)
+		(getnum(arg(0))));
 }
 
 void slib_add(
@@ -1856,10 +1939,16 @@ void load_slib(sylt_t* ctx) {
 	slib_add(ctx, "pop", slib_pop, 1);
 	
 	/* math */
+	slib_add(ctx, "pi", slib_pi, 0);
+	slib_add(ctx, "eulers", slib_eulers, 0);
 	slib_add(ctx, "nearly", slib_nearly, 3);
 	slib_add(ctx, "abs", slib_abs, 1);
+	slib_add(ctx, "log", slib_log, 2);
 	slib_add(ctx, "raise", slib_raise, 2);
 	slib_add(ctx, "sqrt", slib_sqrt, 1);
+	slib_add(ctx, "floor", slib_floor, 1);
+	slib_add(ctx, "ceil", slib_ceil, 1);
+	slib_add(ctx, "round", slib_round, 1);
 }
 
 /* == compiler == */
@@ -3340,7 +3429,6 @@ int main(int argc, char *argv[]) {
 	}
 	
 	sylt_t* ctx = sylt_new();
-	sylt_dofile(ctx, argv[1]);
 	sylt_dofile(ctx, argv[1]);
 	sylt_free(ctx);
 	

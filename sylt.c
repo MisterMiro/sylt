@@ -9,7 +9,7 @@
 
 /* == configuration == */
 
-#define SYLT_USE_DOUBLE 1
+#define SYLT_USE_DOUBLES 1
 
 /* == debug flags == */
 
@@ -358,7 +358,7 @@ typedef struct obj_s {
 	struct obj_s* next;
 } obj_t;
 
-#if SYLT_USE_DOUBLE
+#if SYLT_USE_DOUBLES
 typedef double sylt_num_t;
 #else
 typedef float sylt_num_t;
@@ -434,7 +434,7 @@ typedef struct upvalue_s {
 
 /* selects a function depending on whether
  * sylt_num_t is a float or a double */
-#if SYLT_USE_DOUBLE
+#if SYLT_USE_DOUBLES
 #define num_func(flt, dbl) dbl
 #else
 #define num_func(flt, dbl) flt

@@ -391,10 +391,16 @@ let prelude_lib() = {
 }
 
 let math_lib() = {
+	## pi
+	ensure(nearly(pi(), 3.141592, 0.001))
+	
+	## eulers
+	ensure(nearly(eulers(), 2.718281, 0.001))
+	
 	## nearly
 	let zero = 0
-	let val = 0.09
-	let epsilon = 0.1
+	let val = 0.005
+	let epsilon = 0.01
 	
 	ensure(nearly(zero, val, epsilon))
 	ensure(!nearly(zero, epsilon, epsilon))
@@ -402,14 +408,54 @@ let math_lib() = {
 	## abs
 	ensure(abs(-8) == 8 and abs(8) == 8)
 	
-	## raise
-	ensure(raise(2, 8) == 256)
+	## log and raise
+	let target = 8
+	let bases = [
+		## common
+		2, eulers(), 10,
+		## uncommon
+		3, 14, 2000, 18000, 2000000,
+	]
+	
+	let log_and_raise(base, target) = {
+		let power = log(target, base)
+		let result = raise(base, power)
+		ensure(nearly(result, target, 0.01))
+	}
+	
+	foreach(bases, fun(_, base) =
+		log_and_raise(base, target))
 	
 	## sqrt
 	ensure(sqrt(256) == 16)
+	ensure(raise(32, 0.5) == sqrt(32))
 	
-	let x = 32
-	##ensure(raise(x, 0.5) == sqrt(x))
+	## floor, ceil and round
+	let check_rounding(n) = {
+		let low = n + 0.2
+		let mid = n + 0.5
+		let high = n + 0.8
+	
+		ensure(floor(low) == n)
+		ensure(floor(high) == n)
+	
+		ensure(ceil(low) == n + 1)
+		ensure(ceil(high) == n + 1)
+	
+		ensure(round(low) == n)
+		ensure(round(high) == n + 1)
+	
+		ensure(round(mid) ==
+			if n >= 0 {
+				n + 1
+			} else {
+				n
+			})
+	}
+	
+	check_rounding(-4)
+	check_rounding(0)
+	check_rounding(4)
 }
 
 ## tests to run

@@ -22,9 +22,10 @@ let foreach(ls, f) = {
 }
 
 let map(ls, f) = {
-	let newls = []
-	foreach(ls, fun(_, v) = push(newls, f(v)))
-	newls
+	let mapped = []
+	foreach(ls, fun(_, v) =
+		push(mapped, f(v)))
+	mapped
 }
 
 let concat(a, b) = {
@@ -32,6 +33,32 @@ let concat(a, b) = {
 	foreach(a, fun(_, v) = push(result, v))
 	foreach(b, fun(_, v) = push(result, v))
 	result
+}
+
+let concat_mut(a, b) = {
+	foreach(b, fun(_, v) = push(a, v))
+	nil
+}
+
+let flatten(ls) = {
+	let flat = []
+	let loop(i) =
+		if i < length(ls) {
+			let item = ls[i]
+			
+			if typeof(item) == "List" {
+				let rec = flatten(item)
+				concat_mut(flat, rec)
+				
+			} else {
+				push(flat, item)
+			}
+			
+			loop(i + 1)
+		}
+		
+	loop(0)
+	flat
 }
 
 ## test functions
@@ -195,7 +222,6 @@ let equality() = {
 	})
 	
 	## perform more type-specific tests
-	
 	ensure(true != false)
 	
 	ensure([] == [])
@@ -281,8 +307,15 @@ let functions() = {
 	let empty() = {}
 	ensure(empty() == nil)
 	
-	## arguments
+	## argument passing
 	let add(a, b) = a + b
+	ensure(add(3, 4) == 7)
+	
+	## arguments + local variables
+	let add(a, b) = {
+		let stack_mate = 18
+		a + b
+	}
 	ensure(add(3, 4) == 7)
 	
 	## accessing variable outside of
@@ -318,6 +351,23 @@ let recursion() = {
 }
 
 let prelude_lib() = {
+	## typeof
+	ensure(typeof(nil) == "Nil")
+	ensure(typeof(true) == "Bool")
+	ensure(typeof(1) == "Num")
+	ensure(typeof([]) == "List")
+	ensure(typeof("") == "String")
+	ensure(typeof(fun() = {}) == "Function")
+	
+	## stringify
+	ensure(stringify(nil) == "nil")
+	ensure(stringify(true) == "true"
+		and stringify(false) == "false")
+	ensure(stringify(707) == "707")
+	ensure(stringify(["bananas", 18, true])
+		== "[\"bananas\", 18, true]")
+	ensure(stringify(repn) == "repn()")
+	
 	## repn
 	let nums = []
 	repn(3, fun(i) = push(nums, (i + 1) * 3))
@@ -332,12 +382,30 @@ let prelude_lib() = {
 	let b = [3, 4]
 	let conced = concat(a, b)
 	ensure(conced == [1, 2, 3, 4])
+	
+	## flatten
+	##let mess = [1, [2, [3, 4]], 5]
+	##let clean = flatten(mess)
+	##ensure(clean == [1, 2, 3, 4, 5])
+
 }
 
 let math_lib() = {
-	ensure(abs(-8) == 8)
+	## nearly
+	let zero = 0
+	let val = 0.09
+	let epsilon = 0.1
 	
+	ensure(nearly(zero, val, epsilon))
+	ensure(!nearly(zero, epsilon, epsilon))
+	
+	## abs
+	ensure(abs(-8) == 8 and abs(8) == 8)
+	
+	## raise
 	ensure(raise(2, 8) == 256)
+	
+	## sqrt
 	ensure(sqrt(256) == 16)
 	
 	let x = 32
@@ -346,50 +414,61 @@ let math_lib() = {
 
 ## tests to run
 
-let parser = [
-	names,
-	strings,
-	numbers,
-]
-
-let numbers = [
-	addition,
-	subtraction,
-	multiplication,
-	division,
-	euclidean_division,
-	unary_minus,
-	arithmetic,
-]
-
-let boolean_ops = [
-	comparison, equality,
-	bool_not, bool_and, bool_or,
-]
-
-let control_flow = [
-	blocks,
-	if_else,
-	functions,
-	recursion,
-]
-
-let standard_lib = [
-	prelude_lib,
-	math_lib,
-]
-
-let run = []
-concat(run, parser)
-concat(run, numbers)
-concat(run, boolean_ops)
-concat(run, control_flow)
-concat(run, standard_lib)
+let run = flatten([
+	"Parser",
+	[
+		names,
+		strings,
+		numbers,
+	],
+	"Numbers",
+	[
+		addition,
+		subtraction,
+		multiplication,
+		division,
+		euclidean_division,
+		unary_minus,
+		arithmetic,
+	],
+	"Booleans",
+	[
+		comparison, equality,
+		bool_not, bool_and, bool_or,
+	],
+	"Control Flow",
+	[
+		blocks,
+		if_else,
+		functions,
+		recursion,
+	],
+	"Standard Library",
+	[
+		prelude_lib,
+		math_lib,
+	],
+])
 
 ## let's go
 
 let iterations = 1
-repn(iterations, fun(_) = foreach(run,
-	fun(_, f) = f()))
+repn(iterations, fun(_) =
+	foreach(run, fun(_, val) = {
+		if (typeof(val) == "String") {
+			put(val)
+			putln(":")
+		
+		} else {
+			put("  ")
+			put(stringify(val))
+			put(".....")
+		
+			## run it
+			val()
+		
+			putln("Ok")
+		}
+	}))
 
-put("all tests passed")
+putln("All tests passed!")

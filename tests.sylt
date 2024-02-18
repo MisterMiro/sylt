@@ -61,6 +61,21 @@ let flatten(ls) = {
 	flat
 }
 
+let any(ls, f) = {
+	let loop(i) =
+		if i < length(ls) {
+			if f(ls[i]) {
+				true
+			} else {
+				loop(i + 1)
+			}
+		} else {
+			false
+		}
+		
+	loop(0)
+}
+
 ## test functions
 
 let names() = {
@@ -172,6 +187,12 @@ let euclidean_division() = {
 let unary_minus() = {
 	let x = 25
 	ensure(-x == 0 - x)
+	
+	## double negative
+	ensure(--x == x)
+	
+	## quadruple negative
+	ensure(----x == x)
 }
 
 let arithmetic() = {
@@ -380,13 +401,21 @@ let prelude_lib() = {
 	## concat
 	let a = [1, 2]
 	let b = [3, 4]
-	let conced = concat(a, b)
-	ensure(conced == [1, 2, 3, 4])
+	let concatenated = concat(a, b)
+	ensure(concatenated == [1, 2, 3, 4])
 	
 	## flatten
-	##let mess = [1, [2, [3, 4]], 5]
-	##let clean = flatten(mess)
-	##ensure(clean == [1, 2, 3, 4, 5])
+	let mess = [1, [2, [3, 4]], 5]
+	let clean = flatten(mess)
+	ensure(clean == [1, 2, 3, 4, 5])
+	
+	## any
+	let set = [true, true, false]
+	ensure(any(set, fun(v) = v))
+	ensure(any(set, fun(v) = !v))
+	pop(set) ## = [true, true]
+	ensure(any(set, fun(v) = v))
+	ensure(!any(set, fun(v) = !v))
 
 }
 
@@ -461,8 +490,8 @@ let math_lib() = {
 ## tests to run
 
 let run = flatten([
-	"Parser",
-	[
+	"Parser",	## category name
+	[			## functions to test
 		names,
 		strings,
 		numbers,

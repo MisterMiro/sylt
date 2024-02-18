@@ -473,11 +473,11 @@ typedef struct upvalue_s {
 
 /* macros for creating a value_t
  * struct from a raw value */
-#define newnil() \
+#define wrapnil() \
 	(value_t){TYPE_NIL, {.num = 0}}
-#define newbool(v) \
+#define wrapbool(v) \
 	(value_t){TYPE_BOOL, {.num = (v)}}
-#define newnum(v) \
+#define wrapnum(v) \
 	(value_t){TYPE_NUM, {.num = (v)}}
 #define wraplist(v) \
 	(value_t){TYPE_LIST, \
@@ -594,12 +594,12 @@ value_t list_get(list_t* ls, int index) {
 	if (index < 0) {
 		int mod = ls->len + index;
 		if (mod < 0)
-			return newnil();
+			return wrapnil();
 		return ls->items[mod];
 	}
 	
 	if (index > ls->len - 1)
-		return newnil();
+		return wrapnil();
 	return ls->items[index];
 }
 
@@ -620,7 +620,7 @@ void list_push(
  * in the list */
 value_t list_pop(list_t* ls, sylt_t* ctx) {
 	if (ls->len == 0)
-		return newnil();
+		return wrapnil();
 	value_t last = list_get(ls, -1);
 	ls->items = arr_resize(
 		ls->items,
@@ -779,7 +779,7 @@ upvalue_t* upvalue_new(
 	upvalue_t* upval = (upvalue_t*)obj_new(
 		sizeof(upvalue_t), TYPE_UPVALUE, ctx);
 	upval->pos = pos;
-	upval->closed = newnil();
+	upval->closed = wrapnil();
 	upval->next = NULL;
 	return upval;
 }
@@ -1096,7 +1096,7 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->maxstack = 0;
 	vm->sp = NULL;
 	vm->openups = NULL;
-	vm->hidden = newnil();
+	vm->hidden = wrapnil();
 	vm->ctx = ctx;
 }
 
@@ -1397,15 +1397,15 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			break;
 		}
 		case OP_PUSHNIL: {
-			push(newnil());
+			push(wrapnil());
 			break;
 		}
 		case OP_PUSHTRUE: {
-			push(newbool(true));
+			push(wrapbool(true));
 			break;
 		}
 		case OP_PUSHFALSE: {
-			push(newbool(false));
+			push(wrapbool(false));
 			break;
 		}
 		case OP_PUSHLIST: {
@@ -1532,7 +1532,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 				vm->ctx,
 				peek(0),
 				TYPE_NUM);
-			push(newnum(-getnum(pop())));
+			push(wrapnum(-getnum(pop())));
 			break;
 		}
 		/* comparison */
@@ -1547,13 +1547,13 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 		case OP_EQ: {
 			value_t b = pop();
 			value_t a = pop();
-			push(newbool(val_eq(a, b)));
+			push(wrapbool(val_eq(a, b)));
 			break;
 		}
 		case OP_NEQ: {
 			value_t b = pop();
 			value_t a = pop();
-			push(newbool(!val_eq(a, b)));
+			push(wrapbool(!val_eq(a, b)));
 			break;
 		}
 		case OP_NOT: {
@@ -1561,7 +1561,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 				vm->ctx,
 				vm->sp[-1],
 				TYPE_BOOL);
-			push(newbool(!getbool(pop())));
+			push(wrapbool(!getbool(pop())));
 			break;
 		}
 		/* control flow */
@@ -1698,16 +1698,22 @@ void vm_math(vm_t* vm, op_t opcode) {
 	
 	switch (opcode) {
 	/* arithmetic */
-	case OP_ADD: push(newnum(a + b)); break;
-	case OP_SUB: push(newnum(a - b)); break;
-	case OP_MUL: push(newnum(a * b)); break;
+	case OP_ADD:
+		push(wrapnum(a + b));
+		break;
+	case OP_SUB:
+		push(wrapnum(a - b));
+		break;
+	case OP_MUL:
+		push(wrapnum(a * b));
+		break;
 	case OP_DIV:
 		if (b == 0.0f) {
 			halt(vm->ctx, E_DIVBYZERO);
 			unreachable();
 		}
 		
-		push(newnum(a / b));
+		push(wrapnum(a / b));
 		break;
 	case OP_EDIV: {
 		if (b == 0.0f) {
@@ -1720,14 +1726,22 @@ void vm_math(vm_t* vm, op_t opcode) {
 		
 		if (res < 0)
 			res += fabs(b);
-		push(newnum(res));
+		push(wrapnum(res));
 		break;
 	}
 	/* comparison */
-	case OP_LT: push(newbool(a < b)); break;
-	case OP_LTE: push(newbool(a <= b)); break;
-	case OP_GT: push(newbool(a > b)); break;
-	case OP_GTE: push(newbool(a >= b)); break;
+	case OP_LT:
+		push(wrapbool(a < b));
+		break;
+	case OP_LTE:
+		push(wrapbool(a <= b));
+		break;
+	case OP_GT:
+		push(wrapbool(a > b));
+		break;
+	case OP_GTE:
+		push(wrapbool(a >= b));
+		break;
 	default: unreachable();
 	}
 }
@@ -1750,7 +1764,7 @@ void vm_math(vm_t* vm, op_t opcode) {
 value_t slib_put(sylt_t* ctx) {
 	val_print(arg(0), false, 0, ctx);
 	fflush(stdout);
-	return newnil();
+	return wrapnil();
 }
 
 /* prints arg(0) to the standard output,
@@ -1759,7 +1773,7 @@ value_t slib_put(sylt_t* ctx) {
 value_t slib_putln(sylt_t* ctx) {
 	val_print(arg(0), false, 0, ctx);
 	sylt_printf("\n");
-	return newnil();
+	return wrapnil();
 }
 
 /* returns arg(0) converted to a string */
@@ -1790,14 +1804,14 @@ value_t slib_ensure(sylt_t* ctx) {
 /* returns the length of arg(0) */
 value_t slib_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
-	return newnum(getlist(arg(0))->len);
+	return wrapnum(getlist(arg(0))->len);
 }
 
 /* appends a value to the end of arg(0) */
 value_t slib_push(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	list_push(getlist(arg(0)), arg(1), ctx);
-	return newnil();
+	return wrapnil();
 }
 
 /* removes and returns the last value of
@@ -1811,12 +1825,12 @@ value_t slib_pop(sylt_t* ctx) {
 
 /* returns pi */
 value_t slib_pi(sylt_t* ctx) {
-	return newnum(M_PI);
+	return wrapnum(M_PI);
 }
 
 /* returns euler's number */
 value_t slib_eulers(sylt_t* ctx) {
-	return newnum(M_E);
+	return wrapnum(M_E);
 }
 
 /* returns true if arg(0) is nearly equal
@@ -1825,13 +1839,13 @@ value_t slib_nearly(sylt_t* ctx) {
 	sylt_num_t a = getnum(arg(0));
 	sylt_num_t b = getnum(arg(1));
 	if (a == b)
-		return newbool(true);
+		return wrapbool(true);
 	
 	sylt_num_t epsilon = getnum(arg(2));
 	sylt_num_t diff =
 		num_func(fabsf, fabs)(a - b);
 	
-	return newbool(diff < epsilon);
+	return wrapbool(diff < epsilon);
 }
 
 /* returns the absolute value of arg(0) */
@@ -1839,7 +1853,7 @@ value_t slib_abs(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result = num_func(fabsf, fabs)
 		(getnum(arg(0)));
-	return newnum(result);
+	return wrapnum(result);
 }
 
 /* returns the exponent to which the base
@@ -1860,18 +1874,18 @@ value_t slib_log(sylt_t* ctx) {
 	
 	} else if (base == M_E) {
 		/* natural */
-		result = num_func(log, logf)(x);
+		result = num_func(logf, log)(x);
 	
 	} else if (base == 10) {
 		/* common */
-		result = num_func(log10, log10f)(x);
+		result = num_func(log10f, log10)(x);
 	
 	} else {
 		result = num_func(logf, log)(x)
 			/ num_func(logf, log)(base);
 	}
 	
-	return newnum(result);
+	return wrapnum(result);
 }
 
 /* returns arg(0) raised to the power of
@@ -1884,7 +1898,7 @@ value_t slib_raise(sylt_t* ctx) {
 	sylt_num_t b = getnum(arg(1));
 	sylt_num_t result =
 		num_func(powf, pow)(a, b);
-	return newnum(result);
+	return wrapnum(result);
 }
 
 /* returns the square root of arg(0) */
@@ -1892,13 +1906,13 @@ value_t slib_sqrt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
 		num_func(sqrtf, sqrt)(getnum(arg(0)));
-	return newnum(result);
+	return wrapnum(result);
 }
 
 /* returns arg(0) rounded towards -infinity */
 value_t slib_floor(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return newnum(
+	return wrapnum(
 		num_func(floorf, floor)
 		(getnum(arg(0))));
 }
@@ -1906,7 +1920,7 @@ value_t slib_floor(sylt_t* ctx) {
 /* returns arg(0) rounded towards +infinity */
 value_t slib_ceil(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return newnum(
+	return wrapnum(
 		num_func(ceilf, ceil)
 		(getnum(arg(0))));
 }
@@ -1915,7 +1929,7 @@ value_t slib_ceil(sylt_t* ctx) {
  * rounding halfway cases away from zero */
 value_t slib_round(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return newnum(
+	return wrapnum(
 		num_func(roundf, round)
 		(getnum(arg(0))));
 }
@@ -2695,13 +2709,13 @@ void expr(comp_t* cmp, prec_t prec) {
 void literal(comp_t* cmp) {
 	switch (cmp->prev.tag) {
 	case T_NIL:
-		emit_value(cmp, newnil());
+		emit_value(cmp, wrapnil());
 		break;
 	case T_TRUE:
-		emit_value(cmp, newbool(true));
+		emit_value(cmp, wrapbool(true));
 		break;
 	case T_FALSE:
-		emit_value(cmp, newbool(false));
+		emit_value(cmp, wrapbool(false));
 		break;
 	default: unreachable();
 	}
@@ -2823,7 +2837,7 @@ void number(comp_t* cmp) {
 	sylt_num_t num = num_func(strtof, strtod)
 		(cmp->prev.start, NULL);
 	
-	emit_value(cmp, newnum(num));
+	emit_value(cmp, wrapnum(num));
 }
 
 /* parses a parenthesized expression */
@@ -2975,7 +2989,7 @@ void let(comp_t* cmp) {
 	}
 	
 	/* expression yields a 'nil' */
-	emit_value(cmp, newnil());
+	emit_value(cmp, wrapnil());
 }
 
 /* parses an anonymous function */
@@ -3125,7 +3139,7 @@ void if_else(comp_t* cmp) {
 		 * the condition evaluates
 		 * to false and we don't have
 		 * an 'else' branch */
-		emit_value(cmp, newnil());
+		emit_value(cmp, wrapnil());
 	}
 	
 	patch_jump(cmp, else_addr);
@@ -3142,7 +3156,7 @@ void block(comp_t* cmp) {
 	/* a block must return a value even
 	 * when it contains zero expressions */
 	if (match(cmp, T_RCURLY)) {
-		emit_value(cmp, newnil());
+		emit_value(cmp, wrapnil());
 		cmp->depth--;
 		return;
 	}

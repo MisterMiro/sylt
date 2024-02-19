@@ -36,8 +36,7 @@
 
 #define OPTZ_DEDUP_CONSTANTS 1
 #define OPTZ_SPECIAL_PUSHOPS 1
-#define OPTZ_EMIT_DUP 0
-#define OPTZ_PUSHPOP 0
+#define OPTZ_PUSHPOP 1
 
 /* == code limits == */
 
@@ -340,7 +339,8 @@ typedef struct {
 	size_t ndata;
 	/* total stack slots needed */
 	size_t slots;
-	/* name, for errors and debugging */
+	/* name, used in error messages and
+	 * for debugging */
 	struct string_s* name;
 	struct string_s* fullname;
 	/* list of line numbers */
@@ -2014,19 +2014,28 @@ typedef struct {
 	size_t len;
 } token_t;
 
-/* operator precedence levels */
+/* operator precedence levels,
+ * from lowest to highest */
 typedef enum {
 	PREC_NONE,
+	/* assignment '=' */
 	PREC_ASSIGN,
+	/* boolean 'or' */
 	PREC_OR,
+	/* boolean 'and' */
 	PREC_AND,
+	/* equality: == != */
 	PREC_EQ,
+	/* comparison: < <= > >= */
 	PREC_CMP,
+	/* addition: + - */
 	PREC_TERM,
+	/* multiplication: * / % */
 	PREC_FACTOR,
-	PREC_UNARY,
-	PREC_CALL,
-	PREC_INDEX,
+	/* unary prefix: - ! */
+	PREC_UPRE,
+	/* unary postfix: () [] */
+	PREC_UPOST,
 	PREC_PRIMARY,
 } prec_t;
 
@@ -2053,13 +2062,6 @@ typedef struct comp_s {
 	func_t* func;
 	/* current (simulated) stack size */
 	int curslots;
-	
-	/* last opcode written to chunk */
-	int lastop;
-	/* operand of last OP_LOAD */
-	int lastload;
-	/* last value pushed to stack */
-	value_t lastpush;
 	
 	/* source code */
 	string_t* src;
@@ -2090,11 +2092,6 @@ void comp_init(
 	cmp->parent = NULL;
 	cmp->func = func_new(ctx, src_name);
 	cmp->curslots = 0;
-	
-	cmp->lastop = -1;
-	cmp->lastload = -1;
-	cmp->lastpush =
-		(value_t){-1, {.num = 0}};
 	
 	cmp->src = src;
 	cmp->pos = (char*)cmp->src->bytes;
@@ -2306,55 +2303,12 @@ void emit_op(
 {
 	comp_simstack(cmp, OPINFO[op].effect);
 	
-	#if OPTZ_PUSHPOP
-	/* prevents emitting code when pushing
-	 * a value and immediately popping it */
-	bool waspush =
-		cmp->lastop == OP_PUSH;
-		&& cmp->lastop == OP_CLOSE;
-	
-	if (op == OP_POP && waspush) {
-		int shrink =
-			1 + OPINFO[cmp->lastop].rank;
-		
-		/* delete the last opcode
-		 * plus its operand(s) */
-		chunk->code = arr_resize(
-			chunk->code,
-			uint8_t,
-			chunk->ncode,
-			chunk->ncode - shrink,
-			cmp->ctx);
-		chunk->ncode -= shrink;
-		
-		/* delete the value from the value
-		 * pool if one was written */
-		if (true) {
-			chunk->pool = arr_resize(
-				chunk->pool,
-				value_t,
-				chunk->npool,
-				chunk->npool - 1,
-				cmp->ctx);
-			chunk->npool--;
-		}
-		
-		/* shrink simulated stack size */
-		comp_simstack(cmp,
-			-OPINFO[cmp->lastop].effect);
-		
-		cmp->lastop = -1;
-		return;
-	}
-	#endif
-	
 	/* write the instruction opcode */
 	chunk_write(
 		comp_chunk(cmp),
 		op,
 		cmp->line,
 		cmp->ctx);
-	cmp->lastop = op;
 	
 	/* write the arguments */
 	for (size_t i = 0; i < nargs; i++) {
@@ -2397,17 +2351,7 @@ void emit_binary(
  * on to the operand stack */
 void emit_value(
 	comp_t* cmp, value_t val)
-{
-	#if OPTZ_EMIT_DUP
-	if (cmp->lastpush.tag != -1
-		&& val_eq(cmp->lastpush, val))
-	{
-		emit_nullary(cmp, OP_DUP);
-		return;
-	}
-	cmp->lastpush = val;
-	#endif
-	
+{	
 	#if OPTZ_SPECIAL_PUSHOPS
 	switch (val.tag) {
 	case TYPE_NIL: {
@@ -2665,11 +2609,11 @@ static parserule_t RULES[] = {
 	[T_EQ_EQ] = {NULL, binary, PREC_EQ},
 	[T_BANG] = {unary, NULL, PREC_NONE},
 	[T_BANG_EQ] = {NULL, binary, PREC_EQ},
-	[T_LPAREN] = {grouping, call, PREC_CALL},
+	[T_LPAREN] = {grouping, call, PREC_UPOST},
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
 	[T_LCURLY] = {block, NULL, PREC_NONE},
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
-	[T_LSQUARE] = {list, index, PREC_INDEX},
+	[T_LSQUARE] = {list, index, PREC_UPOST},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
@@ -2725,14 +2669,6 @@ void literal(comp_t* cmp) {
 void name(comp_t* cmp) {
 	int index = find_symbol(cmp, cmp->prev);
 	if (index != -1) {
-		#if OPTZ_EMIT_DUP
-		if (index == cmp->lastload) {
-			emit_nullary(cmp, OP_DUP);
-			return;
-		}
-		cmp->lastload = index;
-		#endif
-		
 		emit_unary(cmp, OP_LOAD, index);
 		return;
 	}
@@ -2853,7 +2789,7 @@ void unary(comp_t* cmp) {
 	token_type_t token = cmp->prev.tag;
 	
 	/* parse the operand */
-	expr(cmp, PREC_UNARY);
+	expr(cmp, PREC_UPRE);
 	
 	op_t opcode;
 	switch (token) {

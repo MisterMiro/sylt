@@ -19,6 +19,9 @@
 #define sylt_eprintf printf
 #define sylt_dprintf printf
 
+/* initial stack size */
+#define SYLT_INIT_STACK 24
+
 /* == debug options == */
 
 #define DBG_PRINT_STATE_CHANGE 1
@@ -36,7 +39,6 @@
 
 #define OPTZ_DEDUP_CONSTANTS 1
 #define OPTZ_SPECIAL_PUSHOPS 1
-#define OPTZ_PUSHPOP 1
 
 /* == code limits == */
 
@@ -101,10 +103,10 @@ typedef struct {
 /* sylt API struct */
 typedef struct {
 	sylt_state_t state;
-	/* compiler */
-	struct comp_s* cmp;
 	/* virtual machine */
 	struct vm_s* vm;
+	/* compiler */
+	struct comp_s* cmp;
 	/* memory */
 	mem_t mem;
 } sylt_t;
@@ -1089,6 +1091,8 @@ typedef struct vm_s {
 	sylt_t* ctx;
 } vm_t;
 
+void vm_ensurestack(vm_t*, int);
+
 void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->nframes = 0;
 	vm->fp = NULL;
@@ -1098,6 +1102,9 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->openups = NULL;
 	vm->hidden = wrapnil();
 	vm->ctx = ctx;
+	
+	/* initialize some stack slots */
+	vm_ensurestack(vm, SYLT_INIT_STACK);
 }
 
 void vm_free(vm_t* vm) {
@@ -1107,6 +1114,44 @@ void vm_free(vm_t* vm) {
 		vm->maxstack,
 		vm->ctx);
 	vm_init(vm, NULL);
+}
+
+void dbg_print_mem_stats(sylt_t* ctx) {
+	#if DBG_PRINT_MEM_STATS
+	sylt_dprintf(
+		"\n[memory information]\n"
+		"  leaked: %ld bytes\n"
+		"  highest usage: %ld bytes\n"
+		"  allocations: %ld\n",
+		ctx->mem.bytes - sizeof(sylt_t),
+		ctx->mem.highest,
+		ctx->mem.count);
+	sylt_dprintf("\n");
+	
+	#define print_size(t) \
+		sylt_dprintf("  sizeof(%s) = %ld\n", \
+			#t, sizeof(t))
+	
+	sylt_dprintf("system types:\n");
+	print_size(int);
+	print_size(short);
+	print_size(long);
+	print_size(size_t);
+	print_size(ptrdiff_t);
+	print_size(float);
+	print_size(double);
+	
+	sylt_dprintf("\nsylt types\n");
+	print_size(value_t);
+	print_size(list_t);
+	print_size(string_t);
+	print_size(func_t);
+	print_size(closure_t);
+	print_size(upvalue_t);
+	print_size(sylt_t);
+	#undef print_size
+	
+	#endif
 }
 
 void dbg_print_header(
@@ -1230,7 +1275,7 @@ void dbg_print_stack(
 }
 
 /* pushes a value on the stack */
-inline static void sylt_push(
+static inline void vm_push(
 	vm_t* vm, value_t val)
 {
 	#if DBG_ASSERTIONS
@@ -1242,14 +1287,23 @@ inline static void sylt_push(
 }
 
 /* pops a value from the stack */
-inline static value_t sylt_pop(vm_t* vm) {
+static inline value_t vm_pop(vm_t* vm) {
+	assert(vm->sp != vm->stack);
 	return *(--vm->sp);
 }
 
+/* shrinks the stack by n values */
+static inline void vm_shrink(
+	vm_t* vm, int n)
+{
+	assert(vm->sp - n >= vm->stack);
+	vm->sp -= n;
+}
+
 /* returns the value n down the stack */
-inline static value_t sylt_peek(
-	vm_t* vm, int n
-) {
+static inline value_t vm_peek(
+	const vm_t* vm, int n)
+{
 	value_t* ptr = vm->sp + (-1 - n);
 	
 	#if DBG_ASSERTIONS
@@ -1271,20 +1325,35 @@ inline static value_t sylt_peek(
 	return *ptr;
 }
 
+/* public stack API */
+
+#define sylt_pushstring(ctx, v) \
+	vm_push(ctx->vm, wrapstring(v))
+
+#define sylt_popstring(ctx) \
+	getstring(vm_pop(ctx->vm))
+
+#define sylt_peekstring(ctx, n) \
+	getstring(vm_peek(ctx->vm, n))
+	
+#define sylt_shrinkstack(ctx, n) \
+	vm_shrink(ctx->vm, n)
+
 /* virtual machine macros */
 #define read() *vm->fp->ip++
 #define read16() \
 	(vm->fp->ip += 2, (uint16_t) \
 		((vm->fp->ip[-2] << 8) \
 			| vm->fp->ip[-1]))
-#define push(v) sylt_push(vm, (v))
-#define pop() sylt_pop(vm)
-#define peek(n) sylt_peek(vm, (n))
+#define push(v) vm_push(vm, (v))
+#define pop() vm_pop(vm)
+#define shrink(n) vm_shrink(vm, (n))
+#define peek(n) vm_peek(vm, (n))
 
 void vm_math(vm_t* vm, op_t opcode);
 
 /* grows the stack if necessary */
-void vm_growstack(vm_t* vm, int needed) {
+void vm_ensurestack(vm_t* vm, int needed) {
 	if (vm->maxstack >= needed)
 		return;
 		
@@ -1301,6 +1370,8 @@ void vm_growstack(vm_t* vm, int needed) {
 	vm->sp = vm->stack + offset;
 }
 
+/* returns the value referenced by
+ * an upvalue */
 value_t vm_getupval(
 	vm_t* vm, upvalue_t* upval)
 {
@@ -1347,20 +1418,15 @@ void vm_closeupvals(
 	}
 }
 
-void vm_exec(vm_t* vm, const func_t* entry) {
-	sylt_set_state(vm->ctx,
+void vm_exec(vm_t* vm) {
+	sylt_set_state(
+		vm->ctx, 	
 		SYLT_STATE_RUNNING);
+		
+	const func_t* entry = getfunc(peek(0));
 	
-	const int INIT_STACK = 0;
-	int init_stack_size = entry->chunk.slots;
-	if (init_stack_size < INIT_STACK)
-		init_stack_size = INIT_STACK;
-	
-	/* init stack */
-	vm_growstack(vm, init_stack_size);
-	
-	/* init stack pointer */
-	vm->sp = vm->stack;
+	/* ensure enough stack space */
+	vm_ensurestack(vm, entry->chunk.slots);
 	
 	/* setup first call frame */
 	cframe_t frame;
@@ -1370,6 +1436,14 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 	frame.offs = 0;
 	vm->frames[vm->nframes++] = frame;
 	vm->fp = &vm->frames[vm->nframes - 1];
+	
+	/* the function is now reachable from
+	 * the callstack and doesn't need to
+	 * be on the stack */
+	pop();
+	
+	/* ensure an empty stack */
+	vm->sp = vm->stack;
 	
 	#if DBG_PRINT_OPCODES
 	dbg_print_header(vm, vm->fp->cls);
@@ -1419,7 +1493,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			}
 			pop();
 			
-			vm->sp -= len;
+			shrink(len);
 			
 			push(wraplist(ls));
 			break;
@@ -1609,7 +1683,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 				 * sylt callstack */
 				value_t result =
 					func->cfunc(vm->ctx);
-				vm->sp -= argc + 1;
+				shrink(argc + 1);
 				push(result);
 				
 				#if DBG_PRINT_OPCODES
@@ -1630,7 +1704,7 @@ void vm_exec(vm_t* vm, const func_t* entry) {
 			size_t used = vm->sp - vm->stack;
 			size_t needed = used
 				+ func->chunk.slots;
-			vm_growstack(vm, needed);
+			vm_ensurestack(vm, needed);
 			
 			/* push a new call frame */
 			cframe_t frame;
@@ -1757,7 +1831,12 @@ void vm_math(vm_t* vm, op_t opcode) {
 #define argc() (ctx->vm->fp->ip[-1])
 #define arg(n) (*(ctx->vm->sp - argc() + (n)))
 
-/* == prelude == */
+#define boolarg(n) getbool(arg(n))
+#define numarg(n) getnum(arg(n))
+#define listarg(n) getlist(arg(n))
+#define stringarg(n) getstring(arg(n))
+
+/* == prelude lib == */
 
 /* prints arg(0) to the standard output
  * and flushes the stream  */
@@ -1793,7 +1872,7 @@ value_t slib_typeof(sylt_t* ctx) {
  * an error if arg(0) evaluates to false */
 value_t slib_ensure(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_BOOL);
-	if (!getbool(arg(0))) {
+	if (!boolarg(0)) {
 		halt(ctx, -1, "ensure failed");
 		unreachable();
 	}
@@ -1801,16 +1880,18 @@ value_t slib_ensure(sylt_t* ctx) {
 	return arg(0);
 }
 
+/* == list lib == */
+
 /* returns the length of arg(0) */
 value_t slib_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
-	return wrapnum(getlist(arg(0))->len);
+	return wrapnum(listarg(0)->len);
 }
 
 /* appends a value to the end of arg(0) */
 value_t slib_push(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
-	list_push(getlist(arg(0)), arg(1), ctx);
+	list_push(listarg(0), arg(1), ctx);
 	return wrapnil();
 }
 
@@ -1818,10 +1899,10 @@ value_t slib_push(sylt_t* ctx) {
  * arg(0), or nil if it was empty */
 value_t slib_pop(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
-	return list_pop(getlist(arg(0)), ctx);
+	return list_pop(listarg(0), ctx);
 }
 
-/* == math == */
+/* == math lib == */
 
 /* returns pi */
 value_t slib_pi(sylt_t* ctx) {
@@ -1836,8 +1917,11 @@ value_t slib_eulers(sylt_t* ctx) {
 /* returns true if arg(0) is nearly equal
  * to arg(1), within a tolerance of arg(2) */
 value_t slib_nearly(sylt_t* ctx) {
-	sylt_num_t a = getnum(arg(0));
-	sylt_num_t b = getnum(arg(1));
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	
+	sylt_num_t a = numarg(0);
+	sylt_num_t b = numarg(1);
 	if (a == b)
 		return wrapbool(true);
 	
@@ -1851,8 +1935,8 @@ value_t slib_nearly(sylt_t* ctx) {
 /* returns the absolute value of arg(0) */
 value_t slib_abs(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	sylt_num_t result = num_func(fabsf, fabs)
-		(getnum(arg(0)));
+	sylt_num_t result =
+		num_func(fabsf, fabs)(numarg(0));
 	return wrapnum(result);
 }
 
@@ -1863,8 +1947,8 @@ value_t slib_log(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
-	sylt_num_t x = getnum(arg(0));
-	sylt_num_t base = getnum(arg(1));
+	sylt_num_t x = numarg(0);
+	sylt_num_t base = numarg(1);
 	sylt_num_t result = 1;
 	
 	/* optimize for common bases */
@@ -1894,8 +1978,8 @@ value_t slib_raise(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
-	sylt_num_t a = getnum(arg(0));
-	sylt_num_t b = getnum(arg(1));
+	sylt_num_t a = numarg(0);
+	sylt_num_t b = numarg(1);
 	sylt_num_t result =
 		num_func(powf, pow)(a, b);
 	return wrapnum(result);
@@ -1905,7 +1989,7 @@ value_t slib_raise(sylt_t* ctx) {
 value_t slib_sqrt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
-		num_func(sqrtf, sqrt)(getnum(arg(0)));
+		num_func(sqrtf, sqrt)(numarg(0));
 	return wrapnum(result);
 }
 
@@ -1913,16 +1997,14 @@ value_t slib_sqrt(sylt_t* ctx) {
 value_t slib_floor(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
-		num_func(floorf, floor)
-		(getnum(arg(0))));
+		num_func(floorf, floor)(numarg(0)));
 }
 
 /* returns arg(0) rounded towards +infinity */
 value_t slib_ceil(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
-		num_func(ceilf, ceil)
-		(getnum(arg(0))));
+		num_func(ceilf, ceil)(numarg(0)));
 }
 
 /* returns the nearest value to arg(0), 
@@ -1930,8 +2012,7 @@ value_t slib_ceil(sylt_t* ctx) {
 value_t slib_round(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
-		num_func(roundf, round)
-		(getnum(arg(0))));
+		num_func(roundf, round)(numarg(0)));
 }
 
 void slib_add(
@@ -2077,20 +2158,18 @@ typedef struct comp_s {
 	size_t nnames;
 	/* current scope depth */
 	int depth;
-	/* upvalues */
+	/* upvalues for current function */
 	cmp_upvalue_t upvals[MAX_UPVALUES];
 	/* reference to API */
 	sylt_t* ctx;
 } comp_t;
 
-void comp_init(
-	comp_t* cmp,
-	string_t* src,
-	string_t* src_name,
-	sylt_t* ctx)
-{
+void comp_init(comp_t* cmp, sylt_t* ctx) {
+	string_t* name = sylt_peekstring(ctx, 0);
+	string_t* src = sylt_peekstring(ctx, 1);
+	
 	cmp->parent = NULL;
-	cmp->func = func_new(ctx, src_name);
+	cmp->func = func_new(ctx, name);
 	cmp->curslots = 0;
 	
 	cmp->src = src;
@@ -2100,6 +2179,11 @@ void comp_init(
 	cmp->nnames = 0;
 	cmp->depth = 0;
 	cmp->ctx = ctx;
+	
+	/* the source code and name are now
+	 * reachable from the compiler and
+	 * can be safely taken off the stack */
+	sylt_shrinkstack(ctx, 2);
 }
 
 void comp_free(comp_t* cmp) {
@@ -2965,14 +3049,14 @@ void parse_func(comp_t* cmp, token_t name) {
 		name.len,
 		false, 
 		cmp->ctx);
+		
+	sylt_pushstring(cmp->ctx, cmp->src);
+	sylt_pushstring(cmp->ctx, funcname);
 	
 	/* setup a new compiler instance
 	* in order to parse the function */
 	comp_t fcmp;
-	comp_init(&fcmp, 
-		cmp->src,
-		funcname,
-		cmp->ctx);
+	comp_init(&fcmp, cmp->ctx);
 	comp_copystate(&fcmp, cmp);
 	comp_setfullname(
 		&fcmp,
@@ -3214,6 +3298,7 @@ string_t* load_file(
 	size_t len = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 	
+	/* TODO: GC */
 	char* bytes =
 		arr_alloc(char, len + 1, ctx);
 	
@@ -3279,57 +3364,22 @@ void halt(
 sylt_t* sylt_new(void) {
 	sylt_t* ctx = ptr_alloc(sylt_t, NULL);
 	sylt_set_state(ctx, SYLT_STATE_INIT);
-	ctx->cmp = ptr_alloc(comp_t, ctx);
 	ctx->vm = ptr_alloc(vm_t, ctx);
+	ctx->cmp = ptr_alloc(comp_t, ctx);
 	ctx->mem.objs = NULL;
 	/* has to be done manually when
 	 * allocating ctx struct itself */
 	ctx->mem.bytes += sizeof(sylt_t);
 	ctx->mem.highest = 0;
 	ctx->mem.count = 0;
+	vm_init(ctx->vm, ctx);
 	return ctx;
-}
-
-static void dbg_print_mem_stats(sylt_t* ctx) {
-	#if DBG_PRINT_MEM_STATS
-	sylt_dprintf(
-		"\n[memory information]\n"
-		"  leaked: %ld bytes\n"
-		"  highest usage: %ld bytes\n"
-		"  allocations: %ld\n",
-		ctx->mem.bytes - sizeof(sylt_t),
-		ctx->mem.highest,
-		ctx->mem.count);
-	sylt_dprintf("\n");
-	
-	#define print_size(t) \
-		sylt_dprintf("  sizeof(%s) = %ld\n", \
-			#t, sizeof(t))
-	
-	sylt_dprintf("system types:\n");
-	print_size(int);
-	print_size(short);
-	print_size(long);
-	print_size(size_t);
-	print_size(ptrdiff_t);
-	print_size(float);
-	print_size(double);
-	
-	sylt_dprintf("\nsylt types\n");
-	print_size(value_t);
-	print_size(list_t);
-	print_size(string_t);
-	print_size(func_t);
-	print_size(closure_t);
-	print_size(upvalue_t);
-	print_size(sylt_t);
-	#undef print_size
-	
-	#endif
 }
 
 void sylt_free(sylt_t* ctx) {
 	sylt_set_state(ctx, SYLT_STATE_FREEING);
+	
+	/* free all objects */
 	obj_t* obj = ctx->mem.objs;
 	while (obj) {
 		obj_t* next = obj->next;
@@ -3337,8 +3387,12 @@ void sylt_free(sylt_t* ctx) {
 		obj = next;
 	}
 	
-	ptr_free(ctx->cmp, comp_t, ctx);
+	/* free the VM */
+	vm_free(ctx->vm);
 	ptr_free(ctx->vm, vm_t, ctx);
+	
+	/* free compiler */
+	ptr_free(ctx->cmp, comp_t, ctx);
 	
 	/* ensure that no memory was leaked */
 	ptrdiff_t bytesleft =
@@ -3350,7 +3404,6 @@ void sylt_free(sylt_t* ctx) {
 	
 	dbg_print_mem_stats(ctx);
 	sylt_set_state(ctx, SYLT_STATE_FREE);
-	
 	ptr_free(ctx, sylt_t, ctx);
 }
 
@@ -3358,18 +3411,22 @@ void sylt_dofile(
 	sylt_t* ctx,
 	const char* path)
 {
-	string_t* src = load_file(path, ctx);
-	string_t* src_name = string_new(
-		path, strlen(path), false, ctx);
+	/* push the source code */
+	sylt_pushstring(ctx,
+		load_file(path, ctx));
 	
-	comp_init(ctx->cmp, src, src_name, ctx);
+	/* push the file name */
+	sylt_pushstring(ctx,
+		string_new(
+			path, strlen(path), false, ctx));
+	
+	comp_init(ctx->cmp, ctx);
 	load_slib(ctx);
 	func_t* func = compile(ctx->cmp);
+	vm_push(ctx->vm, wrapfunc(func));
 	comp_free(ctx->cmp);
 	
-	vm_init(ctx->vm, ctx);
-	vm_exec(ctx->vm, func);
-	vm_free(ctx->vm);
+	vm_exec(ctx->vm);
 }
 
 int main(int argc, char *argv[]) {

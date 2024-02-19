@@ -76,6 +76,21 @@ let any(ls, f) = {
 	loop(0)
 }
 
+let all(ls, f) = {
+	let loop(i) =
+		if i < length(ls) {
+			if !f(ls[i]) {
+				false
+			} else {
+				loop(i + 1)
+			}
+		} else {
+			true
+		}
+		
+	loop(0)
+}
+
 ## test functions
 
 let names() = {
@@ -104,18 +119,32 @@ let names() = {
 let strings() = {
 	let alpha = "abcDEFGHijklMNOPqrstUVWxyz"
 	
-	## escape sequences
+	## all escape sequences...
+	let hex = "\x41"
 	let backslash = "\\"
 	let quote = "\""
 	let carriage_return = "\r"
 	let newline = "\n"
 	let tab = "\t"
 	let null = "\0"
+	
+	## ...translate properly
+	ensure(hex == "A")
+	ensure(backslash == "\x5c")
+	ensure(quote == "\x22")
+	ensure(carriage_return == "\x0d")
+	ensure(newline == "\x0a")
+	ensure(tab == "\x09")
+	ensure(null == "\x00")
 }
 
 let numbers() = {
 	let integer = 123456789
 	let fractional = 3.141592
+}
+
+let precedence_levels() = {
+	
 }
 
 let addition() = {
@@ -388,22 +417,60 @@ let prelude_lib() = {
 	ensure(stringify(["bananas", 18, true])
 		== "[\"bananas\", 18, true]")
 	ensure(stringify(repn) == "repn()")
-	
-	## repn
-	let nums = []
-	repn(3, fun(i) = push(nums, (i + 1) * 3))
-	ensure(nums == [3, 6, 9])
-	
-	## map
-	let list = map([4, 8], fun(x) = x * 2)
-	ensure(list == [8, 16])
+}
 
+let list_lib() = {
+	## length
+	ensure(length([]) == 0)
+	ensure(length([1]) == 1)
+	ensure(length([1, 2]) == 2)
+	
+	## push...
+	let x = []
+	push(x, 3) ## = [3]
+	ensure(x == [3] and length(x) == 1)
+	push(x, 7) ## = [3, 7]
+	ensure(x == [3, 7] and length(x) == 2)
+	
+	## ...and pop
+	pop(x) ## = [3]
+	ensure(x == [3] and length(x) == 1)
+	pop(x) ## = []
+	ensure(x == [] and length(x) == 0)
+	
 	## concat
 	let a = [1, 2]
 	let b = [3, 4]
 	let concatenated = concat(a, b)
 	ensure(concatenated == [1, 2, 3, 4])
 	
+	## concat_mut
+	let a = [1, 2]
+	let b = [3, 4]
+	let result = concat_mut(a, b)
+	ensure(result == nil)
+	ensure(a == [1, 2, 3, 4])
+}
+
+let iter_lib() = {
+	## repn
+	let nums = []
+	repn(3, fun(i) = push(nums, (i + 1) * 3))
+	ensure(nums == [3, 6, 9])
+	
+	## foreach
+	let indices = [0, 1, 2]
+	let copy = []
+	foreach(indices, fun(index, value) = {
+		ensure(index == indices[index])
+		push(copy, value)
+	})
+	ensure(copy == indices)
+	
+	## map
+	let list = map([4, 8], fun(x) = x * 2)
+	ensure(list == [8, 16])
+
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]
 	let clean = flatten(mess)
@@ -416,7 +483,14 @@ let prelude_lib() = {
 	pop(set) ## = [true, true]
 	ensure(any(set, fun(v) = v))
 	ensure(!any(set, fun(v) = !v))
-
+	
+	## all
+	let set = [5, 7]
+	ensure(all(set, fun(n) = n >= 5))
+	ensure(all(set, fun(n) = !(n < 5)))
+	push(set, 3) ## = [5, 7, 3]
+	ensure(!all(set, fun(n) = n >= 5))
+	ensure(!all(set, fun(n) = !(n < 5)))
 }
 
 let math_lib() = {
@@ -495,6 +569,7 @@ let run = flatten([
 		names,
 		strings,
 		numbers,
+		precedence_levels,
 	],
 	"Numbers",
 	[
@@ -508,19 +583,24 @@ let run = flatten([
 	],
 	"Booleans",
 	[
-		comparison, equality,
-		bool_not, bool_and, bool_or,
+		comparison,
+		equality,
+		bool_not,
+		bool_and,
+		bool_or,
 	],
-	"Control Flow",
+	"Control flow",
 	[
 		blocks,
 		if_else,
 		functions,
 		recursion,
 	],
-	"Standard Library",
+	"Standard library",
 	[
 		prelude_lib,
+		list_lib,
+		iter_lib,
 		math_lib,
 	],
 ])

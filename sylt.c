@@ -13,7 +13,7 @@
  * 0 = use floats */
 #define SYLT_USE_DOUBLES 1
 
-/* functions used for printing standard, error
+/* functions for printing standard, error
  * and debug output, respectively */
 #define sylt_printf printf
 #define sylt_eprintf printf
@@ -22,7 +22,7 @@
 /* initial stack size */
 #define SYLT_INIT_STACK 24
 
-/* == debug options == */
+/* == debug settings == */
 
 #define DBG_PRINT_STATE_CHANGE 1
 #define DBG_PRINT_SOURCE 0
@@ -35,12 +35,12 @@
 #define DBG_PRINT_MEM_STATS 0
 #define DBG_ASSERTIONS 1
 
-/* == optimization flags == */
+/* == optimizations == */
 
 #define OPTZ_DEDUP_CONSTANTS 1
 #define OPTZ_SPECIAL_PUSHOPS 1
 
-/* == code limits == */
+/* == constant limits == */
 
 #define MAX_CODE (UINT16_MAX + 1)
 #define MAX_DATA (UINT8_MAX + 1)
@@ -49,6 +49,7 @@
 #define MAX_CFRAMES 64
 #define MAX_PARAMS UINT8_MAX
 #define MAX_UPVALUES UINT8_MAX
+#define MAX_ERRMSGLEN 1024
 
 /* == debug macros == */
 
@@ -103,9 +104,11 @@ typedef struct {
 /* sylt API struct */
 typedef struct {
 	sylt_state_t state;
-	/* virtual machine */
+	/* virtual machine state */
 	struct vm_s* vm;
-	/* compiler */
+	/* compiler state; note that this
+	 * is only a valid pointer while
+	 * state == STATE_COMPILING */
 	struct comp_s* cmp;
 	/* memory */
 	mem_t mem;
@@ -241,11 +244,11 @@ void* ptr_resize(
 typedef enum {
 	/* stack */
 	OP_PUSH,
-	OP_PUSHNIL,
-	OP_PUSHTRUE,
-	OP_PUSHFALSE,
-	OP_PUSHLIST,
-	OP_PUSHFUNC,
+	OP_PUSH_NIL,
+	OP_PUSH_TRUE,
+	OP_PUSH_FALSE,
+	OP_PUSH_LIST,
+	OP_PUSH_FUNC,
 	OP_POP,
 	OP_DUP,
 	OP_SWAP,
@@ -295,11 +298,11 @@ typedef struct {
 /* can be indexed by an opcode byte */
 static opinfo_t OPINFO[] = {
 	[OP_PUSH] = {"push", 1, +1},
-	[OP_PUSHNIL] = {"pushnil", 0, +1},
-	[OP_PUSHTRUE] = {"pushtrue", 0, +1},
-	[OP_PUSHFALSE] = {"pushfalse", 0, +1},
-	[OP_PUSHLIST] = {"pushlist", 1, +1},
-	[OP_PUSHFUNC] = {"pushfunc", 1, +1},
+	[OP_PUSH_NIL] = {"push_nil", 0, +1},
+	[OP_PUSH_TRUE] = {"push_true", 0, +1},
+	[OP_PUSH_FALSE] = {"push_false", 0, +1},
+	[OP_PUSH_LIST] = {"push_list", 1, +1},
+	[OP_PUSH_FUNC] = {"push_func", 1, +1},
 	[OP_POP] = {"pop", 0, -1},
 	[OP_DUP] = {"dup", 0, +1},
 	[OP_SWAP] = {"swap", 0, 0},
@@ -647,12 +650,17 @@ string_t* string_new(
 		sizeof(string_t), TYPE_STRING, ctx);
 	
 	if (take) {
+		/* our memory now */
 		str->bytes = (uint8_t*)bytes;
 		
 	} else {
+		/* allocate our own buffer... */
 		str->bytes =
 			arr_alloc(uint8_t, len, ctx);
-		memcpy(str->bytes, bytes, len);
+		
+		/* ... and copy the provided string */
+		if (bytes)
+			memcpy(str->bytes, bytes, len);
 	}
 	
 	str->len = len;
@@ -1470,19 +1478,19 @@ void vm_exec(vm_t* vm) {
 			push(val);
 			break;
 		}
-		case OP_PUSHNIL: {
+		case OP_PUSH_NIL: {
 			push(wrapnil());
 			break;
 		}
-		case OP_PUSHTRUE: {
+		case OP_PUSH_TRUE: {
 			push(wrapbool(true));
 			break;
 		}
-		case OP_PUSHFALSE: {
+		case OP_PUSH_FALSE: {
 			push(wrapbool(false));
 			break;
 		}
-		case OP_PUSHLIST: {
+		case OP_PUSH_LIST: {
 			uint8_t len = read();
 			list_t* ls = list_new(vm->ctx);
 			
@@ -1498,7 +1506,7 @@ void vm_exec(vm_t* vm) {
 			push(wraplist(ls));
 			break;
 		}
-		case OP_PUSHFUNC: {
+		case OP_PUSH_FUNC: {
 			func_t* func = 
 				getfunc(vm->fp->func->
 					chunk.data[read()]);
@@ -2439,12 +2447,13 @@ void emit_value(
 	#if OPTZ_SPECIAL_PUSHOPS
 	switch (val.tag) {
 	case TYPE_NIL: {
-		emit_nullary(cmp, OP_PUSHNIL);
+		emit_nullary(cmp, OP_PUSH_NIL);
 		return;
 	}
 	case TYPE_BOOL: {
 		emit_nullary(cmp, (getbool(val))
-			? OP_PUSHTRUE : OP_PUSHFALSE);
+			? OP_PUSH_TRUE
+			: OP_PUSH_FALSE);
 		return;
 	}
 	default: break;
@@ -2455,7 +2464,7 @@ void emit_value(
 		comp_chunk(cmp), val, cmp->ctx);
 		
 	if (val.tag == TYPE_FUNCTION) {
-		emit_unary(cmp, OP_PUSHFUNC, slot);
+		emit_unary(cmp, OP_PUSH_FUNC, slot);
 	} else {
 		emit_unary(cmp, OP_PUSH, slot);
 	}
@@ -2781,7 +2790,7 @@ void list(comp_t* cmp) {
 	}
 	
 	eat(cmp, T_RSQUARE, "expected ']'");
-	emit_unary(cmp, OP_PUSHLIST, len);
+	emit_unary(cmp, OP_PUSH_LIST, len);
 }
 
 /* parses a string literal */
@@ -2789,67 +2798,92 @@ void string(comp_t* cmp) {
 	token_t token = cmp->prev;
 	assert(token.len >= 2); /* "" */
 	
-	/* allocate a buffer the same size
+	/* allocate an empty string the same size
 	 * as the length of the string literal */
-	char* str = arr_alloc(
-		char,
+	string_t* dst = string_new(
+		NULL,
 		token.len - 2,
+		false,
 		cmp->ctx);
-	size_t strlen = 0;
+	size_t write = 0;
 	
 	/* expand escape sequences */
+	const char* src = token.start;
 	size_t end = token.len - 1;
-	for (size_t i = 1; i < end;) {
-		char c = token.start[i];
-		if (c == '\\' && i <= end - 1) {
-			char next = token.start[i + 1];
-			
-			switch (next) {
-			case '\\':
-				str[strlen++] = '\\';
-				break;
-			case '\"':
-				str[strlen++] = '\"';
-				break;
-			case 'r':
-				str[strlen++] = '\r';
-				break;
-			case 'n':
-				str[strlen++] = '\n';
-				break;
-			case 't':
-				str[strlen++] = '\t';
-				break;
-			case '0':
-				str[strlen++] = '\0';
-				break;
-			default:
-				halt(cmp->ctx,
-					E_ESCAPESEQ(next));
-			}
-			
-			i += 2;
-		} else {
-			str[strlen++] = c;
-			i++;
+	
+	for (size_t read = 1; read < end;) {
+		if (src[read] != '\\') {
+			/* append a regular character */
+			dst->bytes[write++] =
+				src[read++];
+			continue;
 		}
+		
+		char code = src[read + 1];
+		int seqlen =
+			(code == 'x') ? 4 : 2;
+				
+		if (end - read < seqlen) {
+			size_t needed =
+				seqlen - (end - read);
+			
+			halt(cmp->ctx, -1,
+				"expected %ld more "
+				"character%s after \\%c",
+				needed,
+				(needed > 1) ? "s" : "",
+				code);
+		}
+			
+		switch (code) {
+		case 'x': {
+			char* start =
+				(char*)src + read + 2;
+			char* end = start + 2;
+			int byte = strtol(
+				start, &end, 16);
+				
+			dst->bytes[write++] = byte;
+			break;
+		}
+		case '\\':
+			dst->bytes[write++] = '\\';
+			break;
+		case '\"':
+			dst->bytes[write++] = '\"';
+			break;
+		case 't':
+			dst->bytes[write++] = '\t';
+			break;
+		case 'n':
+			dst->bytes[write++] = '\n';
+			break;
+		case 'r':
+			dst->bytes[write++] = '\r';
+			break;
+		case '0':
+			dst->bytes[write++] = '\0';
+			break;
+		default:
+			halt(cmp->ctx,
+				E_ESCAPESEQ(code));
+		}
+			
+		read += seqlen;
 	}
 	
 	/* shrink to fit */
-	if (strlen < token.len - 2) {
-		str = arr_resize(str,
-			char,
-			token.len - 2,
-			strlen,
+	if (write < dst->len) {
+		dst->bytes = arr_resize(
+			dst->bytes,
+			uint8_t,
+			dst->len,
+			write,
 			cmp->ctx);
+		dst->len = write;
 	}
 	
-	/* the string object takes ownership
-	 * of the buffer so we don't need
-	 * to free it */
-	string_t* strobj = string_new(
-		str, strlen, true, cmp->ctx);
-	emit_value(cmp, wrapstring(strobj));
+	emit_value(cmp, wrapstring(dst));
 }
 
 /* parses a numeric literal */
@@ -3298,16 +3332,16 @@ string_t* load_file(
 	size_t len = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 	
-	/* TODO: GC */
-	char* bytes =
-		arr_alloc(char, len + 1, ctx);
+	/* create buffer */
+	string_t* str = string_new(
+		NULL, len + 1, false, ctx);
 	
-	fread(bytes, 1, len, fp);
-	bytes[len] = '\0';
+	/* read the file contents */
+	fread(str->bytes, 1, len, fp);
 	fclose(fp);
 	
-	return string_new(
-		bytes, len + 1, true, ctx);
+	str->bytes[len] = '\0';
+	return str;
 }
 
 /* halts with an error message */
@@ -3316,12 +3350,11 @@ void halt(
 	int code,
 	const char* fmt, ...)
 {
-	/* TODO: don't use a static size */
-	char msg[1024];
+	char msg[MAX_ERRMSGLEN];
 	
 	va_list args;
 	va_start(args, fmt);
-	vsnprintf(msg, 1024, fmt, args);
+	vsnprintf(msg, MAX_ERRMSGLEN, fmt, args);
 	va_end(args);
 	
 	/* print message prefix */
@@ -3365,7 +3398,7 @@ sylt_t* sylt_new(void) {
 	sylt_t* ctx = ptr_alloc(sylt_t, NULL);
 	sylt_set_state(ctx, SYLT_STATE_INIT);
 	ctx->vm = ptr_alloc(vm_t, ctx);
-	ctx->cmp = ptr_alloc(comp_t, ctx);
+	ctx->cmp = NULL;
 	ctx->mem.objs = NULL;
 	/* has to be done manually when
 	 * allocating ctx struct itself */
@@ -3379,7 +3412,7 @@ sylt_t* sylt_new(void) {
 void sylt_free(sylt_t* ctx) {
 	sylt_set_state(ctx, SYLT_STATE_FREEING);
 	
-	/* free all objects */
+	/* free all unreleased objects */
 	obj_t* obj = ctx->mem.objs;
 	while (obj) {
 		obj_t* next = obj->next;
@@ -3390,9 +3423,6 @@ void sylt_free(sylt_t* ctx) {
 	/* free the VM */
 	vm_free(ctx->vm);
 	ptr_free(ctx->vm, vm_t, ctx);
-	
-	/* free compiler */
-	ptr_free(ctx->cmp, comp_t, ctx);
 	
 	/* ensure that no memory was leaked */
 	ptrdiff_t bytesleft =
@@ -3417,14 +3447,17 @@ void sylt_dofile(
 	
 	/* push the file name */
 	sylt_pushstring(ctx,
-		string_new(
-			path, strlen(path), false, ctx));
+		string_lit(path, ctx));
 	
+	comp_t cmp;
+	ctx->cmp = &cmp;
 	comp_init(ctx->cmp, ctx);
+	
 	load_slib(ctx);
 	func_t* func = compile(ctx->cmp);
 	vm_push(ctx->vm, wrapfunc(func));
 	comp_free(ctx->cmp);
+	ctx->cmp = NULL;
 	
 	vm_exec(ctx->vm);
 }

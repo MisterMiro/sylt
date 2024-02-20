@@ -50,6 +50,7 @@
 #define MAX_CFRAMES 64
 #define MAX_PARAMS UINT8_MAX
 #define MAX_UPVALUES UINT8_MAX
+#define MAX_MATCH_ARMS 512
 #define MAX_ERRMSGLEN 1024
 
 /* == debug macros == */
@@ -741,6 +742,7 @@ void string_append_lit(
 	const char* src,
 	sylt_t* ctx)
 {
+	/* TODO: GC */
 	*dst = string_concat(
 		*dst, string_lit(src, ctx), ctx);	
 }
@@ -1237,14 +1239,18 @@ void dbg_print_instruction(
 	op_t op = vm->fp->ip[-1];
 	size_t addr =
 		(size_t)
-			(vm->fp->ip - chunk->code - 1);
+			(vm->fp->ip - 1 - chunk->code);
 	sylt_dprintf("  %05ld", addr);
 	
+	/* TODO: make line unsigned */
+	/* TODO: max line limit */
 	const int32_t* lines =
 		vm->fp->func->chunk.lines;
 	int32_t line = lines[addr];
 	
-	if (line > 0 && line != lines[addr - 1])
+	/* TODO: fix */
+	if (addr == 0 || 
+		(addr > 0 && line != lines[addr - 1]))
 		sylt_dprintf(" %-4d ", line);
 	else
 		sylt_dprintf(" |    ");
@@ -1256,7 +1262,7 @@ void dbg_print_instruction(
 	int rank = OPINFO[op].rank;
 	for (int i = -1; i < rank; i++) {
 		uint8_t arg = vm->fp->ip[i];
-		sylt_dprintf("%02d ", arg);
+		sylt_dprintf("%02x ", arg);
 	}
 		
 	sylt_dprintf("\n");
@@ -1878,17 +1884,17 @@ value_t slib_putln(sylt_t* ctx) {
 	return wrapnil();
 }
 
+/* returns the type of arg(0) as a string */
+value_t slib_typeof(sylt_t* ctx) {
+	return wrapstring(string_lit(
+		type_name(arg(0).tag), ctx));
+}
+
 /* returns arg(0) converted to a string */
 value_t slib_stringify(sylt_t* ctx) {
 	string_t* str =
 		val_tostring(arg(0), ctx);
 	return wrapstring(str);
-}
-
-/* returns the type of arg(0) as a string */
-value_t slib_typeof(sylt_t* ctx) {
-	return wrapstring(string_lit(
-		type_name(arg(0).tag), ctx));
 }
 
 /* meant for debug builds, halts the VM with
@@ -2048,9 +2054,9 @@ void load_slib(sylt_t* ctx) {
 	/* prelude */
 	slib_add(ctx, "put", slib_put, 1);
 	slib_add(ctx, "putln", slib_putln, 1);
+	slib_add(ctx, "typeof", slib_typeof, 1);
 	slib_add(ctx, "stringify", 
 		slib_stringify, 1);
-	slib_add(ctx, "typeof", slib_typeof, 1);
 	slib_add(ctx, "ensure", slib_ensure, 1);
 	
 	/* list */
@@ -2082,12 +2088,15 @@ typedef enum {
 	T_FUN,
 	T_IF,
 	T_ELSE,
+	T_MATCH,
+	T_WITH,
 	T_AND,
 	T_OR,
 	T_STRING,
 	T_NUMBER,
 	T_PLUS,
 	T_MINUS,
+	T_MINUS_GREATER,
 	T_STAR,
 	T_SLASH,
 	T_PERCENT,
@@ -2105,6 +2114,8 @@ typedef enum {
 	T_RCURLY,
 	T_LSQUARE,
 	T_RSQUARE,
+	T_PIPE,
+	T_QUESTION,
 	T_COMMA,
 	T_EOF,
 } token_type_t;
@@ -2293,6 +2304,10 @@ token_t scan(comp_t* cmp) {
 			return token(T_IF);
 		if (keyword("else"))
 			return token(T_ELSE);
+		if (keyword("match"))
+			return token(T_MATCH);
+		if (keyword("with"))
+			return token(T_WITH);
 		if (keyword("and"))
 			return token(T_AND);
 		if (keyword("or"))
@@ -2345,32 +2360,37 @@ token_t scan(comp_t* cmp) {
 	/* see if we can find an operator */
 	switch (*step()) {
 	case '+': return token(T_PLUS);
-	case '-': return token(T_MINUS);
+	case '-':
+		return token((!match('>'))
+			? T_MINUS
+			: T_MINUS_GREATER);
 	case '*': return token(T_STAR);
 	case '/': return token(T_SLASH);
 	case '%': return token(T_PERCENT);
 	case '<':
-		return token((!match('=')) ?
-			T_LESS :
-			T_LESS_EQ);
+		return token((!match('='))
+			? T_LESS
+			: T_LESS_EQ);
 	case '>':
-		return token((!match('=')) ?
-			T_GREATER : 
-			T_GREATER_EQ);
+		return token((!match('='))
+			? T_GREATER
+			: T_GREATER_EQ);
 	case '=':
-		return token((!match('=')) ?
-			T_EQ :
-			T_EQ_EQ);
+		return token((!match('='))
+			? T_EQ
+			: T_EQ_EQ);
 	case '!':
-		return token((!match('=')) ?
-			T_BANG :
-			T_BANG_EQ);
+		return token((!match('='))
+			? T_BANG
+			: T_BANG_EQ);
 	case '(': return token(T_LPAREN);
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
 	case '}': return token(T_RCURLY);
 	case '[': return token(T_LSQUARE);
 	case ']': return token(T_RSQUARE);
+	case '|': return token(T_PIPE);
+	case '?': return token(T_QUESTION);
 	case ',': return token(T_COMMA);
 	}
 	
@@ -2692,6 +2712,7 @@ void index(comp_t*);
 void let(comp_t*);
 void fun(comp_t*);
 void if_else(comp_t*);
+void match_with(comp_t*);
 void block(comp_t*);
 
 typedef void (*parsefn_t)(comp_t*);
@@ -2713,6 +2734,8 @@ static parserule_t RULES[] = {
 	[T_FUN] = {fun, NULL, PREC_NONE},
 	[T_IF] = {if_else, NULL, PREC_NONE},
 	[T_ELSE] = {NULL, NULL, PREC_NONE},
+	[T_MATCH] = {match_with, NULL, PREC_NONE},
+	[T_WITH] = {NULL, NULL, PREC_NONE},
 	[T_AND] = {NULL, binary, PREC_AND},
 	[T_OR] = {NULL, binary, PREC_OR},
 	[T_STRING] = {string, NULL, PREC_NONE},
@@ -2736,6 +2759,8 @@ static parserule_t RULES[] = {
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
 	[T_LSQUARE] = {list, index, PREC_UPOST},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
+	[T_PIPE] = {NULL, NULL, PREC_NONE},
+	[T_QUESTION] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -3043,7 +3068,8 @@ void index(comp_t* cmp) {
 	emit_nullary(cmp, OP_LOADLIST);
 }
 
-void parse_func(comp_t* cmp, token_t name);
+void parse_func(
+	comp_t* cmp, token_t name, bool);
 
 /* parses a variable or function binding */
 void let(comp_t* cmp) {
@@ -3062,7 +3088,7 @@ void let(comp_t* cmp) {
 	 	 * to support recursion */
 		 add_symbol(cmp, name);
 		 
-		 parse_func(cmp, name);
+		 parse_func(cmp, name, false);
 		
 	} else {
 		/* parse a variable declaration 
@@ -3089,12 +3115,12 @@ void fun(comp_t* cmp) {
 	
 	token_t name =
 		(token_t){T_NAME, "_", 1, cmp->line};
-	parse_func(cmp, name);
+	parse_func(cmp, name, true);
 }
 
 void comp_copystate(
-	comp_t* dst, const comp_t* src
-) {
+	comp_t* dst, const comp_t* src)
+{
 	dst->pos = src->pos;
 	dst->line = src->line;
 	dst->prev = src->prev;
@@ -3113,7 +3139,9 @@ void comp_setfullname(
 	cmp->func->chunk.fullname = full;
 }
 
-void parse_func(comp_t* cmp, token_t name) {
+void parse_func(
+	comp_t* cmp, token_t name, bool lambda)
+{
 	string_t* funcname = string_new(
 		name.start,
 		name.len,
@@ -3158,8 +3186,12 @@ void parse_func(comp_t* cmp, token_t name) {
 	eat(&fcmp, T_RPAREN,
 		"expected ')' or a parameter name");
 	
-	eat(&fcmp, T_EQ,
-		"expected '=' after ')'");
+	if (lambda)
+		eat(&fcmp, T_MINUS_GREATER,
+			"expected '->' after ')'");
+	else
+		eat(&fcmp, T_EQ,
+			"expected '=' after ')'");
 			
 	/* function body */
 	expr(&fcmp, ANY_PREC);
@@ -3235,6 +3267,75 @@ void if_else(comp_t* cmp) {
 	
 	patch_jump(cmp, else_addr);
 	/* skipped past else */
+}
+
+/* parses a match expression */
+void match_with(comp_t* cmp) {
+	/* match target */
+	expr(cmp, ANY_PREC);
+	
+	eat(cmp, T_WITH,
+		"expected 'with' after expression");
+	
+	int arms = 0;
+	int exits[MAX_MATCH_ARMS] = {0};
+	int nexits = 0;
+	while (match(cmp, T_PIPE)) {
+		comp_simstack(cmp, +1);
+		
+		/* target == value */
+		emit_nullary(cmp, OP_DUP);
+		expr(cmp, ANY_PREC);
+		emit_nullary(cmp, OP_EQ);
+		
+		/* skip arm if false */
+		int skip = emit_jump(cmp, OP_JMPIFN);
+		
+		/* == arm matched! == */
+		
+		/* pop OP_EQ result */
+		emit_nullary(cmp, OP_POP);
+		
+		/* pop target */
+		emit_nullary(cmp, OP_POP);
+		
+		eat(cmp, T_MINUS_GREATER,
+			"expected '->' after expression");
+			
+		expr(cmp, ANY_PREC);
+		
+		/* don't check any other arms */
+		exits[nexits++] =
+			emit_jump(cmp, OP_JMP);
+		
+		patch_jump(cmp, skip);
+		
+		/* == arm skipped == */
+		
+		/* pop OP_EQ result */
+		emit_nullary(cmp, OP_POP);
+		
+		if (arms++ == MAX_MATCH_ARMS) {
+			halt(cmp->ctx, -1,
+				"too many arms in match; "
+				"the limit is %d",
+				MAX_MATCH_ARMS);
+			unreachable();
+		}
+	}
+			
+	eat(cmp, T_QUESTION,
+		"'?' arm required as final arm of "
+		"match expression");
+		
+	eat(cmp, T_MINUS_GREATER,
+		"expected '->' after '?'");
+	
+	emit_nullary(cmp, OP_POP);
+	expr(cmp, ANY_PREC);
+	
+	for (int i = 0; i < nexits; i++)
+		patch_jump(cmp, exits[i]);
 }
 
 /* parses a block expression.
@@ -3347,7 +3448,7 @@ void slib_add(
 			T_NAME,
 			name,
 			strlen(name),
-			0};
+			1};
 	add_symbol(ctx->cmp, token);
 	
 	func_t* func = func_newc(

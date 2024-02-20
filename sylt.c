@@ -33,6 +33,7 @@
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_ALLOCS 0
 #define DBG_PRINT_MEM_STATS 0
+#define DBG_PRINT_MEM_SIZES 0
 #define DBG_ASSERTIONS 1
 
 /* == optimizations == */
@@ -539,6 +540,9 @@ obj_t* obj_new(
 }
 
 void obj_free(obj_t* obj, sylt_t* ctx) {
+	if (!obj)
+		return;
+	
 	switch (obj->tag) {
 	case TYPE_LIST: {
 		list_t* list = (list_t*)obj;
@@ -595,7 +599,9 @@ list_t* list_new(sylt_t* ctx) {
 }
 
 /* returns the item at the given index */
-value_t list_get(list_t* ls, int index) {
+value_t list_get(
+	const list_t* ls, int index)
+{
 	if (index < 0) {
 		int mod = ls->len + index;
 		if (mod < 0)
@@ -707,6 +713,7 @@ string_t* string_concat(
 	const string_t* b,
 	sylt_t* ctx)
 {
+	/* TODO: GC */
 	size_t len = a->len + b->len;
 	uint8_t* bytes =
 		arr_alloc(uint8_t, len, ctx);
@@ -852,6 +859,7 @@ string_t* val_tostring_opts(
 static string_t* val_tostring(
 	value_t val, sylt_t* ctx)
 {
+	/* TODO: GC */
 	switch (val.tag) {
 	case TYPE_NIL: {
 		return string_lit("nil", ctx);
@@ -866,14 +874,12 @@ static string_t* val_tostring(
 		size_t len = snprintf(
 			NULL, 0, "%g", getnum(val));
 		
-		char* bytes =
-			arr_alloc(char, len, ctx);
+		string_t* str = string_new(
+			NULL, len, false, ctx);
 		snprintf(
-			bytes,
+			(char*)str->bytes,
 			len + 1, "%g", getnum(val));
-		
-		return string_new(
-			bytes, len, true, ctx);
+		return str;
 	}
 	case TYPE_LIST: {
 		string_t* str = string_lit("[", ctx);
@@ -883,10 +889,10 @@ static string_t* val_tostring(
 		for (size_t i = 0; i < ls->len; i++) {
 			string_t* vstr =
 				val_tostring_opts(
-				ls->items[i],
-				true,
-				0,
-				ctx);
+					ls->items[i],
+					true,
+					0,
+					ctx);
 			string_append(&str, vstr, ctx);
 			
 			/* add ', ' between items */
@@ -898,16 +904,22 @@ static string_t* val_tostring(
 			}
 		}
 		
+		string_t* close =
+			string_lit("]", ctx);
+		
 		return string_concat(
-			str, string_lit("]", ctx), ctx);
+			str, close, ctx);
 	}
 	case TYPE_STRING: {
 		return getstring(val);
 	}
 	case TYPE_CLOSURE: {
+		string_t* suffix =
+			string_lit("()", ctx);
+		
 		return string_concat(
 			getclosure(val)->func->chunk.name,
-			string_lit("()", ctx),
+			suffix,
 			ctx);
 	}
 	default: unreachable();
@@ -920,10 +932,12 @@ string_t* val_tostring_opts(
 	int maxlen,
 	sylt_t* ctx)
 {
-	string_t* str = string_empty(ctx);
+	/* TODO: GC */
 	string_t* vstr = val_tostring(val, ctx);
 	
 	if (quotestr && val.tag == TYPE_STRING) {
+		string_t* str = string_empty(ctx);
+		
 		int len = vstr->len;
 		bool shortened = false;
 		
@@ -947,17 +961,11 @@ string_t* val_tostring_opts(
 					"(..+%ld)",
 					str->len - maxlen),
 				ctx);
-	} else {
-		str = vstr;
-		
-		if (val.tag == TYPE_CLOSURE)
-			string_append(
-				&str,
-				string_lit("()", ctx),
-				ctx);
+				
+		return str;
 	}
 	
-	return str;
+	return vstr;
 }
 
 /* prints a value to stdout */
@@ -991,13 +999,19 @@ void chunk_free(
 	sylt_t* ctx)
 {
 	arr_free(
-		chunk->code, uint8_t, chunk->ncode,
+		chunk->code,
+		uint8_t,
+		chunk->ncode,
 		ctx);
     arr_free(
-    	chunk->data, value_t, chunk->ndata,
+    	chunk->data,
+    	value_t,
+    	chunk->ndata,
     	ctx);
     arr_free(
-    	chunk->lines, int32_t, chunk->nlines,
+    	chunk->lines,
+    	int32_t,
+    	chunk->nlines,
     	ctx);
     chunk_init(chunk, NULL);
 }
@@ -1041,12 +1055,9 @@ size_t chunk_write_data(
 	/* check if a constant with the same
 	 * value already exists and if so
 	 * return its index */
-	for (
-		size_t i = 0; i < chunk->ndata; i++)
-	{
+	for (size_t i = 0; i < chunk->ndata; i++)
 		if (val_eq(chunk->data[i], val))
 			return i;
-	}
 	#endif
 	
 	if (chunk->ndata >= MAX_DATA) {
@@ -1060,7 +1071,6 @@ size_t chunk_write_data(
 		chunk->ndata,
 		chunk->ndata + 1,
 		ctx);
-	
 	chunk->data[chunk->ndata++] = val;
 	return chunk->ndata - 1;
 }
@@ -1135,12 +1145,16 @@ void dbg_print_mem_stats(sylt_t* ctx) {
 		ctx->mem.highest,
 		ctx->mem.count);
 	sylt_dprintf("\n");
-	
+	#endif
+}
+
+void dbg_print_mem_sizes(void) {
+	#if DBG_PRINT_MEM_SIZES
 	#define print_size(t) \
 		sylt_dprintf("  sizeof(%s) = %ld\n", \
 			#t, sizeof(t))
 	
-	sylt_dprintf("system types:\n");
+	sylt_dprintf("  System types:\n");
 	print_size(int);
 	print_size(short);
 	print_size(long);
@@ -1149,7 +1163,7 @@ void dbg_print_mem_stats(sylt_t* ctx) {
 	print_size(float);
 	print_size(double);
 	
-	sylt_dprintf("\nsylt types\n");
+	sylt_dprintf("\n  Sylt types:\n");
 	print_size(value_t);
 	print_size(list_t);
 	print_size(string_t);
@@ -1158,7 +1172,6 @@ void dbg_print_mem_stats(sylt_t* ctx) {
 	print_size(upvalue_t);
 	print_size(sylt_t);
 	#undef print_size
-	
 	#endif
 }
 
@@ -1210,7 +1223,8 @@ void dbg_print_header(
 	#endif
 		
 	sylt_dprintf(
-		"  addr  line opcode            hex");
+		"  addr  line opcode            "
+		"hex\n");
 	sylt_dprintf("  ");
 	for (int i = 0; i < 40; i++)
 		sylt_dprintf("-");
@@ -1837,7 +1851,8 @@ void vm_math(vm_t* vm, op_t opcode) {
 /* == standard library == */
 
 #define argc() (ctx->vm->fp->ip[-1])
-#define arg(n) (*(ctx->vm->sp - argc() + (n)))
+#define arg(n) \
+	vm_peek(ctx->vm, argc() - (n) - 1)
 
 #define boolarg(n) getbool(arg(n))
 #define numarg(n) getnum(arg(n))
@@ -2037,6 +2052,8 @@ void load_slib(sylt_t* ctx) {
 		slib_stringify, 1);
 	slib_add(ctx, "typeof", slib_typeof, 1);
 	slib_add(ctx, "ensure", slib_ensure, 1);
+	
+	/* list */
 	slib_add(ctx, "length", slib_length, 1);
 	slib_add(ctx, "push", slib_push, 2);
 	slib_add(ctx, "pop", slib_pop, 1);
@@ -2498,8 +2515,8 @@ void patch_jump(comp_t* cmp, int addr) {
 		dist & 0xff;
 }
 
-/* adds a name to the symbol table and
- * returns the index */
+/* adds a name to the symbol table
+ * and returns its index */
 int add_symbol(comp_t* cmp, token_t name) {
 	#if DBG_PRINT_NAMES
 	for (int i = 0; i < cmp->depth; i++)
@@ -2535,22 +2552,22 @@ int find_symbol(comp_t* cmp, token_t name) {
 	int start = cmp->nnames - 1;
 	for (int i = start; i >= 0; i--) {
 		token_t other = cmp->names[i].name;
-		//sylt_dprintf("%.*s\n",
-		//	(int)other.len, other.start);
-		
-		bool equal = name.len == other.len
+		bool match =
+			other.len == name.len
 			&& memcmp(
 				name.start,
 				other.start,
-				name.len
-			) == 0;
-		if (equal)
+				name.len) == 0;
+		
+		if (match)
 			return i;
 	}
 	
 	return -1;
 }
 
+/* adds an upvalue to the upvalue array
+ * and returns its index */
 int add_upvalue(
 	comp_t* cmp, uint8_t index, bool islocal)
 {
@@ -2577,6 +2594,8 @@ int add_upvalue(
 	return cmp->func->upvalues++;
 }
 
+/* returns the index of an upvalue in the
+ * upvalue array or -1 if not found */
 int find_upvalue(comp_t* cmp, token_t name) {
 	if (!cmp->parent)
 		return -1;
@@ -2789,7 +2808,8 @@ void list(comp_t* cmp) {
 			break;
 	}
 	
-	eat(cmp, T_RSQUARE, "expected ']'");
+	eat(cmp, T_RSQUARE,
+		"unterminated list (expected ']')");
 	emit_unary(cmp, OP_PUSH_LIST, len);
 }
 
@@ -2807,7 +2827,6 @@ void string(comp_t* cmp) {
 		cmp->ctx);
 	size_t write = 0;
 	
-	/* expand escape sequences */
 	const char* src = token.start;
 	size_t end = token.len - 1;
 	
@@ -2822,26 +2841,34 @@ void string(comp_t* cmp) {
 		char code = src[read + 1];
 		int seqlen =
 			(code == 'x') ? 4 : 2;
-				
-		if (end - read < seqlen) {
-			size_t needed =
-				seqlen - (end - read);
-			
-			halt(cmp->ctx, -1,
-				"expected %ld more "
-				"character%s after \\%c",
-				needed,
-				(needed > 1) ? "s" : "",
-				code);
-		}
 			
 		switch (code) {
 		case 'x': {
+			/* make sure we have two digits */
+			if (end - read < seqlen) {
+				size_t needed =
+					seqlen - (end - read);
+			
+				halt(cmp->ctx, -1,
+					"expected %ld more "
+					"character%s after \\%c",
+				needed,
+				(needed > 1) ? "s" : "",
+				code);
+			}
+			
+			/* parse hexadecimal byte */
 			char* start =
 				(char*)src + read + 2;
 			char* end = start + 2;
-			int byte = strtol(
+			unsigned long byte = strtoul(
 				start, &end, 16);
+			
+			/* parsing failed */
+			if (end < start + 2)
+				halt(cmp->ctx, -1,
+					"invalid character in "
+					"\\x escape: '%c'", *end);
 				
 			dst->bytes[write++] = byte;
 			break;
@@ -3423,6 +3450,7 @@ void sylt_free(sylt_t* ctx) {
 	/* free the VM */
 	vm_free(ctx->vm);
 	ptr_free(ctx->vm, vm_t, ctx);
+	ctx->vm = NULL;
 	
 	/* ensure that no memory was leaked */
 	ptrdiff_t bytesleft =
@@ -3433,6 +3461,7 @@ void sylt_free(sylt_t* ctx) {
 	assert(!bytesleft);
 	
 	dbg_print_mem_stats(ctx);
+	dbg_print_mem_sizes();
 	sylt_set_state(ctx, SYLT_STATE_FREE);
 	ptr_free(ctx, sylt_t, ctx);
 }

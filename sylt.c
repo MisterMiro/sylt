@@ -2118,6 +2118,8 @@ typedef struct {
 	const char* start;
 	/* length of the token */
 	size_t len;
+	/* line number */
+	int32_t line;
 } token_t;
 
 /* operator precedence levels,
@@ -2164,6 +2166,7 @@ typedef struct {
 typedef struct comp_s {
 	/* for nested function declarations */
 	struct comp_s* parent;
+	struct comp_s* child;
 	/* output */
 	func_t* func;
 	/* current (simulated) stack size */
@@ -2194,6 +2197,7 @@ void comp_init(comp_t* cmp, sylt_t* ctx) {
 	string_t* src = sylt_peekstring(ctx, 1);
 	
 	cmp->parent = NULL;
+	cmp->child = NULL;
 	cmp->func = func_new(ctx, name);
 	cmp->curslots = 0;
 	
@@ -2223,8 +2227,12 @@ void comp_free(comp_t* cmp) {
 
 /* scans the source code for the next token */
 token_t scan(comp_t* cmp) {
-	#define token(t) \
-		(token_t){t, start, cmp->pos - start}
+	#define token(tag) \
+		(token_t){ \
+			tag, \
+			start, \
+			cmp->pos - start, \
+			cmp->line}
 	#define step() cmp->pos++
 	#define peek() (*cmp->pos)
 	#define peek2() \
@@ -2366,6 +2374,7 @@ token_t scan(comp_t* cmp) {
 	case ',': return token(T_COMMA);
 	}
 	
+	cmp->prev.line = cmp->line; /* hack */
 	halt(cmp->ctx,
 		E_UNEXPECTEDCHAR(cmp->pos[-1]));
 	return token(-1);
@@ -2416,7 +2425,7 @@ void emit_op(
 	chunk_write(
 		comp_chunk(cmp),
 		op,
-		cmp->line,
+		cmp->prev.line,
 		cmp->ctx);
 	
 	/* write the arguments */
@@ -2424,7 +2433,7 @@ void emit_op(
 		chunk_write(
 			comp_chunk(cmp),
 			args[i],
-			cmp->line,
+			cmp->prev.line,
 			cmp->ctx);
 	}
 }
@@ -3079,7 +3088,7 @@ void fun(comp_t* cmp) {
 		"expected '(' after 'fun' keyword");
 	
 	token_t name =
-		(token_t){T_NAME, "_", 1};
+		(token_t){T_NAME, "_", 1, cmp->line};
 	parse_func(cmp, name);
 }
 
@@ -3124,6 +3133,7 @@ void parse_func(comp_t* cmp, token_t name) {
 		cmp->func->chunk.fullname,
 		fcmp.func->chunk.name);
 	fcmp.parent = cmp;
+	cmp->child = &fcmp;
 		
 	/* parse parameter list */
 	while (!check(&fcmp, T_RPAREN)
@@ -3169,11 +3179,11 @@ void parse_func(comp_t* cmp, token_t name) {
 			
 		chunk_write(&cmp->func->chunk,
 			upval->islocal,
-			cmp->line,
+			cmp->prev.line,
 			cmp->ctx);
 		chunk_write(&cmp->func->chunk,
 			upval->index,
-			cmp->line,
+			cmp->prev.line,
 			cmp->ctx);
 	}
 		
@@ -3333,7 +3343,11 @@ void slib_add(
 	int params)
 {
 	token_t token =
-		(token_t){T_NAME, name, strlen(name)};
+		(token_t){
+			T_NAME,
+			name,
+			strlen(name),
+			0};
 	add_symbol(ctx->cmp, token);
 	
 	func_t* func = func_newc(
@@ -3385,23 +3399,28 @@ void halt(
 	va_end(args);
 	
 	/* print message prefix */
-	sylt_state_t state = ctx->state;
-	if (state == SYLT_STATE_COMPILING) {
-		const chunk_t* chunk =
-			&ctx->cmp->func->chunk;
+	switch (ctx->state) {
+	case SYLT_STATE_COMPILING: {
+		/* find the deepest compiler */
+		comp_t* cmp = ctx->cmp;
+		while (cmp->child)
+			cmp = cmp->child;
 		
-		/* TODO: use correct line number */
+		const chunk_t* chunk =
+			&cmp->func->chunk;
+		
 		sylt_eprintf("error in %.*s:%d: ",
 			(int)chunk->fullname->len,
 			chunk->fullname->bytes,
-			ctx->cmp->line);
-		
-	} else if (state == SYLT_STATE_RUNNING) {
+			cmp->prev.line);
+		break;
+	}
+	case SYLT_STATE_RUNNING: {
 		const chunk_t* chunk =
 			&ctx->vm->fp->func->chunk;
 		
-		size_t addr = (size_t)
-			(ctx->vm->fp->ip -
+		size_t addr =
+			(size_t)(ctx->vm->fp->ip -
 				chunk->code - 1);
 		int32_t line = chunk->lines[addr];
 		
@@ -3409,9 +3428,9 @@ void halt(
 			(int)chunk->fullname->len,
 			chunk->fullname->bytes,
 			line);
-		
-	} else {
-		sylt_eprintf("error: ");
+		break;
+	}
+	default: sylt_eprintf("error: ");
 	}
 	
 	/* print error message */
@@ -3485,6 +3504,7 @@ void sylt_dofile(
 	load_slib(ctx);
 	func_t* func = compile(ctx->cmp);
 	vm_push(ctx->vm, wrapfunc(func));
+	
 	comp_free(ctx->cmp);
 	ctx->cmp = NULL;
 	

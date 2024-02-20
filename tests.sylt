@@ -1,3 +1,15 @@
+let f() = {
+	match 2 with
+	| 0 -> "Zero"
+	| 1 -> "One"
+	| 2 -> "Two"
+	| 3 -> ""
+	? -> "Out of bounds"
+}
+	
+f()
+
+##ensure(false)
 
 ## helper functions
 
@@ -10,7 +22,11 @@ let repn(n, f) = {
 		
 	loop(0)
 }
-	
+
+##match n with
+##	| 0 -> "Zero"
+##	? -> "Out of bounds"
+
 let foreach(ls, f) = {
 	let loop(i) =
 		if i < length(ls) {
@@ -23,20 +39,20 @@ let foreach(ls, f) = {
 
 let map(ls, f) = {
 	let mapped = []
-	foreach(ls, fun(_, v) =
+	foreach(ls, fun(_, v) ->
 		push(mapped, f(v)))
 	mapped
 }
 
 let concat(a, b) = {
 	let result = []
-	foreach(a, fun(_, v) = push(result, v))
-	foreach(b, fun(_, v) = push(result, v))
+	foreach(a, fun(_, v) -> push(result, v))
+	foreach(b, fun(_, v) -> push(result, v))
 	result
 }
 
 let concat_mut(a, b) = {
-	foreach(b, fun(_, v) = push(a, v))
+	foreach(b, fun(_, v) -> push(a, v))
 	nil
 }
 
@@ -112,6 +128,8 @@ let names() = {
 	let funambulism = value
 	let iffy = value
 	let elsewhere = value
+	let matchmaker = value
+	let withdrawer = value
 	let andante = value
 	let oracle = value
 }
@@ -123,18 +141,18 @@ let strings() = {
 	let hex = "\x41"
 	let backslash = "\\"
 	let quote = "\""
-	let carriage_return = "\r"
-	let newline = "\n"
 	let tab = "\t"
+	let newline = "\n"
+	let carriage_return = "\r"
 	let null = "\0"
 	
 	## ...translate properly
 	ensure(hex == "A")
 	ensure(backslash == "\x5c")
 	ensure(quote == "\x22")
-	ensure(carriage_return == "\x0d")
-	ensure(newline == "\x0a")
 	ensure(tab == "\x09")
+	ensure(newline == "\x0a")
+	ensure(carriage_return == "\x0d")
 	ensure(null == "\x00")
 }
 
@@ -143,15 +161,33 @@ let numbers() = {
 	let fractional = 3.141592
 }
 
-let precedence_levels() = {
+let precedence() = {
+	## multiplication > addition
+	ensure(5 * 2 + 8 == 18)
+	ensure(5 / 2 + 8 == 10.5)
+	ensure(5 % 2 + 8 == 9)
 	
+	ensure(10 * 2 - 8 == 12)
+	ensure(10 / 2 - 8 == -3)
+	ensure(10 % 2 - 8 == -8)
+	
+	## addition > comparison
+	ensure(1 < 1 + 1)
+	ensure(1 <= 1 + 1)
+	ensure(2 > 1 - 1)
+	ensure(2 >= 1 - 1)
+	
+	## comparison > equality
+	ensure(true == 1 < 2)
+	ensure(true == 1 <= 2)
+	ensure(true != 1 > 2)
+	ensure(true != 1 >= 2)
 }
 
 let addition() = {
 	let x = 8
 	let y = 12
 	let sum = 20
-	
 	ensure(x + y == sum)
 	
 	## commutative
@@ -163,7 +199,6 @@ let subtraction() = {
 	let x = 20
 	let y = 12
 	let difference = 8
-	
 	ensure(x - y == difference)
 	
 	## not commutative
@@ -175,7 +210,6 @@ let multiplication() = {
 	let x = 5
 	let y = 16
 	let product = 80
-	
 	ensure(x * y == product)
 	
 	## commutative
@@ -187,7 +221,6 @@ let division() = {
 	let x = 33
 	let y = 3
 	let quotient = 11
-	
 	ensure(x / y == quotient)
 	
 	## not commutative
@@ -199,7 +232,6 @@ let euclidean_division() = {
 	let x = 17
 	let y = 12
 	let remainder = 5
-	
 	ensure(x % y == remainder)
 	
 	## not commutative
@@ -258,13 +290,13 @@ let equality() = {
 		func_val,   ## Func
 	]
 	
-	foreach(values, fun(slot, target) = {
+	foreach(values, fun(slot, target) -> {
 		## equal to itself
 		ensure(target == target)
 		
 		## not equal to a value of any other
 		## type
-		foreach(values, fun(idx, v) =
+		foreach(values, fun(idx, v) ->
 			if idx != slot {
 				ensure(target != v)
 			}
@@ -340,8 +372,9 @@ let blocks() = {
 
 let if_else() = {
 	## implicit nil
-	let result = if false {}
-	ensure(result == nil)
+	ensure(if true {} == nil)
+	ensure(if false {} == nil)
+	ensure(if false {} else {} == nil)
 	
 	## if branch
 	let result = if true { "A" } else { "B" }
@@ -350,6 +383,51 @@ let if_else() = {
 	## else branch
 	let result = if false { "A" } else { "B" }
 	ensure(result == "B")
+}
+
+let match_with() = {
+	## wildcard only
+	let result =
+		match "Anything" with
+		? -> "Wildcard"
+	ensure(result == "Wildcard")
+	
+	## match first arm
+	let result =
+		match 100 with
+		| 100 -> "Success"
+		? -> nil
+	ensure(result == "Success")
+	
+	## match last arm
+	let result =
+		match 200 with
+		| 100 -> "Fail"
+		| 200 -> "Success"
+		? -> nil
+	ensure(result == "Success")
+	
+	## match middle arm
+	let result =
+		match 150 with
+		| 100 -> "Fail"
+		| 150 -> "Success"
+		| 200 -> "Fail #2"
+		? -> nil
+	ensure(result == "Success")
+	
+	## example
+	let name(num) =
+		match num with
+		| 0 -> "Zero"
+		| 1 -> "One"
+		| 2 -> "Two"
+		? -> "Too high"
+		
+	ensure(name(0) == "Zero")
+	ensure(name(1) == "One")
+	ensure(name(2) == "Two")
+	ensure(name(3) == "Too high")
 }
 
 let functions() = {
@@ -384,7 +462,7 @@ let functions() = {
 	ensure(f()() == "jewel")
 	
 	## anonymous functions using 'fun'
-	let anon = fun(r, s, t) = r * s * t
+	let anon = fun(r, s, t) -> r * s * t
 	ensure(anon(2, 4, 8) == 64)
 }
 
@@ -407,7 +485,7 @@ let prelude_lib() = {
 	ensure(typeof(1) == "Num")
 	ensure(typeof([]) == "List")
 	ensure(typeof("") == "String")
-	ensure(typeof(fun() = {}) == "Function")
+	ensure(typeof(fun() -> {}) == "Function")
 	
 	## stringify
 	ensure(stringify(nil) == "nil")
@@ -455,20 +533,20 @@ let list_lib() = {
 let iter_lib() = {
 	## repn
 	let nums = []
-	repn(3, fun(i) = push(nums, (i + 1) * 3))
+	repn(3, fun(i) -> push(nums, (i + 1) * 3))
 	ensure(nums == [3, 6, 9])
 	
 	## foreach
 	let indices = [0, 1, 2]
 	let copy = []
-	foreach(indices, fun(index, value) = {
+	foreach(indices, fun(index, value) -> {
 		ensure(index == indices[index])
 		push(copy, value)
 	})
 	ensure(copy == indices)
 	
 	## map
-	let list = map([4, 8], fun(x) = x * 2)
+	let list = map([4, 8], fun(x) -> x * 2)
 	ensure(list == [8, 16])
 
 	## flatten
@@ -478,19 +556,19 @@ let iter_lib() = {
 	
 	## any
 	let set = [true, true, false]
-	ensure(any(set, fun(v) = v))
-	ensure(any(set, fun(v) = !v))
+	ensure(any(set, fun(v) -> v))
+	ensure(any(set, fun(v) -> !v))
 	pop(set) ## = [true, true]
-	ensure(any(set, fun(v) = v))
-	ensure(!any(set, fun(v) = !v))
+	ensure(any(set, fun(v) -> v))
+	ensure(!any(set, fun(v) -> !v))
 	
 	## all
 	let set = [5, 7]
-	ensure(all(set, fun(n) = n >= 5))
-	ensure(all(set, fun(n) = !(n < 5)))
+	ensure(all(set, fun(n) -> n >= 5))
+	ensure(all(set, fun(n) -> !(n < 5)))
 	push(set, 3) ## = [5, 7, 3]
-	ensure(!all(set, fun(n) = n >= 5))
-	ensure(!all(set, fun(n) = !(n < 5)))
+	ensure(!all(set, fun(n) -> n >= 5))
+	ensure(!all(set, fun(n) -> !(n < 5)))
 }
 
 let math_lib() = {
@@ -526,7 +604,7 @@ let math_lib() = {
 		ensure(nearly(result, target, 0.01))
 	}
 	
-	foreach(bases, fun(_, base) =
+	foreach(bases, fun(_, base) ->
 		log_and_raise(base, target))
 	
 	## sqrt
@@ -569,7 +647,7 @@ let run = flatten([
 		names,
 		strings,
 		numbers,
-		precedence_levels,
+		precedence,
 	],
 	"Numbers",
 	[
@@ -593,6 +671,7 @@ let run = flatten([
 	[
 		blocks,
 		if_else,
+		match_with,
 		functions,
 		recursion,
 	],
@@ -608,8 +687,8 @@ let run = flatten([
 ## let's go
 
 let iterations = 1
-repn(iterations, fun(_) =
-	foreach(run, fun(_, val) = {
+repn(iterations, fun(_) ->
+	foreach(run, fun(_, val) -> {
 		if (typeof(val) == "String") {
 			put(val)
 			putln(":")

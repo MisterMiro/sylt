@@ -24,15 +24,16 @@
 
 /* == debug settings == */
 
-#define DBG_PRINT_STATE_CHANGE 1
+#define DBG_PRINT_SYLT_STATE 1
+#define DBG_PRINT_GC_STATE 1
 #define DBG_PRINT_SOURCE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_DATA 0
-#define DBG_PRINT_OPCODES 0
+#define DBG_PRINT_OPCODES 1
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_ALLOCS 0
-#define DBG_PRINT_MEM_STATS 0
+#define DBG_PRINT_MEM_STATS 1
 #define DBG_PRINT_MEM_SIZES 0
 #define DBG_ASSERTIONS 1
 
@@ -92,6 +93,20 @@ static const char* SYLT_STATE_NAME[] = {
 	"Free",
 };
 
+typedef enum {
+	GC_STATE_IDLE,
+	GC_STATE_MARKING,
+	GC_STATE_SWEEPING,
+	GC_STATE_PAUSED,
+} gc_state_t;
+
+static const char* GC_STATE_NAME[] = {
+	"Idle",
+	"Marking",
+	"Sweeping",
+	"Paused",
+};
+
 typedef struct {
 	/* linked list of all objects */
 	struct obj_s* objs;
@@ -101,6 +116,11 @@ typedef struct {
 	ptrdiff_t highest;
 	/* total allocation count */
 	size_t count;
+	/* garbage collector state */
+	gc_state_t gc_state;
+	/* array of marked objects */
+	struct obj_s** marked;
+	size_t nmarked;
 } mem_t;
 
 /* sylt API struct */
@@ -121,7 +141,7 @@ static void sylt_set_state(
 {
 	ctx->state = state;
 	
-	#if DBG_PRINT_STATE_CHANGE
+	#if DBG_PRINT_SYLT_STATE
 	sylt_dprintf("[state: %s]\n",
 		SYLT_STATE_NAME[state]);
 	#endif
@@ -151,7 +171,8 @@ static void sylt_set_state(
 	10, "%s", (msg)
 #define E_TYPE(ex, got) \
 	11, "expected %s but got %s", \
-		type_name(ex), type_name(got)
+		user_type_name(ex), \
+		user_type_name(got)
 #define E_UNDEFINED(name, len) \
 	12, "undefined variable '%.*s'", \
 		(name), (len)
@@ -182,6 +203,13 @@ void halt(
 
 /* == memory == */
 
+#define gc_realloc realloc
+#define gc_free free
+
+void gc_pause(sylt_t*);
+void gc_resume(sylt_t*);
+void gc_collect(sylt_t*);
+
 void* ptr_resize(
 	void* p,
 	size_t os,
@@ -199,10 +227,14 @@ void* ptr_resize(
 			ctx->mem.highest = ctx->mem.bytes;
 				
 		ctx->mem.count++;
+		
+		//if (ns > os)
+		//	gc_collect(ctx);
 	}
 	
 	#if DBG_PRINT_ALLOCS
-	sylt_dprintf("  %+ld bytes (%s)\n",
+	sylt_dprintf(
+		"        %+ld bytes (%s)\n",
 		ns - os, func);
 	#endif
 	
@@ -349,7 +381,6 @@ typedef struct {
 	/* name, used in error messages and
 	 * for debugging */
 	struct string_s* name;
-	struct string_s* fullname;
 	/* list of line numbers */
 	int32_t* lines;
 	size_t nlines;
@@ -370,15 +401,25 @@ typedef enum {
 	TYPE_UPVALUE,
 } type_t;
 
-static const char* type_name(type_t tag) {
+static const char* TYPE_NAMES[] = {
+	"Nil",
+	"Bool",
+	"Num",
+	"List",
+	"String",
+	"Function",
+	"Closure",
+	"Upvalue",
+};
+
+static const char* user_type_name(
+	type_t tag)
+{
 	switch (tag) {
-	case TYPE_NIL: return "Nil";
-	case TYPE_BOOL: return "Bool";
-	case TYPE_NUM: return "Num";
-	case TYPE_LIST: return "List";
-	case TYPE_STRING: return "String";
 	case TYPE_CLOSURE: return "Function";
-	default: unreachable();
+	case TYPE_FUNCTION:
+	case TYPE_UPVALUE: unreachable();
+	default: return TYPE_NAMES[tag];
 	}
 }
 
@@ -392,6 +433,8 @@ static const char* type_name(type_t tag) {
 /* heap-allocated object header */
 typedef struct obj_s {
 	type_t tag;
+	/* marked as reachable */
+	bool marked;
 	/* linked list of all objects */
 	struct obj_s* next;
 } obj_t;
@@ -402,7 +445,7 @@ typedef double sylt_num_t;
 typedef float sylt_num_t;
 #endif
 
-/* tagged enum representing a sylt value */
+/* tagged enum representing a Sylt value */
 typedef struct value_s {
 	type_t tag;
 	union {
@@ -525,40 +568,61 @@ typedef struct upvalue_s {
 void chunk_init(chunk_t*, string_t*);
 void chunk_free(chunk_t*, sylt_t*);
 
+void dbg_print_obj_mem(
+	obj_t* obj, bool freed)
+{
+	if (!obj)
+		return;
+	
+	sylt_dprintf("  [    %s %p %s]\n",
+		(freed) ? " free" : "alloc",
+		obj,
+		TYPE_NAMES[obj->tag]);
+}
+
 obj_t* obj_new(
 	size_t size,
 	type_t tag,
 	sylt_t* ctx)
 {
 	assert(isheaptype(tag));
+	gc_collect(ctx);
 	
 	obj_t* obj = ptr_resize(
 		NULL, 0, size, __func__, ctx);
 	obj->tag = tag;
+	obj->marked = false;
 	obj->next = ctx->mem.objs;
 	ctx->mem.objs = obj;
+	
+	dbg_print_obj_mem(obj, false);
 	return obj;
 }
 
 void obj_free(obj_t* obj, sylt_t* ctx) {
 	if (!obj)
 		return;
+		
+	/* TODO: assert instead */
+	if (!isheaptype(obj->tag))
+		return;
+		
+	dbg_print_obj_mem(obj, true);
 	
 	switch (obj->tag) {
 	case TYPE_LIST: {
 		list_t* list = (list_t*)obj;
-		arr_free(
-			list->items,
+		arr_free(list->items,
 			value_t,
 			list->len,
 			ctx);
+		
 		ptr_free(list, list_t, ctx);
 		break;
 	}
 	case TYPE_STRING: {
 		string_t* str = (string_t*)obj;
-		arr_free(
-			str->bytes,
+		arr_free(str->bytes,
 			uint8_t,
 			str->len,
 			ctx);
@@ -579,6 +643,7 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 			upvalue_t*,
 			cls->nupvals,
 			ctx);
+		
 		ptr_free(cls, closure_t, ctx);
 		break;
 	}
@@ -589,6 +654,84 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 	default: unreachable();
 	}
 }
+
+/* marks an object as reachable by the
+ * garbage collector */
+void obj_mark(obj_t* obj, sylt_t* ctx) {
+	if (!obj || obj->marked)
+		return;
+		
+	obj->marked = true;
+
+	ctx->mem.marked = gc_realloc(
+		ctx->mem.marked,
+		sizeof(obj_t*)
+			* ctx->mem.nmarked + 1);
+	if (!ctx->mem.marked)
+		halt(ctx, E_OUTOFMEM);
+	
+	ctx->mem.marked[ctx->mem.nmarked++] = obj;
+}
+
+void val_mark(value_t val, sylt_t* ctx);
+
+void obj_deepmark(obj_t* obj, sylt_t* ctx) {
+	assert(obj);
+	assert(isheaptype(obj->tag));
+	if (!isheaptype(obj->tag))
+		return;
+	assert(obj->marked);
+	
+	switch (obj->tag) {
+	case TYPE_LIST: {
+		list_t* ls = (list_t*)obj;
+		
+		for (size_t i = 0; i < ls->len; i++)
+			val_mark(ls->items[i], ctx);
+		
+		break;
+	}
+	case TYPE_STRING: {
+		break;
+	}
+	case TYPE_FUNCTION: {
+		func_t* func = (func_t*)obj;
+		
+		obj_mark((obj_t*)func->chunk.name,
+			ctx);
+		
+		for (size_t i = 0;
+			i < func->chunk.ndata;
+			i++
+		)
+			val_mark(func->chunk.data[i],
+				ctx);
+			
+		break;
+	}
+	case TYPE_CLOSURE: {
+		closure_t* cls = (closure_t*)obj;
+		
+		obj_mark((obj_t*)cls->func, ctx);
+		for (size_t i = 0;
+			i < cls->nupvals;
+			i++
+		)
+			obj_mark((obj_t*)cls->upvals[i],
+				ctx);
+		
+		break;
+	}
+	case TYPE_UPVALUE: {
+		upvalue_t* upval = (upvalue_t*)obj;
+		val_mark(upval->closed, ctx);
+		break;
+	}
+	default: unreachable();
+	}
+}
+
+/* ==== list ==== */
 
 /* creates an empty list */
 list_t* list_new(sylt_t* ctx) {
@@ -643,6 +786,8 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 	ls->len--;
 	return last;
 }
+
+/* ==== string ==== */
 
 /* creates a new string
  * if [take] is true we take ownership of the
@@ -714,6 +859,8 @@ string_t* string_concat(
 	const string_t* b,
 	sylt_t* ctx)
 {
+	gc_pause(ctx);
+	
 	/* TODO: GC */
 	size_t len = a->len + b->len;
 	uint8_t* bytes =
@@ -721,10 +868,12 @@ string_t* string_concat(
 		
 	memcpy(bytes, a->bytes, a->len);
 	memcpy(bytes + a->len, b->bytes, b->len);
-	
-	return string_new(
+	string_t* result = string_new(
 		(const char*)bytes,
 		len, true, ctx);
+		
+	gc_resume(ctx);
+	return result;
 }
 
 /* appends src to dst */
@@ -801,6 +950,17 @@ upvalue_t* upvalue_new(
 	upval->closed = wrapnil();
 	upval->next = NULL;
 	return upval;
+}
+
+/* ==== value ==== */
+
+/* marks a value as reachable in case it
+ * wraps an object */
+void val_mark(value_t val, sylt_t* ctx) {
+	if (!isheaptype(val.tag))
+		return;
+	
+	obj_mark(getobj(val), ctx);
 }
 
 /* returns true if the two values are equal */
@@ -982,6 +1142,8 @@ void val_print(
 	printf("%.*s", (int)str->len, str->bytes);
 }
 
+/* ==== chunk ==== */
+
 void chunk_init(
 	chunk_t* chunk, string_t* name)
 {
@@ -991,7 +1153,6 @@ void chunk_init(
 	chunk->ndata = 0;
 	chunk->slots = 0;
 	chunk->name = name;
-	chunk->fullname = name;
 	chunk->lines = NULL;
 	chunk->nlines = 0;
 }
@@ -1000,18 +1161,15 @@ void chunk_free(
 	chunk_t* chunk,
 	sylt_t* ctx)
 {
-	arr_free(
-		chunk->code,
+	arr_free(chunk->code,
 		uint8_t,
 		chunk->ncode,
 		ctx);
-    arr_free(
-    	chunk->data,
+    arr_free(chunk->data,
     	value_t,
     	chunk->ndata,
     	ctx);
-    arr_free(
-    	chunk->lines,
+    arr_free(chunk->lines,
     	int32_t,
     	chunk->nlines,
     	ctx);
@@ -1048,6 +1206,10 @@ void chunk_write(
 	chunk->lines[chunk->nlines++] = line;
 }
 
+static inline void vm_push(
+	struct vm_s*, value_t);
+static inline value_t vm_pop(struct vm_s*);
+
 /* writes a value to the constant data table
  * and returns the index it was written to */
 size_t chunk_write_data(
@@ -1066,13 +1228,16 @@ size_t chunk_write_data(
 		halt(ctx, E_DATALIMIT);
 		unreachable();
 	}
-		
+	
+	vm_push(ctx->vm, val); /* GC */
 	chunk->data = arr_resize(
 		chunk->data,
 		value_t,
 		chunk->ndata,
 		chunk->ndata + 1,
 		ctx);
+	vm_pop(ctx->vm); /* GC */
+		
 	chunk->data[chunk->ndata++] = val;
 	return chunk->ndata - 1;
 }
@@ -1140,9 +1305,9 @@ void dbg_print_mem_stats(sylt_t* ctx) {
 	#if DBG_PRINT_MEM_STATS
 	sylt_dprintf(
 		"\n[memory information]\n"
-		"  leaked: %ld bytes\n"
-		"  highest usage: %ld bytes\n"
-		"  allocations: %ld\n",
+		"- leaked: %ld bytes\n"
+		"- highest usage: %ld bytes\n"
+		"- allocations: %ld\n",
 		ctx->mem.bytes - sizeof(sylt_t),
 		ctx->mem.highest,
 		ctx->mem.count);
@@ -1184,8 +1349,8 @@ void dbg_print_header(
 	const chunk_t* chunk = &func->chunk;
 	
 	sylt_dprintf("\n-> %.*s\n",
-		(int)chunk->fullname->len,
-		chunk->fullname->bytes);
+		(int)chunk->name->len,
+		chunk->name->bytes);
 	
 	sylt_dprintf("depth %d/%d, ",
 		(int)vm->nframes, MAX_CFRAMES);
@@ -1225,7 +1390,7 @@ void dbg_print_header(
 	#endif
 		
 	sylt_dprintf(
-		"  addr  line opcode            "
+		"  addr  line opcode             "
 		"hex\n");
 	sylt_dprintf("  ");
 	for (int i = 0; i < 40; i++)
@@ -1249,14 +1414,13 @@ void dbg_print_instruction(
 	int32_t line = lines[addr];
 	
 	/* TODO: fix */
-	if (addr == 0 || 
-		(addr > 0 && line != lines[addr - 1]))
+	if (addr == 0 || line > lines[addr - 1])
 		sylt_dprintf(" %-4d ", line);
 	else
 		sylt_dprintf(" |    ");
 		
 	const char* name = OPINFO[op].name;
-	sylt_dprintf("%-17s", name);
+	sylt_dprintf("%-19s", name);
 		
 	/* hex values */
 	int rank = OPINFO[op].rank;
@@ -1530,7 +1694,7 @@ void vm_exec(vm_t* vm) {
 			func_t* func = 
 				getfunc(vm->fp->func->
 					chunk.data[read()]);
-			
+			gc_pause(vm->ctx);
 			closure_t* cls =
 				closure_new(vm->ctx, func);
 			push(wrapclosure(cls));
@@ -1551,7 +1715,7 @@ void vm_exec(vm_t* vm) {
 						cls->upvals[index];
 				}
 			}
-			
+			gc_resume(vm->ctx);
 			break;
 		}
 		case OP_POP: {
@@ -1887,7 +2051,7 @@ value_t slib_putln(sylt_t* ctx) {
 /* returns the type of arg(0) as a string */
 value_t slib_typeof(sylt_t* ctx) {
 	return wrapstring(string_lit(
-		type_name(arg(0).tag), ctx));
+		user_type_name(arg(0).tag), ctx));
 }
 
 /* returns arg(0) converted to a string */
@@ -2052,20 +2216,20 @@ void slib_add(
 
 void load_slib(sylt_t* ctx) {
 	/* prelude */
-	slib_add(ctx, "put", slib_put, 1);
+	/*slib_add(ctx, "put", slib_put, 1);*/
 	slib_add(ctx, "putln", slib_putln, 1);
-	slib_add(ctx, "typeof", slib_typeof, 1);
+	/*slib_add(ctx, "typeof", slib_typeof, 1);
 	slib_add(ctx, "stringify", 
 		slib_stringify, 1);
-	slib_add(ctx, "ensure", slib_ensure, 1);
+	slib_add(ctx, "ensure", slib_ensure, 1);*/
 	
 	/* list */
-	slib_add(ctx, "length", slib_length, 1);
+	/*slib_add(ctx, "length", slib_length, 1);
 	slib_add(ctx, "push", slib_push, 2);
-	slib_add(ctx, "pop", slib_pop, 1);
+	slib_add(ctx, "pop", slib_pop, 1);*/
 	
 	/* math */
-	slib_add(ctx, "pi", slib_pi, 0);
+	/*slib_add(ctx, "pi", slib_pi, 0);
 	slib_add(ctx, "eulers", slib_eulers, 0);
 	slib_add(ctx, "nearly", slib_nearly, 3);
 	slib_add(ctx, "abs", slib_abs, 1);
@@ -2074,7 +2238,7 @@ void load_slib(sylt_t* ctx) {
 	slib_add(ctx, "sqrt", slib_sqrt, 1);
 	slib_add(ctx, "floor", slib_floor, 1);
 	slib_add(ctx, "ceil", slib_ceil, 1);
-	slib_add(ctx, "round", slib_round, 1);
+	slib_add(ctx, "round", slib_round, 1);*/
 }
 
 /* == compiler == */
@@ -2203,13 +2367,20 @@ typedef struct comp_s {
 	sylt_t* ctx;
 } comp_t;
 
-void comp_init(comp_t* cmp, sylt_t* ctx) {
+void comp_init(
+	comp_t* cmp,
+	comp_t* parent,
+	comp_t* child,
+	sylt_t* ctx)
+{
 	string_t* name = sylt_peekstring(ctx, 0);
 	string_t* src = sylt_peekstring(ctx, 1);
 	
-	cmp->parent = NULL;
-	cmp->child = NULL;
+	cmp->parent = parent;
+	cmp->child = child;
+	gc_pause(ctx);
 	cmp->func = func_new(ctx, name);
+	gc_resume(ctx);
 	cmp->curslots = 0;
 	
 	cmp->src = src;
@@ -3127,41 +3298,28 @@ void comp_copystate(
 	dst->cur = src->cur;
 }
 
-void comp_setfullname(
-	comp_t* cmp,
-	const string_t* a,
-	const string_t* b)
-{
-	string_t* full = string_empty(cmp->ctx);
-	string_append(&full, a, cmp->ctx);
-	string_append_lit(&full, "/", cmp->ctx);
-	string_append(&full, b, cmp->ctx);
-	cmp->func->chunk.fullname = full;
-}
-
 void parse_func(
-	comp_t* cmp, token_t name, bool lambda)
+	comp_t* cmp,
+	token_t name_tok,
+	bool lambda)
 {
-	string_t* funcname = string_new(
-		name.start,
-		name.len,
+	string_t* name = string_new(
+		name_tok.start,
+		name_tok.len,
 		false, 
 		cmp->ctx);
 		
 	sylt_pushstring(cmp->ctx, cmp->src);
-	sylt_pushstring(cmp->ctx, funcname);
+	sylt_pushstring(cmp->ctx, name);
 	
 	/* setup a new compiler instance
 	* in order to parse the function */
 	comp_t fcmp;
-	comp_init(&fcmp, cmp->ctx);
+	comp_init(&fcmp,
+		cmp,
+		NULL,
+		cmp->ctx);
 	comp_copystate(&fcmp, cmp);
-	comp_setfullname(
-		&fcmp,
-		cmp->func->chunk.fullname,
-		fcmp.func->chunk.name);
-	fcmp.parent = cmp;
-	cmp->child = &fcmp;
 		
 	/* parse parameter list */
 	while (!check(&fcmp, T_RPAREN)
@@ -3198,7 +3356,8 @@ void parse_func(
 	emit_nullary(&fcmp, OP_RET);
 	
 	func_t* func = fcmp.func;
-		
+	gc_pause(cmp->ctx);
+	
 	/* push the function on the stack */
 	emit_value(cmp, wrapfunc(func));
 	
@@ -3218,9 +3377,11 @@ void parse_func(
 			cmp->prev.line,
 			cmp->ctx);
 	}
-		
+	
+	gc_resume(cmp->ctx);
 	comp_copystate(cmp, &fcmp);
 	comp_free(&fcmp);
+	cmp->child = NULL;
 }
 
 /* parses an if/else expression */
@@ -3413,7 +3574,7 @@ void block(comp_t* cmp) {
 		cmp->ctx);
 }
 
-func_t* compile(comp_t* cmp) {
+void compile(comp_t* cmp) {
 	sylt_set_state(cmp->ctx,
 		SYLT_STATE_COMPILING);
 	
@@ -3431,10 +3592,11 @@ func_t* compile(comp_t* cmp) {
 	}
 	
 	emit_nullary(cmp, OP_RET);
+	vm_push(cmp->ctx->vm,
+		wrapfunc(cmp->func));
 	
 	sylt_set_state(cmp->ctx,
 		SYLT_STATE_COMPILED);
-	return cmp->func;
 }
 
 void slib_add(
@@ -3443,6 +3605,8 @@ void slib_add(
 	cfunc_t cfunc,
 	int params)
 {
+	gc_pause(ctx);
+	
 	token_t token =
 		(token_t){
 			T_NAME,
@@ -3451,12 +3615,164 @@ void slib_add(
 			1};
 	add_symbol(ctx->cmp, token);
 	
+	string_t* str = string_lit(name, ctx);
+	sylt_pushstring(ctx, str); /* GC */
+	
 	func_t* func = func_newc(
 		ctx,
-		string_lit(name, ctx),
+		str,
 		cfunc,
 		params);
+		
 	emit_value(ctx->cmp, wrapfunc(func));
+	
+	sylt_popstring(ctx); /* GC */
+	gc_resume(ctx);
+}
+
+/* ==== GC ==== */
+
+void gc_set_state(
+	sylt_t* ctx, gc_state_t state)
+{
+	#if DBG_PRINT_GC_STATE
+	sylt_dprintf("  [gc: %s]\n",
+		GC_STATE_NAME[state]);
+	#endif
+	
+	ctx->mem.gc_state = state;
+}
+
+void gc_pause(sylt_t* ctx) {
+	assert(
+		ctx->mem.gc_state == GC_STATE_IDLE);
+	gc_set_state(ctx, GC_STATE_PAUSED);
+}
+
+void gc_resume(sylt_t* ctx) {
+	assert(
+		ctx->mem.gc_state == GC_STATE_PAUSED);
+	gc_set_state(ctx, GC_STATE_IDLE);
+}
+
+void gc_mark(sylt_t*);
+void gc_sweep(sylt_t*);
+
+/* runs the garbage collector */
+void gc_collect(sylt_t* ctx) {
+	if (ctx->mem.gc_state == GC_STATE_PAUSED)
+		return;
+		
+	if (ctx->state == SYLT_STATE_INIT)
+		return;
+
+	gc_mark(ctx);
+	gc_sweep(ctx);
+}
+
+void gc_mark_vm_roots(sylt_t*);
+void gc_mark_compiler_roots(sylt_t*);
+void gc_trace_refs(sylt_t*);
+
+void gc_mark(sylt_t* ctx) {
+	gc_set_state(ctx, GC_STATE_MARKING);
+	
+	/* mark root objects */
+	gc_mark_vm_roots(ctx);
+	gc_mark_compiler_roots(ctx);
+	size_t roots = ctx->mem.nmarked;
+	
+	/* mark objects reachable from roots */
+	gc_trace_refs(ctx);
+	size_t refs = ctx->mem.nmarked - roots;
+	
+	sylt_dprintf(
+		"  [gc: (%ld root%s + %ld ref%s)]\n",
+		roots,
+		(roots == 1) ? "" : "s",
+		refs,
+		(refs == 1) ? "" : "s");
+		
+	gc_free(ctx->mem.marked);
+	ctx->mem.marked = NULL;
+	ctx->mem.nmarked = 0;
+}
+
+void gc_mark_vm_roots(sylt_t* ctx) {
+	vm_t* vm = ctx->vm;
+	if (!vm)
+		return;
+	
+	/* stack */
+	value_t* v = vm->stack;
+	for (; v < vm->sp; v++)
+		val_mark(*v, ctx);
+		
+	/* call stack */
+	for (size_t i = 0; i < vm->nframes; i++)
+		obj_mark(
+			(obj_t*)vm->frames[i].cls, ctx);
+	
+	/* open upvalues */
+	upvalue_t* upval = vm->openups;
+	for (; upval; upval = upval->next)
+		obj_mark((obj_t*)upval, ctx);
+	
+	/* return value */
+	val_mark(vm->hidden, ctx);
+}
+
+void gc_mark_compiler_roots(sylt_t* ctx) {
+	if (ctx->state != SYLT_STATE_COMPILING)
+		return;
+	assert(ctx->cmp);
+	if (!ctx->cmp)
+		return;
+	
+	/* compiler stack */
+	comp_t* cmp = ctx->cmp;
+	while (cmp) {
+		obj_mark((obj_t*)cmp->func, ctx);
+		obj_mark((obj_t*)cmp->src, ctx);
+		cmp = cmp->child;
+	}
+}
+
+void gc_trace_refs(sylt_t* ctx) {
+	size_t n = ctx->mem.nmarked;
+	while (n > 0) {
+		obj_t* obj = ctx->mem.marked[--n];
+		obj_deepmark(obj, ctx);
+	}
+}
+
+/* frees all unreachable objects */
+void gc_sweep(sylt_t* ctx) {
+	gc_set_state(ctx, GC_STATE_SWEEPING);
+	
+	obj_t* prev = NULL;
+	obj_t* obj = ctx->mem.objs;
+	
+	while (obj) {
+		if (obj->marked) {
+			obj->marked = false;
+			prev = obj;
+			obj = obj->next;
+			continue;
+		}
+		
+		obj_t* unreached = obj;
+		obj = obj->next;
+		
+		if (prev)
+			prev->next = obj;
+		else
+			ctx->mem.objs = obj;
+			
+		obj_free(unreached, ctx);
+	}
+	
+	gc_set_state(ctx, GC_STATE_IDLE);
 }
 
 string_t* load_file(
@@ -3504,15 +3820,15 @@ void halt(
 	case SYLT_STATE_COMPILING: {
 		/* find the deepest compiler */
 		comp_t* cmp = ctx->cmp;
-		while (cmp->child)
+		while (cmp && cmp->child)
 			cmp = cmp->child;
 		
 		const chunk_t* chunk =
 			&cmp->func->chunk;
 		
 		sylt_eprintf("error in %.*s:%d: ",
-			(int)chunk->fullname->len,
-			chunk->fullname->bytes,
+			(int)chunk->name->len,
+			chunk->name->bytes,
 			cmp->prev.line);
 		break;
 	}
@@ -3526,8 +3842,8 @@ void halt(
 		int32_t line = chunk->lines[addr];
 		
 		sylt_eprintf("error in %.*s:%d: ",
-			(int)chunk->fullname->len,
-			chunk->fullname->bytes,
+			(int)chunk->name->len,
+			chunk->name->bytes,
 			line);
 		break;
 	}
@@ -3543,8 +3859,13 @@ void halt(
 
 sylt_t* sylt_new(void) {
 	sylt_t* ctx = ptr_alloc(sylt_t, NULL);
+	gc_pause(ctx);
+	
 	sylt_set_state(ctx, SYLT_STATE_INIT);
+	
 	ctx->vm = ptr_alloc(vm_t, ctx);
+	vm_init(ctx->vm, ctx);
+	
 	ctx->cmp = NULL;
 	ctx->mem.objs = NULL;
 	/* has to be done manually when
@@ -3552,7 +3873,10 @@ sylt_t* sylt_new(void) {
 	ctx->mem.bytes += sizeof(sylt_t);
 	ctx->mem.highest = 0;
 	ctx->mem.count = 0;
-	vm_init(ctx->vm, ctx);
+	ctx->mem.marked = NULL;
+	ctx->mem.nmarked = 0;
+	
+	gc_resume(ctx);
 	return ctx;
 }
 
@@ -3600,12 +3924,16 @@ void sylt_dofile(
 	
 	comp_t cmp;
 	ctx->cmp = &cmp;
-	comp_init(ctx->cmp, ctx);
+	comp_init(ctx->cmp,
+		NULL,
+		NULL,
+		ctx);
 	
+	/* TODO: temporary hack */
+	ctx->cmp->prev.line = 1;
 	load_slib(ctx);
-	func_t* func = compile(ctx->cmp);
-	vm_push(ctx->vm, wrapfunc(func));
 	
+	compile(ctx->cmp);
 	comp_free(ctx->cmp);
 	ctx->cmp = NULL;
 	

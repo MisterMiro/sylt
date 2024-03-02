@@ -13,14 +13,14 @@
  * 0 = use floats */
 #define SYLT_USE_DOUBLES 1
 
-/* functions for printing standard, error
+/* functions for printing to standard, error
  * and debug output, respectively */
 #define sylt_printf printf
 #define sylt_eprintf printf
 #define sylt_dprintf printf
 
 /* initial stack size */
-#define SYLT_INIT_STACK 24
+#define SYLT_INIT_STACK 512
 
 /* == debug settings == */
 
@@ -73,22 +73,34 @@
 #define unreachable()
 #endif
 
+/* == sylt state == */
+
 typedef enum {
-	SYLT_STATE_INIT,
+	SYLT_STATE_PRE_INIT,
+	SYLT_STATE_POST_INIT,
+	
 	SYLT_STATE_COMPILING,
 	SYLT_STATE_COMPILED,
-	SYLT_STATE_RUNNING,
-	SYLT_STATE_FINISHED,
+	
+	SYLT_STATE_PRE_EXEC,
+	SYLT_STATE_EXEC,
+	SYLT_STATE_POST_EXEC,
+	
 	SYLT_STATE_FREEING,
 	SYLT_STATE_FREE,
 } sylt_state_t;
 
 static const char* SYLT_STATE_NAME[] = {
-	"Init",
+	"PreInit",
+	"PostInit",
+	
 	"Compiling",
 	"Compiled",
-	"Running",
-	"Finished",
+	
+	"PreExec",
+	"Exec",
+	"PostExec",
+	
 	"Freeing",
 	"Free",
 };
@@ -108,6 +120,17 @@ static const char* GC_STATE_NAME[] = {
 };
 
 typedef struct {
+	gc_state_t state;
+	/* array of pointers to marked objects */
+	struct obj_s** marked;
+	size_t nmarked;
+	/* number of succesful gc_collect calls */
+	size_t nruns;
+	/* how many times the GC was paused */
+	size_t npauses;
+} gc_t;
+
+typedef struct {
 	/* linked list of all objects */
 	struct obj_s* objs;
 	/* current allocation size */
@@ -116,11 +139,8 @@ typedef struct {
 	ptrdiff_t highest;
 	/* total allocation count */
 	size_t count;
-	/* garbage collector state */
-	gc_state_t gc_state;
-	/* array of marked objects */
-	struct obj_s** marked;
-	size_t nmarked;
+	/* garbage collector */
+	gc_t gc;
 } mem_t;
 
 /* sylt API struct */
@@ -660,21 +680,26 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 void obj_mark(obj_t* obj, sylt_t* ctx) {
 	if (!obj || obj->marked)
 		return;
-		
+	
+	/* set a mark bit on the object itself */
 	obj->marked = true;
 
-	ctx->mem.marked = gc_realloc(
-		ctx->mem.marked,
+	/* add the object to a cache for
+	 * performance */
+	ctx->mem.gc.marked = gc_realloc(
+		ctx->mem.gc.marked,
 		sizeof(obj_t*)
-			* ctx->mem.nmarked + 1);
-	if (!ctx->mem.marked)
+			* ctx->mem.gc.nmarked + 1);
+	if (!ctx->mem.gc.marked)
 		halt(ctx, E_OUTOFMEM);
 	
-	ctx->mem.marked[ctx->mem.nmarked++] = obj;
+	ctx->mem.gc.marked
+		[ctx->mem.gc.nmarked++] = obj;
 }
 
 void val_mark(value_t val, sylt_t* ctx);
 
+/* marks all objects reachable from another */
 void obj_deepmark(obj_t* obj, sylt_t* ctx) {
 	assert(obj);
 	assert(isheaptype(obj->tag));
@@ -731,7 +756,7 @@ void obj_deepmark(obj_t* obj, sylt_t* ctx) {
 	}
 }
 
-/* ==== list ==== */
+/* == list == */
 
 /* creates an empty list */
 list_t* list_new(sylt_t* ctx) {
@@ -787,7 +812,7 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 	return last;
 }
 
-/* ==== string ==== */
+/* == string == */
 
 /* creates a new string
  * if [take] is true we take ownership of the
@@ -952,7 +977,7 @@ upvalue_t* upvalue_new(
 	return upval;
 }
 
-/* ==== value ==== */
+/* == value == */
 
 /* marks a value as reachable in case it
  * wraps an object */
@@ -1095,6 +1120,7 @@ string_t* val_tostring_opts(
 	sylt_t* ctx)
 {
 	/* TODO: GC */
+	gc_pause(ctx);
 	string_t* vstr = val_tostring(val, ctx);
 	
 	if (quotestr && val.tag == TYPE_STRING) {
@@ -1123,10 +1149,12 @@ string_t* val_tostring_opts(
 					"(..+%ld)",
 					str->len - maxlen),
 				ctx);
-				
+		
+		gc_resume(ctx);
 		return str;
 	}
 	
+	gc_resume(ctx);
 	return vstr;
 }
 
@@ -1142,7 +1170,7 @@ void val_print(
 	printf("%.*s", (int)str->len, str->bytes);
 }
 
-/* ==== chunk ==== */
+/* == chunk == */
 
 void chunk_init(
 	chunk_t* chunk, string_t* name)
@@ -1307,10 +1335,14 @@ void dbg_print_mem_stats(sylt_t* ctx) {
 		"\n[memory information]\n"
 		"- leaked: %ld bytes\n"
 		"- highest usage: %ld bytes\n"
-		"- allocations: %ld\n",
+		"- allocations: %ld\n"
+		"- GC runs: %ld\n"
+		"- GC pauses: %ld",
 		ctx->mem.bytes - sizeof(sylt_t),
 		ctx->mem.highest,
-		ctx->mem.count);
+		ctx->mem.count,
+		ctx->mem.gc.nruns,
+		ctx->mem.gc.npauses);
 	sylt_dprintf("\n");
 	#endif
 }
@@ -1611,9 +1643,8 @@ void vm_closeupvals(
 }
 
 void vm_exec(vm_t* vm) {
-	sylt_set_state(
-		vm->ctx, 	
-		SYLT_STATE_RUNNING);
+	sylt_set_state(vm->ctx, 	
+		SYLT_STATE_PRE_EXEC);
 		
 	const func_t* entry = getfunc(peek(0));
 	
@@ -1636,6 +1667,9 @@ void vm_exec(vm_t* vm) {
 	
 	/* ensure an empty stack */
 	vm->sp = vm->stack;
+	
+	/* showtime */
+	sylt_set_state(vm->ctx, SYLT_STATE_EXEC);
 	
 	#if DBG_PRINT_OPCODES
 	dbg_print_header(vm, vm->fp->cls);
@@ -1676,17 +1710,19 @@ void vm_exec(vm_t* vm) {
 		}
 		case OP_PUSH_LIST: {
 			uint8_t len = read();
+			gc_pause(vm->ctx);
 			list_t* ls = list_new(vm->ctx);
 			
-			push(wraplist(ls)); /* for GC */
+			push(wraplist(ls)); /* GC */
 			for (int i = len; i > 0; i--) {
 				list_push(
 					ls, peek(i), vm->ctx);
 			}
-			pop();
+			pop(); /* GC */
 			
 			shrink(len);
 			
+			gc_resume(vm->ctx);
 			push(wraplist(ls));
 			break;
 		}
@@ -1854,6 +1890,8 @@ void vm_exec(vm_t* vm) {
 		}
 		case OP_CALL: {
 			uint8_t argc = read();
+			//gc_pause(vm->ctx);
+			
 			typecheck(
 				vm->ctx,
 				peek(argc),
@@ -1864,6 +1902,7 @@ void vm_exec(vm_t* vm) {
 			const func_t* func = cls->func;
 				
 			if (func->params != argc) {
+				//gc_resume(vm->ctx);
 				halt(vm->ctx, E_WRONGARGC(
 					func->params, argc));
 				unreachable();
@@ -1882,10 +1921,12 @@ void vm_exec(vm_t* vm) {
 				sylt_dprintf("\n");
 				#endif
 				
+				//gc_resume(vm->ctx);
 				break;
 			}
 			
 			if (vm->nframes == MAX_CFRAMES) {
+				//gc_resume(vm->ctx);
 				halt(vm->ctx,
 					E_STACKOVERFLOW);
 				unreachable();
@@ -1913,6 +1954,7 @@ void vm_exec(vm_t* vm) {
 				vm->fp->cls);
 			#endif
 			
+			//gc_resume(vm->ctx);
 			break;
 		}
 		case OP_RET: {
@@ -1927,7 +1969,7 @@ void vm_exec(vm_t* vm) {
 			vm->nframes--;
 			if (vm->nframes == 0) {
 				sylt_set_state(vm->ctx,
-					SYLT_STATE_FINISHED);
+					SYLT_STATE_POST_EXEC);
 				return;
 			}
 			
@@ -2216,20 +2258,20 @@ void slib_add(
 
 void load_slib(sylt_t* ctx) {
 	/* prelude */
-	/*slib_add(ctx, "put", slib_put, 1);*/
+	slib_add(ctx, "put", slib_put, 1);
 	slib_add(ctx, "putln", slib_putln, 1);
-	/*slib_add(ctx, "typeof", slib_typeof, 1);
+	slib_add(ctx, "typeof", slib_typeof, 1);
 	slib_add(ctx, "stringify", 
 		slib_stringify, 1);
-	slib_add(ctx, "ensure", slib_ensure, 1);*/
+	slib_add(ctx, "ensure", slib_ensure, 1);
 	
 	/* list */
-	/*slib_add(ctx, "length", slib_length, 1);
+	slib_add(ctx, "length", slib_length, 1);
 	slib_add(ctx, "push", slib_push, 2);
-	slib_add(ctx, "pop", slib_pop, 1);*/
+	slib_add(ctx, "pop", slib_pop, 1);
 	
 	/* math */
-	/*slib_add(ctx, "pi", slib_pi, 0);
+	slib_add(ctx, "pi", slib_pi, 0);
 	slib_add(ctx, "eulers", slib_eulers, 0);
 	slib_add(ctx, "nearly", slib_nearly, 3);
 	slib_add(ctx, "abs", slib_abs, 1);
@@ -2238,7 +2280,7 @@ void load_slib(sylt_t* ctx) {
 	slib_add(ctx, "sqrt", slib_sqrt, 1);
 	slib_add(ctx, "floor", slib_floor, 1);
 	slib_add(ctx, "ceil", slib_ceil, 1);
-	slib_add(ctx, "round", slib_round, 1);*/
+	slib_add(ctx, "round", slib_round, 1);
 }
 
 /* == compiler == */
@@ -2888,6 +2930,21 @@ void block(comp_t*);
 
 typedef void (*parsefn_t)(comp_t*);
 
+void printfname(
+	const char* name, sylt_t* ctx)
+{
+	comp_t* cmp = ctx->cmp;
+	while (cmp->child) {
+		sylt_dprintf("  ");
+		cmp = cmp->child;
+	}
+	
+	sylt_dprintf("  parse(%s)\n", name);
+}
+
+#define dbg_printfname() \
+	printfname(__func__, cmp->ctx)
+
 /* all tokens match a parse rule */
 typedef struct {
 	parsefn_t prefix;
@@ -2968,6 +3025,8 @@ void expr(comp_t* cmp, prec_t prec) {
 
 /* parses a keyword literal */
 void literal(comp_t* cmp) {
+	dbg_printfname();
+	
 	switch (cmp->prev.tag) {
 	case T_NIL:
 		emit_value(cmp, wrapnil());
@@ -2984,6 +3043,8 @@ void literal(comp_t* cmp) {
 
 /* parses a symbol name */
 void name(comp_t* cmp) {
+	dbg_printfname();
+	
 	int index = find_symbol(cmp, cmp->prev);
 	if (index != -1) {
 		emit_unary(cmp, OP_LOAD, index);
@@ -3002,6 +3063,8 @@ void name(comp_t* cmp) {
 
 /* parses a list literal */
 void list(comp_t* cmp) {
+	dbg_printfname();
+	
 	int len = 0;
 	while (!check(cmp, T_RSQUARE)
 		&& !check(cmp, T_EOF))
@@ -3020,6 +3083,8 @@ void list(comp_t* cmp) {
 
 /* parses a string literal */
 void string(comp_t* cmp) {
+	dbg_printfname();
+	
 	token_t token = cmp->prev;
 	assert(token.len >= 2); /* "" */
 	
@@ -3120,6 +3185,8 @@ void string(comp_t* cmp) {
 
 /* parses a numeric literal */
 void number(comp_t* cmp) {
+	dbg_printfname();
+	
 	sylt_num_t num = num_func(strtof, strtod)
 		(cmp->prev.start, NULL);
 	
@@ -3128,6 +3195,8 @@ void number(comp_t* cmp) {
 
 /* parses a parenthesized expression */
 void grouping(comp_t* cmp) {
+	dbg_printfname();
+	
 	expr(cmp, ANY_PREC);
 	eat(cmp, T_RPAREN,
 		"expected closing ')'");
@@ -3135,6 +3204,8 @@ void grouping(comp_t* cmp) {
 
 /* parses a unary expression */
 void unary(comp_t* cmp) {
+	dbg_printfname();
+	
 	/* save the operator token */
 	token_type_t token = cmp->prev.tag;
 	
@@ -3153,6 +3224,8 @@ void unary(comp_t* cmp) {
 
 /* parses a binary expression */
 void binary(comp_t* cmp) {
+	dbg_printfname();
+	
 	/* left hand expression has already been
 	 * compiled */
 	
@@ -3209,6 +3282,8 @@ void binary(comp_t* cmp) {
 
 /* parses a function call operator */
 void call(comp_t* cmp) {
+	dbg_printfname();
+	
 	int argc = 0;
 	
 	/* parse argument list */
@@ -3234,6 +3309,8 @@ void call(comp_t* cmp) {
 
 /* parses a subscript operator */
 void index(comp_t* cmp) {
+	dbg_printfname();
+	
 	expr(cmp, PREC_OR);
 	eat(cmp, T_RSQUARE, "expected ']'");
 	emit_nullary(cmp, OP_LOADLIST);
@@ -3244,6 +3321,8 @@ void parse_func(
 
 /* parses a variable or function binding */
 void let(comp_t* cmp) {
+	dbg_printfname();
+	
 	eat(cmp, T_NAME,
 		"expected variable name after 'let'");
 	
@@ -3281,6 +3360,8 @@ void let(comp_t* cmp) {
 
 /* parses an anonymous function */
 void fun(comp_t* cmp) {
+	dbg_printfname();
+	
 	eat(cmp, T_LPAREN,
 		"expected '(' after 'fun' keyword");
 	
@@ -3303,6 +3384,8 @@ void parse_func(
 	token_t name_tok,
 	bool lambda)
 {
+	dbg_printfname();
+	
 	string_t* name = string_new(
 		name_tok.start,
 		name_tok.len,
@@ -3386,6 +3469,8 @@ void parse_func(
 
 /* parses an if/else expression */
 void if_else(comp_t* cmp) {
+	dbg_printfname();
+	
 	/* compile condition */
 	expr(cmp, ANY_PREC);
 	eat(cmp, T_LCURLY,
@@ -3432,6 +3517,8 @@ void if_else(comp_t* cmp) {
 
 /* parses a match expression */
 void match_with(comp_t* cmp) {
+	dbg_printfname();
+	
 	/* match target */
 	expr(cmp, ANY_PREC);
 	
@@ -3504,6 +3591,7 @@ void match_with(comp_t* cmp) {
  * expressions ultimately reduced down
  * to a single value */
 void block(comp_t* cmp) {
+	dbg_printfname();
 	cmp->depth++;
 	
 	/* a block must return a value even
@@ -3630,7 +3718,7 @@ void slib_add(
 	gc_resume(ctx);
 }
 
-/* ==== GC ==== */
+/* == GC == */
 
 void gc_set_state(
 	sylt_t* ctx, gc_state_t state)
@@ -3640,19 +3728,24 @@ void gc_set_state(
 		GC_STATE_NAME[state]);
 	#endif
 	
-	ctx->mem.gc_state = state;
+	ctx->mem.gc.state = state;
 }
 
 void gc_pause(sylt_t* ctx) {
-	assert(
-		ctx->mem.gc_state == GC_STATE_IDLE);
 	gc_set_state(ctx, GC_STATE_PAUSED);
+	ctx->mem.gc.npauses++;
 }
 
 void gc_resume(sylt_t* ctx) {
-	assert(
-		ctx->mem.gc_state == GC_STATE_PAUSED);
-	gc_set_state(ctx, GC_STATE_IDLE);
+	if (ctx->mem.gc.state != GC_STATE_PAUSED)
+		return;
+		
+	if (ctx->mem.gc.npauses > 1)
+		ctx->mem.gc.npauses--;
+	else
+		gc_set_state(ctx, GC_STATE_IDLE);
+	
+	assert(ctx->mem.gc.npauses >= 0);
 }
 
 void gc_mark(sylt_t*);
@@ -3660,31 +3753,35 @@ void gc_sweep(sylt_t*);
 
 /* runs the garbage collector */
 void gc_collect(sylt_t* ctx) {
-	if (ctx->mem.gc_state == GC_STATE_PAUSED)
+	//ctx->mem.gc.nskips++;
+	if (ctx->mem.gc.state == GC_STATE_PAUSED)
 		return;
 		
-	if (ctx->state == SYLT_STATE_INIT)
+	/* TODO: temporary */
+	if (ctx->state != SYLT_STATE_EXEC)
 		return;
 
 	gc_mark(ctx);
 	gc_sweep(ctx);
+	ctx->mem.gc.nruns++;
 }
 
 void gc_mark_vm_roots(sylt_t*);
 void gc_mark_compiler_roots(sylt_t*);
 void gc_trace_refs(sylt_t*);
 
+/* marks all root objects */
 void gc_mark(sylt_t* ctx) {
 	gc_set_state(ctx, GC_STATE_MARKING);
 	
 	/* mark root objects */
 	gc_mark_vm_roots(ctx);
 	gc_mark_compiler_roots(ctx);
-	size_t roots = ctx->mem.nmarked;
+	size_t roots = ctx->mem.gc.nmarked;
 	
 	/* mark objects reachable from roots */
 	gc_trace_refs(ctx);
-	size_t refs = ctx->mem.nmarked - roots;
+	size_t refs = ctx->mem.gc.nmarked - roots;
 	
 	sylt_dprintf(
 		"  [gc: (%ld root%s + %ld ref%s)]\n",
@@ -3693,11 +3790,13 @@ void gc_mark(sylt_t* ctx) {
 		refs,
 		(refs == 1) ? "" : "s");
 		
-	gc_free(ctx->mem.marked);
-	ctx->mem.marked = NULL;
-	ctx->mem.nmarked = 0;
+	gc_free(ctx->mem.gc.marked);
+	ctx->mem.gc.marked = NULL;
+	ctx->mem.gc.nmarked = 0;
 }
 
+/* marks all roots reachable from
+ * the VM */
 void gc_mark_vm_roots(sylt_t* ctx) {
 	vm_t* vm = ctx->vm;
 	if (!vm)
@@ -3710,8 +3809,8 @@ void gc_mark_vm_roots(sylt_t* ctx) {
 		
 	/* call stack */
 	for (size_t i = 0; i < vm->nframes; i++)
-		obj_mark(
-			(obj_t*)vm->frames[i].cls, ctx);
+		obj_mark((obj_t*)vm->frames[i].cls,
+			ctx);
 	
 	/* open upvalues */
 	upvalue_t* upval = vm->openups;
@@ -3722,12 +3821,12 @@ void gc_mark_vm_roots(sylt_t* ctx) {
 	val_mark(vm->hidden, ctx);
 }
 
+/* marks all roots that are reachable from
+ * the compiler */
 void gc_mark_compiler_roots(sylt_t* ctx) {
 	if (ctx->state != SYLT_STATE_COMPILING)
 		return;
 	assert(ctx->cmp);
-	if (!ctx->cmp)
-		return;
 	
 	/* compiler stack */
 	comp_t* cmp = ctx->cmp;
@@ -3738,10 +3837,13 @@ void gc_mark_compiler_roots(sylt_t* ctx) {
 	}
 }
 
+/* iterates through all marked roots
+ * and marks any child objects reachable
+ * from them */
 void gc_trace_refs(sylt_t* ctx) {
-	size_t n = ctx->mem.nmarked;
+	size_t n = ctx->mem.gc.nmarked;
 	while (n > 0) {
-		obj_t* obj = ctx->mem.marked[--n];
+		obj_t* obj = ctx->mem.gc.marked[--n];
 		obj_deepmark(obj, ctx);
 	}
 }
@@ -3754,6 +3856,8 @@ void gc_sweep(sylt_t* ctx) {
 	obj_t* obj = ctx->mem.objs;
 	
 	while (obj) {
+		/* object is reachable; unmark it
+		 * and skip to the next */
 		if (obj->marked) {
 			obj->marked = false;
 			prev = obj;
@@ -3773,6 +3877,16 @@ void gc_sweep(sylt_t* ctx) {
 	}
 	
 	gc_set_state(ctx, GC_STATE_IDLE);
+}
+
+/* called on shutdown; frees every object */
+void gc_free_all(sylt_t* ctx) {
+	obj_t* obj = ctx->mem.objs;
+	while (obj) {
+		obj_t* next = obj->next;
+		obj_free(obj, ctx);
+		obj = next;
+	}
 }
 
 string_t* load_file(
@@ -3832,7 +3946,7 @@ void halt(
 			cmp->prev.line);
 		break;
 	}
-	case SYLT_STATE_RUNNING: {
+	case SYLT_STATE_EXEC: {
 		const chunk_t* chunk =
 			&ctx->vm->fp->func->chunk;
 		
@@ -3859,23 +3973,29 @@ void halt(
 
 sylt_t* sylt_new(void) {
 	sylt_t* ctx = ptr_alloc(sylt_t, NULL);
+	sylt_set_state(ctx, SYLT_STATE_PRE_INIT);
 	gc_pause(ctx);
-	
-	sylt_set_state(ctx, SYLT_STATE_INIT);
 	
 	ctx->vm = ptr_alloc(vm_t, ctx);
 	vm_init(ctx->vm, ctx);
 	
 	ctx->cmp = NULL;
+	
+	/* init memory */
 	ctx->mem.objs = NULL;
 	/* has to be done manually when
 	 * allocating ctx struct itself */
 	ctx->mem.bytes += sizeof(sylt_t);
 	ctx->mem.highest = 0;
 	ctx->mem.count = 0;
-	ctx->mem.marked = NULL;
-	ctx->mem.nmarked = 0;
 	
+	/* init GC state */
+	ctx->mem.gc.marked = NULL;
+	ctx->mem.gc.nmarked = 0;
+	ctx->mem.gc.nruns = 0;
+	ctx->mem.gc.npauses = 0;
+	
+	sylt_set_state(ctx, SYLT_STATE_POST_INIT);
 	gc_resume(ctx);
 	return ctx;
 }
@@ -3884,12 +4004,7 @@ void sylt_free(sylt_t* ctx) {
 	sylt_set_state(ctx, SYLT_STATE_FREEING);
 	
 	/* free all unreleased objects */
-	obj_t* obj = ctx->mem.objs;
-	while (obj) {
-		obj_t* next = obj->next;
-		obj_free(obj, ctx);
-		obj = next;
-	}
+	gc_free_all(ctx);
 	
 	/* free the VM */
 	vm_free(ctx->vm);

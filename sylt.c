@@ -7,7 +7,7 @@
 #include <ctype.h>
 #include <math.h>
 
-/* == configuration == */
+/* ==== configuration ==== */
 
 /* 1 = use doubles
  * 0 = use floats */
@@ -22,7 +22,7 @@
 /* initial stack size */
 #define SYLT_INIT_STACK 512
 
-/* == debug settings == */
+/* ==== debug settings ==== */
 
 #define DBG_PRINT_SYLT_STATE 1
 #define DBG_PRINT_GC_STATE 1
@@ -37,16 +37,17 @@
 #define DBG_PRINT_MEM_SIZES 0
 #define DBG_ASSERTIONS 1
 
-/* == optimizations == */
+/* ==== optimizations ==== */
 
 #define OPTZ_DEDUP_CONSTANTS 1
 #define OPTZ_SPECIAL_PUSHOPS 1
 
-/* == constant limits == */
+/* ==== constant limits ==== */
 
 #define MAX_CODE (UINT16_MAX + 1)
 #define MAX_DATA (UINT8_MAX + 1)
 #define MAX_STACK (UINT8_MAX + 1)
+#define MAX_LINES UINT32_MAX
 #define MAX_JUMP UINT16_MAX
 #define MAX_CFRAMES 64
 #define MAX_PARAMS UINT8_MAX
@@ -54,7 +55,7 @@
 #define MAX_MATCH_ARMS 512
 #define MAX_ERRMSGLEN 1024
 
-/* == debug macros == */
+/* ==== debug macros ==== */
 
 #if DBG_ASSERTIONS
 #define dbgerr(msg) \
@@ -73,42 +74,54 @@
 #define unreachable()
 #endif
 
-/* == sylt state == */
+/* ==== sylt context ==== */
 
 typedef enum {
+	/* initial state */
 	SYLT_STATE_PRE_INIT,
+	/* context initialized */
 	SYLT_STATE_POST_INIT,
 	
+	/* compiling input */
 	SYLT_STATE_COMPILING,
+	/* done compiling */
 	SYLT_STATE_COMPILED,
 	
-	SYLT_STATE_PRE_EXEC,
+	/* state after calling vm_exec() but
+	 * before entering bytecode dispatch
+	 * loop */
+	SYLT_STATE_SETUP_EXEC,
+	/* executing bytecode */
 	SYLT_STATE_EXEC,
-	SYLT_STATE_POST_EXEC,
+	/* done */
+	SYLT_STATE_FINISH_EXEC,
 	
+	/* sylt_free() called */
 	SYLT_STATE_FREEING,
+	/* context freed; all pointers invalid */
 	SYLT_STATE_FREE,
 } sylt_state_t;
 
 static const char* SYLT_STATE_NAME[] = {
-	"PreInit",
-	"PostInit",
-	
+	"Pre-Init",
+	"Post-Init",
 	"Compiling",
 	"Compiled",
-	
-	"PreExec",
+	"Setup-Exec",
 	"Exec",
-	"PostExec",
-	
+	"Finish-Exec",
 	"Freeing",
 	"Free",
 };
 
 typedef enum {
+	/* not busy */
 	GC_STATE_IDLE,
+	/* marking reachable objects */
 	GC_STATE_MARKING,
+	/* deallocating unreachable objects */
 	GC_STATE_SWEEPING,
+	/* unable to collect in this state */
 	GC_STATE_PAUSED,
 } gc_state_t;
 
@@ -137,8 +150,9 @@ typedef struct {
 	ptrdiff_t bytes;
 	/* highest usage at any one time */
 	ptrdiff_t highest;
-	/* total allocation count */
+	/* total number of allocations */
 	size_t count;
+	
 	/* garbage collector */
 	gc_t gc;
 } mem_t;
@@ -167,61 +181,58 @@ static void sylt_set_state(
 	#endif
 }
 
-/* == error code + message macros == */
+/* ==== error messages ==== */
+
+void halt(sylt_t*, const char*, ...);
 
 #define E_OUTOFMEM \
-	1, "out of memory"
-#define E_NOINPUT \
-	2, "no input"
+	"out of memory"
 #define E_CODELIMIT \
-	3, "bytecode limit (%d) reached", MAX_CODE
+	"bytecode limit (%d) reached", MAX_CODE
 #define E_DATALIMIT \
-	4, "data limit (%d) reached", MAX_DATA
+	"data limit (%d) reached", MAX_DATA
 #define E_STACKLIMIT \
-	5, "stack limit (%d) reached", MAX_STACK
+	"stack limit (%d) reached", MAX_STACK
+#define E_LINELIMIT \
+	"line limit (%d) reached", MAX_LINES
 #define E_JUMPLIMIT \
-	6, "jump distance too far (>%d)", MAX_JUMP
+	"jump distance too far (>%d)", MAX_JUMP
 #define E_IO(msg, path) \
-	7, "%s %s", (msg), (path)
-#define E_DIVBYZERO \
-	8, "division by zero"
+	"%s %s", (msg), (path)
 #define E_UNEXPECTEDCHAR(c) \
-	9, "unknown character '%c'", (c)
+	"unknown character '%c'", (c)
 #define E_SYNTAX(msg) \
-	10, "%s", (msg)
+	"%s", (msg)
 #define E_TYPE(ex, got) \
-	11, "expected %s but got %s", \
+	"expected %s but got %s", \
 		user_type_name(ex), \
 		user_type_name(got)
 #define E_UNDEFINED(name, len) \
-	12, "undefined variable '%.*s'", \
+	"undefined variable '%.*s'", \
 		(name), (len)
 #define E_ESCAPESEQ(code) \
-	13, "unknown escape sequence '\\%c'", \
+	"unknown escape sequence '\\%c'", \
 		(code)
 #define E_UNTERMSTRING \
-	14, "unterminated string literal"
+	"unterminated string literal"
 #define E_TOOMANYPARAMS \
-	15, "too many parameters; limit is %d", \
+	"too many parameters; limit is %d", \
 		(MAX_PARAMS)
 #define E_TOOMANYARGS \
-	16, "too many arguments; limit is %d", \
+	"too many arguments; limit is %d", \
 		(MAX_PARAMS)
 #define E_WRONGARGC(need, got) \
-	17, "expected %d arguments but got %d", \
+	"expected %d arguments but got %d", \
 		(need), (got)
 #define E_TOOMANYUPVALUES \
-	18, "too many upvalues; max is %d", \
+	"too many upvalues; max is %d", \
 		(MAX_UPVALUES)
+#define E_DIVBYZERO \
+	"attempted to divide by zero"
 #define E_STACKOVERFLOW \
-	19, "stack overflow"
+	"call stack overflow"
 
-void halt(
-	sylt_t* ctx,
-	int code,
-	const char* fmt, ...);
-
-/* == memory == */
+/* ==== memory ==== */
 
 #define gc_realloc realloc
 #define gc_free free
@@ -248,8 +259,8 @@ void* ptr_resize(
 				
 		ctx->mem.count++;
 		
-		//if (ns > os)
-		//	gc_collect(ctx);
+		if (ns > os)
+			gc_collect(ctx);
 	}
 	
 	#if DBG_PRINT_ALLOCS
@@ -293,10 +304,10 @@ void* ptr_resize(
 	ptr_resize(p, sizeof(t) * (os), 0,\
 		__func__, ctx)
 
-/* == opcodes == */
+/* ==== opcodes ==== */
 
 typedef enum {
-	/* stack */
+	/* == stack == */
 	OP_PUSH,
 	OP_PUSH_NIL,
 	OP_PUSH_TRUE,
@@ -313,23 +324,23 @@ typedef enum {
 	OP_MOVEHEAP,
 	OP_HIDERET,
 	OP_SHOWRET,
-	/* arithmetic */
+	/* == arithmetic == */
 	OP_ADD,
 	OP_SUB,
 	OP_MUL,
 	OP_DIV,
 	OP_EDIV,
 	OP_UMIN,
-	/* comparison */
+	/* == comparison == */
 	OP_LT,
 	OP_LTE,
 	OP_GT,
 	OP_GTE,
-	/* equality */
+	/* == equality == */
 	OP_EQ,
 	OP_NEQ,
 	OP_NOT,
-	/* control flow */
+	/* == control flow == */
 	OP_JMP,
 	OP_JMPIF,
 	OP_JMPIFN,
@@ -402,7 +413,7 @@ typedef struct {
 	 * for debugging */
 	struct string_s* name;
 	/* list of line numbers */
-	int32_t* lines;
+	uint32_t* lines;
 	size_t nlines;
 } chunk_t;
 
@@ -510,7 +521,7 @@ typedef struct {
 /* closure object;
  * wraps a function and captures its
  * surrounding context, for example a
- * variable declared outside of but
+ * variable declared outside of, but
  * referenced inside the function body */
 typedef struct {
 	obj_t obj;
@@ -520,15 +531,15 @@ typedef struct {
 } closure_t;
 
 /* upvalue object;
- * used to reference a value outside a
- * functions local stack window */
+ * used to keep a reference a value outside
+ * of a functions local stack window */
 typedef struct upvalue_s {
 	obj_t obj;
-	/* stack index of live value on stack
+	/* stack index of live value on stack,
 	 * or -1 if closed */
-	int pos;
+	int index;
 	/* if the value in the above slot goes
-	 * off the stack it gets copied here */
+	 * off the stack it gets copied to here */
 	struct value_s closed;
 	struct upvalue_s* next;
 } upvalue_t;
@@ -584,6 +595,42 @@ typedef struct upvalue_s {
 #define typecheck2(ctx, a, b, t) \
 	typecheck(ctx, a, t); \
 	typecheck(ctx, b, t)
+	
+/* call frame; execution state relative
+ * to the last function call */
+typedef struct {
+	/* prototype of called function */
+	const func_t* func;
+	/* closure wrapping the prototype */
+	const closure_t* cls;
+	/* points to the current instruction */
+	uint8_t* ip;
+	/* offset within global stack */
+	size_t offs;
+} cframe_t;
+
+/* VM execution state */
+typedef struct vm_s {
+	/* value stack */
+	value_t* stack;
+	size_t maxstack;
+	/* points to top of stack + 1 */
+	value_t* sp;
+	
+	/* call stack */
+	cframe_t frames[MAX_CFRAMES];
+	size_t nframes;
+	cframe_t* fp;
+	
+	/* linked list of open upvalues */
+	upvalue_t* openups;
+	
+	/* special slot for return value */
+	value_t hidden;
+	
+	/* reference to API */
+	sylt_t* ctx;
+} vm_t;
 
 void chunk_init(chunk_t*, string_t*);
 void chunk_free(chunk_t*, sylt_t*);
@@ -756,7 +803,7 @@ void obj_deepmark(obj_t* obj, sylt_t* ctx) {
 	}
 }
 
-/* == list == */
+/* ==== list ==== */
 
 /* creates an empty list */
 list_t* list_new(sylt_t* ctx) {
@@ -812,7 +859,7 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 	return last;
 }
 
-/* == string == */
+/* ==== string ==== */
 
 /* creates a new string
  * if [take] is true we take ownership of the
@@ -831,6 +878,8 @@ string_t* string_new(
 		str->bytes = (uint8_t*)bytes;
 		
 	} else {
+		gc_pause(ctx);
+		
 		/* allocate our own buffer... */
 		str->bytes =
 			arr_alloc(uint8_t, len, ctx);
@@ -838,6 +887,8 @@ string_t* string_new(
 		/* ... and copy the provided string */
 		if (bytes)
 			memcpy(str->bytes, bytes, len);
+			
+		gc_resume(ctx);
 	}
 	
 	str->len = len;
@@ -921,6 +972,8 @@ void string_append_lit(
 		*dst, string_lit(src, ctx), ctx);	
 }
 
+/* ==== function ==== */
+
 /* creates a new function */
 func_t* func_new(
 	sylt_t* ctx, string_t* name)
@@ -965,19 +1018,21 @@ closure_t* closure_new(
 	return cls;
 }
 
+/* ==== upvalue ==== */
+
 /* creates a new upvalue */
 upvalue_t* upvalue_new(
-	sylt_t* ctx, size_t pos)
+	sylt_t* ctx, size_t index)
 {
 	upvalue_t* upval = (upvalue_t*)obj_new(
 		sizeof(upvalue_t), TYPE_UPVALUE, ctx);
-	upval->pos = pos;
+	upval->index = index;
 	upval->closed = wrapnil();
 	upval->next = NULL;
 	return upval;
 }
 
-/* == value == */
+/* ==== value ==== */
 
 /* marks a value as reachable in case it
  * wraps an object */
@@ -1170,7 +1225,7 @@ void val_print(
 	printf("%.*s", (int)str->len, str->bytes);
 }
 
-/* == chunk == */
+/* ==== chunk ==== */
 
 void chunk_init(
 	chunk_t* chunk, string_t* name)
@@ -1198,7 +1253,7 @@ void chunk_free(
     	chunk->ndata,
     	ctx);
     arr_free(chunk->lines,
-    	int32_t,
+    	uint32_t,
     	chunk->nlines,
     	ctx);
     chunk_init(chunk, NULL);
@@ -1208,7 +1263,7 @@ void chunk_free(
 void chunk_write(
 	chunk_t* chunk,
 	uint8_t byte,
-	int32_t line,
+	uint32_t line,
 	sylt_t* ctx)
 {
 	if (chunk->ncode >= MAX_CODE) {
@@ -1272,57 +1327,26 @@ size_t chunk_write_data(
 
 /* == virtual machine == */
 
-/* call frame; execution state relative
- * to the last function call */
-typedef struct {
-	/* prototype of called function */
-	const func_t* func;
-	/* closure wrapping the prototype */
-	const closure_t* cls;
-	/* points to the current instruction */
-	uint8_t* ip;
-	/* offset within global stack */
-	size_t offs;
-} cframe_t;
-
-/* stores execution state */
-typedef struct vm_s {
-	/* call stack */
-	cframe_t frames[MAX_CFRAMES];
-	size_t nframes;
-	cframe_t* fp;
-	/* value stack */
-	value_t* stack;
-	size_t maxstack;
-	/* points to top of stack + 1 */
-	value_t* sp;
-	/* linked list of open upvalues */
-	upvalue_t* openups;
-	/* special slot for return value */
-	value_t hidden;
-	/* reference to API */
-	sylt_t* ctx;
-} vm_t;
-
 void vm_ensurestack(vm_t*, int);
 
 void vm_init(vm_t* vm, sylt_t* ctx) {
-	vm->nframes = 0;
-	vm->fp = NULL;
 	vm->stack = NULL;
 	vm->maxstack = 0;
 	vm->sp = NULL;
+	
+	vm->nframes = 0;
+	vm->fp = NULL;
+	
 	vm->openups = NULL;
 	vm->hidden = wrapnil();
 	vm->ctx = ctx;
 	
-	/* initialize some stack slots */
+	/* initialize some stack space */
 	vm_ensurestack(vm, SYLT_INIT_STACK);
 }
 
 void vm_free(vm_t* vm) {
-	arr_free(
-		vm->stack, 
+	arr_free(vm->stack, 
 		value_t,
 		vm->maxstack,
 		vm->ctx);
@@ -1439,11 +1463,10 @@ void dbg_print_instruction(
 			(vm->fp->ip - 1 - chunk->code);
 	sylt_dprintf("  %05ld", addr);
 	
-	/* TODO: make line unsigned */
 	/* TODO: max line limit */
-	const int32_t* lines =
+	const uint32_t* lines =
 		vm->fp->func->chunk.lines;
-	int32_t line = lines[addr];
+	uint32_t line = lines[addr];
 	
 	/* TODO: fix */
 	if (addr == 0 || line > lines[addr - 1])
@@ -1599,26 +1622,26 @@ void vm_ensurestack(vm_t* vm, int needed) {
 value_t vm_getupval(
 	vm_t* vm, upvalue_t* upval)
 {
-	if (upval->pos == -1)
+	if (upval->index == -1)
 		return upval->closed;
-	return vm->stack[upval->pos];
+	return vm->stack[upval->index];
 }
 
 upvalue_t* vm_capupval(
-	vm_t* vm, size_t pos)
+	vm_t* vm, size_t index)
 {
 	upvalue_t* prev = NULL;
 	upvalue_t* cur = vm->openups;
-	while (cur && cur->pos > pos) {
+	while (cur && cur->index > index) {
 		prev = cur;
 		cur = cur->next;
 	}
 	
-	if (cur && cur->pos == pos)
+	if (cur && cur->index == index)
 		return cur;
 	
 	upvalue_t* fresh = upvalue_new(
-		vm->ctx, pos);
+		vm->ctx, index);
 	
 	fresh->next = cur;
 	if (!prev)
@@ -1632,19 +1655,19 @@ upvalue_t* vm_capupval(
 void vm_closeupvals(
 	vm_t* vm, size_t last)
 {
-	if (vm->openups
-		&& vm->openups->pos >= last)
-	{
-		upvalue_t* upval = vm->openups;
-		upval->closed = vm->stack[upval->pos];
-		upval->pos = -1;
-		vm->openups = upval->next;
-	}
+	if (!vm->openups ||
+		vm->openups->index < last)
+		return;
+	
+	upvalue_t* upval = vm->openups;
+	upval->closed = vm->stack[upval->index];
+	upval->index = -1;
+	vm->openups = upval->next;
 }
 
 void vm_exec(vm_t* vm) {
 	sylt_set_state(vm->ctx, 	
-		SYLT_STATE_PRE_EXEC);
+		SYLT_STATE_SETUP_EXEC);
 		
 	const func_t* entry = getfunc(peek(0));
 	
@@ -1689,7 +1712,7 @@ void vm_exec(vm_t* vm) {
 		#endif
 		
 		switch (op) {
-		/* stack */
+		/* == stack == */
 		case OP_PUSH: {
 			value_t val = vm->fp->func->
 				chunk.data[read()];
@@ -1710,7 +1733,6 @@ void vm_exec(vm_t* vm) {
 		}
 		case OP_PUSH_LIST: {
 			uint8_t len = read();
-			gc_pause(vm->ctx);
 			list_t* ls = list_new(vm->ctx);
 			
 			push(wraplist(ls)); /* GC */
@@ -1721,8 +1743,6 @@ void vm_exec(vm_t* vm) {
 			pop(); /* GC */
 			
 			shrink(len);
-			
-			gc_resume(vm->ctx);
 			push(wraplist(ls));
 			break;
 		}
@@ -1730,7 +1750,7 @@ void vm_exec(vm_t* vm) {
 			func_t* func = 
 				getfunc(vm->fp->func->
 					chunk.data[read()]);
-			gc_pause(vm->ctx);
+			
 			closure_t* cls =
 				closure_new(vm->ctx, func);
 			push(wrapclosure(cls));
@@ -1751,7 +1771,7 @@ void vm_exec(vm_t* vm) {
 						cls->upvals[index];
 				}
 			}
-			gc_resume(vm->ctx);
+			
 			break;
 		}
 		case OP_POP: {
@@ -1820,7 +1840,7 @@ void vm_exec(vm_t* vm) {
 			push(vm->hidden);
 			break;
 		}
-		/* arithmetic */
+		/* == arithmetic == */
 		case OP_ADD:
 		case OP_SUB:
 		case OP_MUL:
@@ -1837,7 +1857,7 @@ void vm_exec(vm_t* vm) {
 			push(wrapnum(-getnum(pop())));
 			break;
 		}
-		/* comparison */
+		/* == comparison == */
 		case OP_LT:
 		case OP_LTE:
 		case OP_GT:
@@ -1866,7 +1886,7 @@ void vm_exec(vm_t* vm) {
 			push(wrapbool(!getbool(pop())));
 			break;
 		}
-		/* control flow */
+		/* == control flow == */
 		case OP_JMP: {
 			uint16_t offset = read16();
 			vm->fp->ip += offset;
@@ -1890,8 +1910,6 @@ void vm_exec(vm_t* vm) {
 		}
 		case OP_CALL: {
 			uint8_t argc = read();
-			//gc_pause(vm->ctx);
-			
 			typecheck(
 				vm->ctx,
 				peek(argc),
@@ -1902,7 +1920,6 @@ void vm_exec(vm_t* vm) {
 			const func_t* func = cls->func;
 				
 			if (func->params != argc) {
-				//gc_resume(vm->ctx);
 				halt(vm->ctx, E_WRONGARGC(
 					func->params, argc));
 				unreachable();
@@ -1921,14 +1938,13 @@ void vm_exec(vm_t* vm) {
 				sylt_dprintf("\n");
 				#endif
 				
-				//gc_resume(vm->ctx);
 				break;
 			}
 			
 			if (vm->nframes == MAX_CFRAMES) {
-				//gc_resume(vm->ctx);
 				halt(vm->ctx,
-					E_STACKOVERFLOW);
+					E_STACKOVERFLOW,
+					MAX_CFRAMES);
 				unreachable();
 			}
 			
@@ -1954,7 +1970,6 @@ void vm_exec(vm_t* vm) {
 				vm->fp->cls);
 			#endif
 			
-			//gc_resume(vm->ctx);
 			break;
 		}
 		case OP_RET: {
@@ -1969,7 +1984,7 @@ void vm_exec(vm_t* vm) {
 			vm->nframes--;
 			if (vm->nframes == 0) {
 				sylt_set_state(vm->ctx,
-					SYLT_STATE_POST_EXEC);
+					SYLT_STATE_FINISH_EXEC);
 				return;
 			}
 			
@@ -2060,7 +2075,7 @@ void vm_math(vm_t* vm, op_t opcode) {
 #undef pop
 #undef peek
 
-/* == standard library == */
+/* ==== standard library ==== */
 
 #define argc() (ctx->vm->fp->ip[-1])
 #define arg(n) \
@@ -2108,7 +2123,7 @@ value_t slib_stringify(sylt_t* ctx) {
 value_t slib_ensure(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_BOOL);
 	if (!boolarg(0)) {
-		halt(ctx, -1, "ensure failed");
+		halt(ctx, "ensure failed");
 		unreachable();
 	}
 	
@@ -2283,7 +2298,7 @@ void load_slib(sylt_t* ctx) {
 	slib_add(ctx, "round", slib_round, 1);
 }
 
-/* == compiler == */
+/* ==== compiler ==== */
 
 typedef enum {
 	T_NAME,
@@ -2336,7 +2351,7 @@ typedef struct {
 	/* length of the token */
 	size_t len;
 	/* line number */
-	int32_t line;
+	uint32_t line;
 } token_t;
 
 /* operator precedence levels,
@@ -2394,7 +2409,7 @@ typedef struct comp_s {
 	/* scanner position */
 	char* pos;
 	/* scanner line */
-	int32_t line;
+	uint32_t line;
 	/* parsing tokens */
 	token_t prev;
 	token_t cur;
@@ -2447,7 +2462,7 @@ void comp_free(comp_t* cmp) {
 		cmp->ctx);
 }
 
-/* == lexer == */
+/* ==== lexer ==== */
 
 /* scans the source code for the next token */
 token_t scan(comp_t* cmp) {
@@ -2622,7 +2637,7 @@ token_t scan(comp_t* cmp) {
 	#undef match
 }
 
-/* == codegen == */
+/* ==== codegen ==== */
 
 /* helper function to get the output chunk */
 chunk_t* comp_chunk(comp_t* cmp) {
@@ -3005,7 +3020,7 @@ void expr(comp_t* cmp, prec_t prec) {
 	/* first token in an expression
 	 * must have a prefix rule */
 	if (!prefix) {
-		halt(cmp->ctx, -1,
+		halt(cmp->ctx,
 			"expected expression, got '%.*s'",
 			(int)cmp->prev.len,
 			cmp->prev.start);
@@ -3119,7 +3134,7 @@ void string(comp_t* cmp) {
 				size_t needed =
 					seqlen - (end - read);
 			
-				halt(cmp->ctx, -1,
+				halt(cmp->ctx,
 					"expected %ld more "
 					"character%s after \\%c",
 				needed,
@@ -3136,7 +3151,7 @@ void string(comp_t* cmp) {
 			
 			/* parsing failed */
 			if (end < start + 2)
-				halt(cmp->ctx, -1,
+				halt(cmp->ctx,
 					"invalid character in "
 					"\\x escape: '%c'", *end);
 				
@@ -3564,7 +3579,7 @@ void match_with(comp_t* cmp) {
 		emit_nullary(cmp, OP_POP);
 		
 		if (arms++ == MAX_MATCH_ARMS) {
-			halt(cmp->ctx, -1,
+			halt(cmp->ctx,
 				"too many arms in match; "
 				"the limit is %d",
 				MAX_MATCH_ARMS);
@@ -3718,7 +3733,7 @@ void slib_add(
 	gc_resume(ctx);
 }
 
-/* == GC == */
+/* ==== GC ==== */
 
 void gc_set_state(
 	sylt_t* ctx, gc_state_t state)
@@ -3753,13 +3768,12 @@ void gc_sweep(sylt_t*);
 
 /* runs the garbage collector */
 void gc_collect(sylt_t* ctx) {
-	//ctx->mem.gc.nskips++;
 	if (ctx->mem.gc.state == GC_STATE_PAUSED)
 		return;
 		
 	/* TODO: temporary */
-	if (ctx->state != SYLT_STATE_EXEC)
-		return;
+	//if (ctx->state != SYLT_STATE_EXEC)
+	//	return;
 
 	gc_mark(ctx);
 	gc_sweep(ctx);
@@ -3821,7 +3835,7 @@ void gc_mark_vm_roots(sylt_t* ctx) {
 	val_mark(vm->hidden, ctx);
 }
 
-/* marks all roots that are reachable from
+/* marks all roots that can be reached from
  * the compiler */
 void gc_mark_compiler_roots(sylt_t* ctx) {
 	if (ctx->state != SYLT_STATE_COMPILING)
@@ -3865,14 +3879,18 @@ void gc_sweep(sylt_t* ctx) {
 			continue;
 		}
 		
+		/* object is not reachable 
+		 * (except from here...) */
 		obj_t* unreached = obj;
-		obj = obj->next;
 		
+		/* remove it from the linked list */
+		obj = obj->next;
 		if (prev)
 			prev->next = obj;
 		else
 			ctx->mem.objs = obj;
-			
+		
+		/* free its memory */
 		obj_free(unreached, ctx);
 	}
 	
@@ -3917,13 +3935,9 @@ string_t* load_file(
 }
 
 /* halts with an error message */
-void halt(
-	sylt_t* ctx,
-	int code,
-	const char* fmt, ...)
-{
+void halt(sylt_t* ctx, const char* fmt, ...) {
+	/* print formatted message into buffer */
 	char msg[MAX_ERRMSGLEN];
-	
 	va_list args;
 	va_start(args, fmt);
 	vsnprintf(msg, MAX_ERRMSGLEN, fmt, args);
@@ -3953,7 +3967,7 @@ void halt(
 		size_t addr =
 			(size_t)(ctx->vm->fp->ip -
 				chunk->code - 1);
-		int32_t line = chunk->lines[addr];
+		uint32_t line = chunk->lines[addr];
 		
 		sylt_eprintf("error in %.*s:%d: ",
 			(int)chunk->name->len,
@@ -4026,8 +4040,7 @@ void sylt_free(sylt_t* ctx) {
 }
 
 void sylt_dofile(
-	sylt_t* ctx,
-	const char* path)
+	sylt_t* ctx, const char* path)
 {
 	/* push the source code */
 	sylt_pushstring(ctx,
@@ -4037,21 +4050,21 @@ void sylt_dofile(
 	sylt_pushstring(ctx,
 		string_lit(path, ctx));
 	
+	/* setup a compiler */
 	comp_t cmp;
 	ctx->cmp = &cmp;
-	comp_init(ctx->cmp,
-		NULL,
-		NULL,
-		ctx);
+	comp_init(ctx->cmp, NULL, NULL, ctx);
 	
-	/* TODO: temporary hack */
-	ctx->cmp->prev.line = 1;
+	/* load standard library */
+	ctx->cmp->prev.line = 1; /* TODO: hack */
 	load_slib(ctx);
 	
+	/* compile the code */
 	compile(ctx->cmp);
 	comp_free(ctx->cmp);
 	ctx->cmp = NULL;
 	
+	/* execute bytecode */
 	vm_exec(ctx->vm);
 }
 

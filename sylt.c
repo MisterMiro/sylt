@@ -398,25 +398,6 @@ static opinfo_t OPINFO[] = {
 	[OP_RET] = {"ret", 0, 0},
 };
 
-typedef struct {
-	/* bytecode */
-	uint8_t* code;
-	size_t ncode;
-	/* constant data; stores any
-	 * literal values found in
-	 * the source code */
-	struct value_s* data;
-	size_t ndata;
-	/* total stack slots needed */
-	size_t slots;
-	/* name, used in error messages and
-	 * for debugging */
-	struct string_s* name;
-	/* list of line numbers */
-	uint32_t* lines;
-	size_t nlines;
-} chunk_t;
-
 /* value types */
 typedef enum {
 	TYPE_NIL,
@@ -509,8 +490,24 @@ typedef struct value_s (*cfunc_t)
 /* function object */
 typedef struct {
 	obj_t obj;
-	/* bytecode chunk */
-	chunk_t chunk;
+	
+	/* bytecode */
+	uint8_t* code;
+	size_t ncode;
+	/* constant data; stores any
+	 * literal values found in
+	 * the source code */
+	struct value_s* data;
+	size_t ndata;
+	/* total stack slots needed */
+	size_t slots;
+	/* name, used in error messages and
+	 * for debugging */
+	struct string_s* name;
+	/* list of line numbers */
+	uint32_t* lines;
+	size_t nlines;
+	
 	/* if set this calls a C function
 	 * and the bytecode chunk is unused */
 	cfunc_t cfunc;
@@ -632,9 +629,6 @@ typedef struct vm_s {
 	sylt_t* ctx;
 } vm_t;
 
-void chunk_init(chunk_t*, string_t*);
-void chunk_free(chunk_t*, sylt_t*);
-
 void dbg_print_obj_mem(
 	obj_t* obj, bool freed)
 {
@@ -647,10 +641,9 @@ void dbg_print_obj_mem(
 		TYPE_NAMES[obj->tag]);
 }
 
+/* allocates a generic object */
 obj_t* obj_new(
-	size_t size,
-	type_t tag,
-	sylt_t* ctx)
+	size_t size, type_t tag, sylt_t* ctx)
 {
 	assert(isheaptype(tag));
 	gc_collect(ctx);
@@ -666,14 +659,13 @@ obj_t* obj_new(
 	return obj;
 }
 
+/* frees a generic object and its
+ * associated memory */
 void obj_free(obj_t* obj, sylt_t* ctx) {
 	if (!obj)
 		return;
 		
-	/* TODO: assert instead */
-	if (!isheaptype(obj->tag))
-		return;
-		
+	assert(isheaptype(obj->tag));
 	dbg_print_obj_mem(obj, true);
 	
 	switch (obj->tag) {
@@ -699,7 +691,19 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 	}
 	case TYPE_FUNCTION: {
 		func_t* func = (func_t*)obj;
-		chunk_free(&func->chunk, ctx);
+		arr_free(func->code,
+			uint8_t,
+			func->ncode,
+			ctx);
+    	arr_free(func->data,
+    		value_t,
+    		func->ndata,
+    		ctx);
+    	arr_free(func->lines,
+    		uint32_t,
+    		func->nlines,
+    		ctx);
+		
 		ptr_free(func, func_t, ctx);
 		break;
 	}
@@ -747,11 +751,9 @@ void obj_mark(obj_t* obj, sylt_t* ctx) {
 void val_mark(value_t val, sylt_t* ctx);
 
 /* marks all objects reachable from another */
-void obj_deepmark(obj_t* obj, sylt_t* ctx) {
+void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	assert(obj);
 	assert(isheaptype(obj->tag));
-	if (!isheaptype(obj->tag))
-		return;
 	assert(obj->marked);
 	
 	switch (obj->tag) {
@@ -769,14 +771,13 @@ void obj_deepmark(obj_t* obj, sylt_t* ctx) {
 	case TYPE_FUNCTION: {
 		func_t* func = (func_t*)obj;
 		
-		obj_mark((obj_t*)func->chunk.name,
-			ctx);
+		obj_mark((obj_t*)func->name, ctx);
 		
 		for (size_t i = 0;
-			i < func->chunk.ndata;
+			i < func->ndata;
 			i++
 		)
-			val_mark(func->chunk.data[i],
+			val_mark(func->data[i],
 				ctx);
 			
 		break;
@@ -980,14 +981,24 @@ func_t* func_new(
 {
 	func_t* func = (func_t*)obj_new(
 		sizeof(func_t), TYPE_FUNCTION, ctx);
-	chunk_init(&func->chunk, name);
+	
+	func->code = NULL;
+	func->ncode = 0;
+	func->data = NULL;
+	func->ndata = 0;
+	func->slots = 0;
+	func->name = name;
+	func->lines = NULL;
+	func->nlines = 0;
+	
 	func->cfunc = NULL;
 	func->params = 0;
 	func->upvalues = 0;
 	return func;
 }
 
-/* creates a new C function */
+/* creates a new function pointing to a
+ * C function */
 func_t* func_newc(
 	sylt_t* ctx,
 	string_t* name,
@@ -999,6 +1010,76 @@ func_t* func_newc(
 	func->params = params;
 	return func;
 }
+
+/* writes a byte to the functions
+ * bytecode array */
+void func_write(
+	func_t* func,
+	uint8_t byte,
+	uint32_t line,
+	sylt_t* ctx)
+{
+	if (func->ncode >= MAX_CODE) {
+		halt(ctx, E_CODELIMIT);
+		return;
+	}
+	
+	func->code = arr_resize(
+		func->code,
+		uint8_t,
+		func->ncode,
+		func->ncode + 1,
+		ctx);
+	func->code[func->ncode++] = byte;
+	
+	/* map line number to byte */
+	func->lines = arr_resize(
+		func->lines,
+		uint32_t,
+		func->nlines,
+		func->nlines + 1,
+		ctx);
+	func->lines[func->nlines++] = line;
+}
+
+static inline void vm_push(vm_t*, value_t);
+static inline value_t vm_pop(vm_t*);
+
+bool val_eq(value_t a, value_t b);
+
+/* writes a value to a functions constant
+ * data table and returns its index */
+size_t func_write_data(
+	func_t* func, value_t val, sylt_t* ctx)
+{
+	#if OPTZ_DEDUP_CONSTANTS
+	/* check if a constant with the same
+	 * value already exists and if so
+	 * return its index */
+	for (size_t i = 0; i < func->ndata; i++)
+		if (val_eq(func->data[i], val))
+			return i;
+	#endif
+	
+	if (func->ndata >= MAX_DATA) {
+		halt(ctx, E_DATALIMIT);
+		unreachable();
+	}
+	
+	vm_push(ctx->vm, val); /* GC */
+	func->data = arr_resize(
+		func->data,
+		value_t,
+		func->ndata,
+		func->ndata + 1,
+		ctx);
+	vm_pop(ctx->vm); /* GC */
+		
+	func->data[func->ndata++] = val;
+	return func->ndata - 1;
+}
+
+/* ==== closure ==== */
 
 /* creates a new closure around a function */
 closure_t* closure_new(
@@ -1101,7 +1182,6 @@ string_t* val_tostring_opts(
 static string_t* val_tostring(
 	value_t val, sylt_t* ctx)
 {
-	/* TODO: GC */
 	switch (val.tag) {
 	case TYPE_NIL: {
 		return string_lit("nil", ctx);
@@ -1160,7 +1240,7 @@ static string_t* val_tostring(
 			string_lit("()", ctx);
 		
 		return string_concat(
-			getclosure(val)->func->chunk.name,
+			getclosure(val)->func->name,
 			suffix,
 			ctx);
 	}
@@ -1174,7 +1254,6 @@ string_t* val_tostring_opts(
 	int maxlen,
 	sylt_t* ctx)
 {
-	/* TODO: GC */
 	gc_pause(ctx);
 	string_t* vstr = val_tostring(val, ctx);
 	
@@ -1223,106 +1302,6 @@ void val_print(
 	string_t* str = val_tostring_opts(
 		val, quotestr, maxlen, ctx);
 	printf("%.*s", (int)str->len, str->bytes);
-}
-
-/* ==== chunk ==== */
-
-void chunk_init(
-	chunk_t* chunk, string_t* name)
-{
-	chunk->code = NULL;
-	chunk->ncode = 0;
-	chunk->data = NULL;
-	chunk->ndata = 0;
-	chunk->slots = 0;
-	chunk->name = name;
-	chunk->lines = NULL;
-	chunk->nlines = 0;
-}
-
-void chunk_free(
-	chunk_t* chunk,
-	sylt_t* ctx)
-{
-	arr_free(chunk->code,
-		uint8_t,
-		chunk->ncode,
-		ctx);
-    arr_free(chunk->data,
-    	value_t,
-    	chunk->ndata,
-    	ctx);
-    arr_free(chunk->lines,
-    	uint32_t,
-    	chunk->nlines,
-    	ctx);
-    chunk_init(chunk, NULL);
-}
-
-/* writes a byte to the code array */
-void chunk_write(
-	chunk_t* chunk,
-	uint8_t byte,
-	uint32_t line,
-	sylt_t* ctx)
-{
-	if (chunk->ncode >= MAX_CODE) {
-		halt(ctx, E_CODELIMIT);
-		return;
-	}
-	
-	chunk->code = arr_resize(
-		chunk->code,
-		uint8_t,
-		chunk->ncode,
-		chunk->ncode + 1,
-		ctx);
-	chunk->code[chunk->ncode++] = byte;
-	
-	/* map line number to byte */
-	chunk->lines = arr_resize(
-		chunk->lines,
-		uint32_t,
-		chunk->nlines,
-		chunk->nlines + 1,
-		ctx);
-	chunk->lines[chunk->nlines++] = line;
-}
-
-static inline void vm_push(
-	struct vm_s*, value_t);
-static inline value_t vm_pop(struct vm_s*);
-
-/* writes a value to the constant data table
- * and returns the index it was written to */
-size_t chunk_write_data(
-	chunk_t* chunk, value_t val, sylt_t* ctx)
-{
-	#if OPTZ_DEDUP_CONSTANTS
-	/* check if a constant with the same
-	 * value already exists and if so
-	 * return its index */
-	for (size_t i = 0; i < chunk->ndata; i++)
-		if (val_eq(chunk->data[i], val))
-			return i;
-	#endif
-	
-	if (chunk->ndata >= MAX_DATA) {
-		halt(ctx, E_DATALIMIT);
-		unreachable();
-	}
-	
-	vm_push(ctx->vm, val); /* GC */
-	chunk->data = arr_resize(
-		chunk->data,
-		value_t,
-		chunk->ndata,
-		chunk->ndata + 1,
-		ctx);
-	vm_pop(ctx->vm); /* GC */
-		
-	chunk->data[chunk->ndata++] = val;
-	return chunk->ndata - 1;
 }
 
 /* == virtual machine == */
@@ -1402,11 +1381,10 @@ void dbg_print_header(
 	const vm_t* vm, const closure_t* cls)
 {
 	const func_t* func = cls->func;
-	const chunk_t* chunk = &func->chunk;
 	
 	sylt_dprintf("\n-> %.*s\n",
-		(int)chunk->name->len,
-		chunk->name->bytes);
+		(int)func->name->len,
+		func->name->bytes);
 	
 	sylt_dprintf("depth %d/%d, ",
 		(int)vm->nframes, MAX_CFRAMES);
@@ -1421,18 +1399,18 @@ void dbg_print_header(
 		"%ld slots, "
 		"%d params, "
 		"%ld upvals\n",
-		chunk->ncode,
-		chunk->ndata,
-		chunk->slots,
+		func->ncode,
+		func->ndata,
+		func->slots,
 		func->params,
 		cls->nupvals);
 	
 	#if DBG_PRINT_DATA
 	sylt_dprintf("  constants:");
-	for (size_t i = 0; i < chunk->ndata; i++)
+	for (size_t i = 0; i < func->ndata; i++)
 	{
 		string_t* str = val_tostring_opts(
-			chunk->data[i],
+			func->data[i],
 			true,
 			24,
 			vm->ctx);
@@ -1455,17 +1433,17 @@ void dbg_print_header(
 }
 
 void dbg_print_instruction(
-	const vm_t* vm, const chunk_t* chunk)
+	const vm_t* vm, const func_t* func)
 {
 	op_t op = vm->fp->ip[-1];
 	size_t addr =
 		(size_t)
-			(vm->fp->ip - 1 - chunk->code);
+			(vm->fp->ip - 1 - func->code);
 	sylt_dprintf("  %05ld", addr);
 	
 	/* TODO: max line limit */
 	const uint32_t* lines =
-		vm->fp->func->chunk.lines;
+		vm->fp->func->lines;
 	uint32_t line = lines[addr];
 	
 	/* TODO: fix */
@@ -1488,12 +1466,12 @@ void dbg_print_instruction(
 }
 
 void dbg_print_stack(
-	const vm_t* vm, const chunk_t* chunk)
+	const vm_t* vm, const func_t* func)
 {
 	const int maxvals = 5;
 	
 	/* don't print first iteration */
-	if (vm->fp->ip - 1 == chunk->code)
+	if (vm->fp->ip - 1 == func->code)
 		return;
 	
 	value_t* start =
@@ -1672,13 +1650,13 @@ void vm_exec(vm_t* vm) {
 	const func_t* entry = getfunc(peek(0));
 	
 	/* ensure enough stack space */
-	vm_ensurestack(vm, entry->chunk.slots);
+	vm_ensurestack(vm, entry->slots);
 	
 	/* setup first call frame */
 	cframe_t frame;
 	frame.func = entry;
 	frame.cls = closure_new(vm->ctx, entry);
-	frame.ip = entry->chunk.code;
+	frame.ip = entry->code;
 	frame.offs = 0;
 	vm->frames[vm->nframes++] = frame;
 	vm->fp = &vm->frames[vm->nframes - 1];
@@ -1703,19 +1681,19 @@ void vm_exec(vm_t* vm) {
 		
 		#if DBG_PRINT_STACK
 		dbg_print_stack(vm,
-			&vm->fp->func->chunk);
+			vm->fp->func);
 		#endif
 		
 		#if DBG_PRINT_OPCODES
 		dbg_print_instruction(vm,
-			&vm->fp->func->chunk);
+			vm->fp->func);
 		#endif
 		
 		switch (op) {
 		/* == stack == */
 		case OP_PUSH: {
 			value_t val = vm->fp->func->
-				chunk.data[read()];
+				data[read()];
 			push(val);
 			break;
 		}
@@ -1749,7 +1727,7 @@ void vm_exec(vm_t* vm) {
 		case OP_PUSH_FUNC: {
 			func_t* func = 
 				getfunc(vm->fp->func->
-					chunk.data[read()]);
+					data[read()]);
 			
 			closure_t* cls =
 				closure_new(vm->ctx, func);
@@ -1952,14 +1930,14 @@ void vm_exec(vm_t* vm) {
 			 * stack space and grow if not */
 			size_t used = vm->sp - vm->stack;
 			size_t needed = used
-				+ func->chunk.slots;
+				+ func->slots;
 			vm_ensurestack(vm, needed);
 			
 			/* push a new call frame */
 			cframe_t frame;
 			frame.func = func;
 			frame.cls = cls;
-			frame.ip = func->chunk.code;
+			frame.ip = func->code;
 			frame.offs = used - argc;
 			vm->frames[vm->nframes++] = frame;
 			vm->fp = &vm->frames[
@@ -2639,11 +2617,6 @@ token_t scan(comp_t* cmp) {
 
 /* ==== codegen ==== */
 
-/* helper function to get the output chunk */
-chunk_t* comp_chunk(comp_t* cmp) {
-	return &cmp->func->chunk;
-}
-
 void comp_simstack(comp_t* cmp, int n) {
 	cmp->curslots += n;
 	assert(cmp->curslots >= 0);
@@ -2654,9 +2627,8 @@ void comp_simstack(comp_t* cmp, int n) {
 	}
 	
 	/* record the largest stack size */
-	chunk_t* chunk = comp_chunk(cmp);
-	if (cmp->curslots > chunk->slots)
-		chunk->slots = cmp->curslots;
+	if (cmp->curslots > cmp->func->slots)
+		cmp->func->slots = cmp->curslots;
 }
 
 /* should not be used directly; use the
@@ -2670,16 +2642,16 @@ void emit_op(
 	comp_simstack(cmp, OPINFO[op].effect);
 	
 	/* write the instruction opcode */
-	chunk_write(
-		comp_chunk(cmp),
+	func_write(
+		cmp->func,
 		op,
 		cmp->prev.line,
 		cmp->ctx);
 	
 	/* write the arguments */
 	for (size_t i = 0; i < nargs; i++) {
-		chunk_write(
-			comp_chunk(cmp),
+		func_write(
+			cmp->func,
 			args[i],
 			cmp->prev.line,
 			cmp->ctx);
@@ -2734,8 +2706,8 @@ void emit_value(
 	}
 	#endif
 	
-	size_t slot = chunk_write_data(
-		comp_chunk(cmp), val, cmp->ctx);
+	size_t slot = func_write_data(
+		cmp->func, val, cmp->ctx);
 		
 	if (val.tag == TYPE_FUNCTION) {
 		emit_unary(cmp, OP_PUSH_FUNC, slot);
@@ -2750,7 +2722,7 @@ void emit_value(
  * into a 16-bit jump offset later on */
 int emit_jump(comp_t* cmp, op_t opcode) {
 	emit_binary(cmp, opcode, 0xff, 0xff);
-	return comp_chunk(cmp)->ncode - 2;
+	return cmp->func->ncode - 2;
 }
 
 /* takes the return value of emit_jump
@@ -2759,16 +2731,16 @@ int emit_jump(comp_t* cmp, op_t opcode) {
  * jump target short to the correct offset */
 void patch_jump(comp_t* cmp, int addr) {
 	int dist =
-		comp_chunk(cmp)->ncode - addr - 2;
+		cmp->func->ncode - addr - 2;
 	if (dist > MAX_JUMP) {
 		halt(cmp->ctx, E_JUMPLIMIT);
 		return;
 	}
 	
 	/* encode short as two bytes */
-	comp_chunk(cmp)->code[addr] =
+	cmp->func->code[addr] =
 		(dist >> 8) & 0xff;
-	comp_chunk(cmp)->code[addr + 1] =
+	cmp->func->code[addr + 1] =
 		dist & 0xff;
 }
 
@@ -3466,11 +3438,13 @@ void parse_func(
 		cmp_upvalue_t* upval =
 			&fcmp.upvals[i];
 			
-		chunk_write(&cmp->func->chunk,
+		func_write(
+			cmp->func,
 			upval->islocal,
 			cmp->prev.line,
 			cmp->ctx);
-		chunk_write(&cmp->func->chunk,
+		func_write(
+			cmp->func,
 			upval->index,
 			cmp->prev.line,
 			cmp->ctx);
@@ -3770,10 +3744,6 @@ void gc_sweep(sylt_t*);
 void gc_collect(sylt_t* ctx) {
 	if (ctx->mem.gc.state == GC_STATE_PAUSED)
 		return;
-		
-	/* TODO: temporary */
-	//if (ctx->state != SYLT_STATE_EXEC)
-	//	return;
 
 	gc_mark(ctx);
 	gc_sweep(ctx);
@@ -3858,7 +3828,7 @@ void gc_trace_refs(sylt_t* ctx) {
 	size_t n = ctx->mem.gc.nmarked;
 	while (n > 0) {
 		obj_t* obj = ctx->mem.gc.marked[--n];
-		obj_deepmark(obj, ctx);
+		obj_deep_mark(obj, ctx);
 	}
 }
 
@@ -3870,9 +3840,9 @@ void gc_sweep(sylt_t* ctx) {
 	obj_t* obj = ctx->mem.objs;
 	
 	while (obj) {
-		/* object is reachable; unmark it
-		 * and skip to the next */
 		if (obj->marked) {
+			/* object is reachable; unmark it
+		 	* and skip to the next */
 			obj->marked = false;
 			prev = obj;
 			obj = obj->next;
@@ -3883,7 +3853,7 @@ void gc_sweep(sylt_t* ctx) {
 		 * (except from here...) */
 		obj_t* unreached = obj;
 		
-		/* remove it from the linked list */
+		/* delete it from the linked list */
 		obj = obj->next;
 		if (prev)
 			prev->next = obj;
@@ -3897,7 +3867,7 @@ void gc_sweep(sylt_t* ctx) {
 	gc_set_state(ctx, GC_STATE_IDLE);
 }
 
-/* called on shutdown; frees every object */
+/* called on shutdown; frees all objects */
 void gc_free_all(sylt_t* ctx) {
 	obj_t* obj = ctx->mem.objs;
 	while (obj) {
@@ -3951,27 +3921,24 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		while (cmp && cmp->child)
 			cmp = cmp->child;
 		
-		const chunk_t* chunk =
-			&cmp->func->chunk;
-		
 		sylt_eprintf("error in %.*s:%d: ",
-			(int)chunk->name->len,
-			chunk->name->bytes,
+			(int)cmp->func->name->len,
+			cmp->func->name->bytes,
 			cmp->prev.line);
 		break;
 	}
 	case SYLT_STATE_EXEC: {
-		const chunk_t* chunk =
-			&ctx->vm->fp->func->chunk;
+		const func_t* func =
+			ctx->vm->fp->func;
 		
 		size_t addr =
 			(size_t)(ctx->vm->fp->ip -
-				chunk->code - 1);
-		uint32_t line = chunk->lines[addr];
+				func->code - 1);
+		uint32_t line = func->lines[addr];
 		
 		sylt_eprintf("error in %.*s:%d: ",
-			(int)chunk->name->len,
-			chunk->name->bytes,
+			(int)func->name->len,
+			func->name->bytes,
 			line);
 		break;
 	}

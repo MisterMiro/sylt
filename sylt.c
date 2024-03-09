@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <setjmp.h>
 #include <ctype.h>
 #include <math.h>
 
@@ -22,18 +23,18 @@
 /* initial stack size */
 #define SYLT_INIT_STACK 512
 
-/* ==== debug settings ==== */
+/* ==== debug flags ==== */
 
 #define DBG_PRINT_SYLT_STATE 1
 #define DBG_PRINT_GC_STATE 0
 #define DBG_PRINT_SOURCE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
+#define DBG_PRINT_CODE 0
 #define DBG_PRINT_DATA 0
-#define DBG_PRINT_OPCODES 0
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_ALLOCS 0
-#define DBG_PRINT_MEM_STATS 1
+#define DBG_PRINT_MEM_STATS 0
 #define DBG_PRINT_MEM_SIZES 0
 #define DBG_ASSERTIONS 1
 
@@ -149,7 +150,6 @@ typedef struct {
 	ptrdiff_t highest;
 	/* total number of allocations */
 	size_t count;
-	
 	/* garbage collector */
 	gc_t gc;
 } mem_t;
@@ -166,6 +166,9 @@ typedef struct {
 	/* memory */
 	mem_t mem;
 } sylt_t;
+
+/* longjmp destination on error */
+static jmp_buf err_jump;
 
 static void sylt_set_state(
 	sylt_t* ctx, sylt_state_t state)
@@ -198,36 +201,40 @@ void halt(sylt_t*, const char*, ...);
 	"%s %s", (msg), (path)
 #define E_UNEXPECTEDCHAR(c) \
 	"unknown character '%c'", (c)
-#define E_SYNTAX(msg) \
-	"%s", (msg)
 #define E_TYPE(ex, got) \
 	"expected %s but got %s", \
-		user_type_name(ex), \
-		user_type_name(got)
+	user_type_name(ex), \
+	user_type_name(got)
 #define E_UNDEFINED(name, len) \
 	"undefined variable '%.*s'", \
-		(name), (len)
+	(name), (len)
 #define E_ESCAPESEQ(code) \
 	"unknown escape sequence '\\%c'", \
-		(code)
+	(code)
 #define E_UNTERMSTRING \
 	"unterminated string literal"
 #define E_TOOMANYPARAMS \
 	"too many parameters; limit is %d", \
-		(MAX_PARAMS)
+	(MAX_PARAMS)
 #define E_TOOMANYARGS \
 	"too many arguments; limit is %d", \
-		(MAX_PARAMS)
-#define E_WRONGARGC(need, got) \
-	"expected %d arguments but got %d", \
-		(need), (got)
+	(MAX_PARAMS)
 #define E_TOOMANYUPVALUES \
 	"too many upvalues; max is %d", \
-		(MAX_UPVALUES)
+	(MAX_UPVALUES)
+
+/* == runtime errors == */
+
 #define E_DIVBYZERO \
 	"attempted division by zero"
 #define E_STACKOVERFLOW \
 	"call stack overflow"
+#define E_INDEX(len, index) \
+	"index out of range, len: %d, i=%d", \
+	(len), (index)
+#define E_WRONGARGC(need, got) \
+	"expected %d arguments but got %d", \
+	(need), (got)
 
 /* ==== memory ==== */
 
@@ -316,11 +323,11 @@ typedef enum {
 	OP_SWAP,
 	OP_LOAD,
 	OP_STORE,
-	OP_LOADLIST,
-	OP_LOADUP,
-	OP_MOVEHEAP,
-	OP_HIDERET,
-	OP_SHOWRET,
+	OP_LOAD_LIST,
+	OP_LOAD_UPVAL,
+	OP_MOVE_HEAP,
+	OP_HIDE_RET,
+	OP_SHOW_RET,
 	/* == arithmetic == */
 	OP_ADD,
 	OP_SUB,
@@ -360,21 +367,21 @@ typedef struct {
 /* can be indexed by an opcode byte */
 static opinfo_t OPINFO[] = {
 	[OP_PUSH] = {"push", 1, +1},
-	[OP_PUSH_NIL] = {"push_nil", 0, +1},
-	[OP_PUSH_TRUE] = {"push_true", 0, +1},
-	[OP_PUSH_FALSE] = {"push_false", 0, +1},
-	[OP_PUSH_LIST] = {"push_list", 1, +1},
-	[OP_PUSH_FUNC] = {"push_func", 1, +1},
+	[OP_PUSH_NIL] = {"push nil", 0, +1},
+	[OP_PUSH_TRUE] = {"push true", 0, +1},
+	[OP_PUSH_FALSE] = {"push false", 0, +1},
+	[OP_PUSH_LIST] = {"push list", 1, +1},
+	[OP_PUSH_FUNC] = {"push func", 1, +1},
 	[OP_POP] = {"pop", 0, -1},
 	[OP_DUP] = {"dup", 0, +1},
 	[OP_SWAP] = {"swap", 0, 0},
 	[OP_LOAD] = {"load", 1, +1},
 	[OP_STORE] = {"store", 1, 0},
-	[OP_LOADLIST] = {"loadlist", 0, -1},
-	[OP_LOADUP] = {"loadup", 1, +1},
-	[OP_MOVEHEAP] = {"moveheap", 0, -1},
-	[OP_HIDERET] = {"hideret", 0, -1},
-	[OP_SHOWRET] = {"showret", 0, +1},
+	[OP_LOAD_LIST] = {"load list", 0, -1},
+	[OP_LOAD_UPVAL] = {"load upval", 1, +1},
+	[OP_MOVE_HEAP] = {"move heap", 0, -1},
+	[OP_HIDE_RET] = {"hide ret", 0, -1},
+	[OP_SHOW_RET] = {"show ret", 0, +1},
 	[OP_ADD] = {"add", 0, -1},
 	[OP_SUB] = {"sub", 0, -1},
 	[OP_MUL] = {"mul", 0, -1},
@@ -494,22 +501,25 @@ typedef struct {
 	/* constant data; stores any
 	 * literal values found in
 	 * the source code */
-	struct value_s* data;
+	value_t* data;
 	size_t ndata;
-	/* total stack slots needed */
-	size_t slots;
-	/* name, used in error messages and
-	 * for debugging */
-	struct string_s* name;
-	/* list of line numbers */
+	/* line numbers mapped to bytes */
 	uint32_t* lines;
 	size_t nlines;
 	
-	/* if set this calls a C function
-	 * and the bytecode chunk is unused */
-	cfunc_t cfunc;
+	/* total stack slots needed */
+	size_t slots;
+	/* number of parameters */
 	int params;
+	/* number of upvalues */
 	int upvalues;
+	
+	/* name, used in error messages and
+	 * for debugging */
+	string_t* name;
+	/* if set this calls a C function
+	 * and the bytecode is unused */
+	cfunc_t cfunc;
 } func_t;
 
 /* closure object;
@@ -534,7 +544,7 @@ typedef struct upvalue_s {
 	int index;
 	/* if the value in the above slot goes
 	 * off the stack it gets copied to here */
-	struct value_s closed;
+	value_t closed;
 	struct upvalue_s* next;
 } upvalue_t;
 
@@ -728,7 +738,8 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 /* marks an object as reachable by the
  * garbage collector */
 void obj_mark(obj_t* obj, sylt_t* ctx) {
-	if (!obj || obj->marked)
+	assert(obj);
+	if (obj->marked)
 		return;
 	
 	/* set a mark bit on the object itself */
@@ -758,7 +769,6 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	switch (obj->tag) {
 	case TYPE_LIST: {
 		list_t* ls = (list_t*)obj;
-		
 		for (size_t i = 0; i < ls->len; i++)
 			val_mark(ls->items[i], ctx);
 		
@@ -771,7 +781,6 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 		func_t* func = (func_t*)obj;
 		
 		obj_mark((obj_t*)func->name, ctx);
-		
 		for (size_t i = 0;
 			i < func->ndata;
 			i++
@@ -816,17 +825,22 @@ list_t* list_new(sylt_t* ctx) {
 
 /* returns the item at the given index */
 value_t list_get(
-	const list_t* ls, int index)
+	const list_t* ls, int index, sylt_t* ctx)
 {
+	/* allow negative indices */
 	if (index < 0) {
 		int mod = ls->len + index;
-		if (mod < 0)
-			return wrapnil();
+		if (mod > ls->len - 1) {
+			halt(ctx, E_INDEX(ls->len, mod));
+			unreachable();
+		}
 		return ls->items[mod];
 	}
 	
-	if (index > ls->len - 1)
-		return wrapnil();
+	if (index > ls->len - 1) {
+		halt(ctx, E_INDEX(ls->len, index));
+		unreachable();
+	}
 	return ls->items[index];
 }
 
@@ -848,7 +862,7 @@ void list_push(
 value_t list_pop(list_t* ls, sylt_t* ctx) {
 	if (ls->len == 0)
 		return wrapnil();
-	value_t last = list_get(ls, -1);
+	value_t last = list_get(ls, -1, ctx);
 	ls->items = arr_resize(
 		ls->items,
 		value_t,
@@ -878,6 +892,13 @@ string_t* string_new(
 		str->bytes = (uint8_t*)bytes;
 		
 	} else {
+		/* TODO: should we assert instead? */
+		if (len == 0) {
+			str->bytes = NULL;
+			str->len = len;
+			return str;
+		}
+		
 		gc_pause(ctx);
 		
 		/* allocate our own buffer... */
@@ -937,7 +958,6 @@ string_t* string_concat(
 {
 	gc_pause(ctx);
 	
-	/* TODO: GC */
 	size_t len = a->len + b->len;
 	uint8_t* bytes =
 		arr_alloc(uint8_t, len, ctx);
@@ -967,7 +987,6 @@ void string_append_lit(
 	const char* src,
 	sylt_t* ctx)
 {
-	/* TODO: GC */
 	*dst = string_concat(
 		*dst, string_lit(src, ctx), ctx);	
 }
@@ -985,14 +1004,15 @@ func_t* func_new(
 	func->ncode = 0;
 	func->data = NULL;
 	func->ndata = 0;
-	func->slots = 0;
-	func->name = name;
 	func->lines = NULL;
 	func->nlines = 0;
 	
-	func->cfunc = NULL;
+	func->slots = 0;
 	func->params = 0;
 	func->upvalues = 0;
+	
+	func->name = name;
+	func->cfunc = NULL;
 	return func;
 }
 
@@ -1005,8 +1025,8 @@ func_t* func_newc(
 	int params)
 {
 	func_t* func = func_new(ctx, name);
-	func->cfunc = cfunc;
 	func->params = params;
+	func->cfunc = cfunc;
 	return func;
 }
 
@@ -1668,7 +1688,7 @@ void vm_exec(vm_t* vm) {
 	/* ensure an empty stack */
 	vm->sp = vm->stack;
 	
-	#if DBG_PRINT_OPCODES
+	#if DBG_PRINT_CODE
 	dbg_print_header(vm, vm->fp->cls);
 	#endif
 	
@@ -1680,7 +1700,7 @@ void vm_exec(vm_t* vm) {
 			vm->fp->func);
 		#endif
 		
-		#if DBG_PRINT_OPCODES
+		#if DBG_PRINT_CODE
 		dbg_print_instruction(vm,
 			vm->fp->func);
 		#endif
@@ -1778,7 +1798,7 @@ void vm_exec(vm_t* vm) {
 				+ read()) = val;
 			break;
 		}
-		case OP_LOADLIST: {
+		case OP_LOAD_LIST: {
 			value_t index = pop();
 			typecheck(
 				vm->ctx, index, TYPE_NUM);
@@ -1789,28 +1809,29 @@ void vm_exec(vm_t* vm) {
 			
 			push(list_get(
 				getlist(list),
-				getnum(index)));
+				getnum(index),
+				vm->ctx));
 			break;
 		}
-		case OP_LOADUP: {
+		case OP_LOAD_UPVAL: {
 			uint8_t index = read();
 			value_t val = vm_getupval(vm,
 				vm->fp->cls->upvals[index]);
 			push(val);
 			break;
 		}
-		case OP_MOVEHEAP: {
+		case OP_MOVE_HEAP: {
 			size_t pos = 
 				vm->sp - vm->stack - 1;
 			vm_closeupvals(vm, pos);
 			pop();
 			break;
 		}
-		case OP_HIDERET: {
+		case OP_HIDE_RET: {
 			vm->hidden = pop();
 			break;
 		}
-		case OP_SHOWRET: {
+		case OP_SHOW_RET: {
 			push(vm->hidden);
 			break;
 		}
@@ -1908,7 +1929,7 @@ void vm_exec(vm_t* vm) {
 				shrink(argc + 1);
 				push(result);
 				
-				#if DBG_PRINT_OPCODES
+				#if DBG_PRINT_CODE
 				sylt_dprintf("\n");
 				#endif
 				
@@ -1939,7 +1960,7 @@ void vm_exec(vm_t* vm) {
 			vm->fp = &vm->frames[
 				vm->nframes - 1];
 				
-			#if DBG_PRINT_OPCODES
+			#if DBG_PRINT_CODE
 			dbg_print_header(vm,
 				vm->fp->cls);
 			#endif
@@ -1973,7 +1994,7 @@ void vm_exec(vm_t* vm) {
 			vm->fp =
 				&vm->frames[vm->nframes - 1];
 			
-			#if DBG_PRINT_OPCODES
+			#if DBG_PRINT_CODE
 			dbg_print_header(
 				vm, vm->fp->cls);
 			#endif
@@ -2930,7 +2951,7 @@ void eat(
 		return;
 	}
 	
-	halt(cmp->ctx, E_SYNTAX(msg));
+	halt(cmp->ctx, msg);
 }
 
 /* parsing functions */
@@ -3078,7 +3099,7 @@ void name(comp_t* cmp) {
 	
 	index = find_upvalue(cmp, cmp->prev);
 	if (index != -1) {
-		emit_unary(cmp, OP_LOADUP, index);
+		emit_unary(cmp, OP_LOAD_UPVAL, index);
 		return;
 	}
 	
@@ -3338,7 +3359,7 @@ void index(comp_t* cmp) {
 	
 	expr(cmp, PREC_OR);
 	eat(cmp, T_RSQUARE, "expected ']'");
-	emit_nullary(cmp, OP_LOADLIST);
+	emit_nullary(cmp, OP_LOAD_LIST);
 }
 
 void parse_func(
@@ -3656,7 +3677,7 @@ void block(comp_t* cmp) {
 		
 	/* the return value is on top of the
 	 * stack so we need to hide it */
-	emit_nullary(cmp, OP_HIDERET);
+	emit_nullary(cmp, OP_HIDE_RET);
 	
 	/* pop the locals */
 	while (cmp->nnames > 0 &&
@@ -3668,13 +3689,13 @@ void block(comp_t* cmp) {
 		cmp->nnames--;
 		
 		if (name->capped)
-			emit_nullary(cmp, OP_MOVEHEAP);
+			emit_nullary(cmp, OP_MOVE_HEAP);
 		else
 			emit_nullary(cmp, OP_POP);
 	}
 	
 	/* restore the return value */
-	emit_nullary(cmp, OP_SHOWRET);
+	emit_nullary(cmp, OP_SHOW_RET);
 	
 	/* shrink symbol table */
 	cmp->names = arr_resize(
@@ -3928,8 +3949,11 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	vsnprintf(msg, MAX_ERRMSGLEN, fmt, args);
 	va_end(args);
 	
+	sylt_eprintf("\n");
+	
 	/* print message prefix */
-	switch (ctx->state) {
+	int state = (ctx) ? ctx->state : -1;
+	switch (state) {
 	case SYLT_STATE_COMPILING: {
 		/* find the deepest compiler */
 		comp_t* cmp = ctx->cmp;
@@ -3960,18 +3984,21 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	default: sylt_eprintf("error: ");
 	}
 	
-	/* print error message */
 	sylt_eprintf("%s\n", msg);
-	
-	/* TODO: don't do this, clearly */
-	exit(EXIT_FAILURE);
+	longjmp(err_jump, 1);
 }
 
+void sylt_free(sylt_t*);
+
 sylt_t* sylt_new(void) {
+	if (setjmp(err_jump)) {
+		return NULL;
+	}
+	
 	sylt_t* ctx = ptr_alloc(sylt_t, NULL);
 	sylt_set_state(ctx, 
 		SYLT_STATE_INITIALIZING);
-	
+		
 	ctx->vm = ptr_alloc(vm_t, ctx);
 	vm_init(ctx->vm, ctx);
 	
@@ -3993,19 +4020,25 @@ sylt_t* sylt_new(void) {
 	
 	sylt_set_state(ctx,
 		SYLT_STATE_INITIALIZED);
+		
 	return ctx;
 }
 
 void sylt_free(sylt_t* ctx) {
+	if (!ctx)
+		return;
+	
 	sylt_set_state(ctx, SYLT_STATE_FREEING);
 	
 	/* free all unreleased objects */
 	gc_free_all(ctx);
 	
 	/* free the VM */
-	vm_free(ctx->vm);
-	ptr_free(ctx->vm, vm_t, ctx);
-	ctx->vm = NULL;
+	if (ctx->vm) {
+		vm_free(ctx->vm);
+		ptr_free(ctx->vm, vm_t, ctx);
+		ctx->vm = NULL;
+	}
 	
 	/* ensure that no memory was leaked */
 	ptrdiff_t bytesleft =
@@ -4060,11 +4093,17 @@ void sylt_dostring(
 	const char* src,
 	const char* name)
 {
-	if (!src || !name)
+	if (!src || !name || !ctx)
 		return;
 	
 	if (strlen(src) == 0 || strlen(name) == 0)
 		return;
+		
+	if (setjmp(err_jump)) {
+		sylt_free(ctx);
+		ctx = sylt_new();
+		return;
+	}
 	
 	/* push the source code */
 	sylt_pushstring(ctx,
@@ -4081,8 +4120,14 @@ void sylt_dostring(
 void sylt_dofile(
 	sylt_t* ctx, const char* path)
 {
-	if (!path)
+	if (!path || !ctx)
 		return;
+	
+	if (setjmp(err_jump)) {
+		sylt_free(ctx);
+		ctx = sylt_new();
+		return;
+	}
 	
 	/* push the source code */
 	sylt_pushstring(ctx,
@@ -4100,11 +4145,11 @@ void sylt_dotests(sylt_t* ctx) {
 	const char* name = "test";
 	
 	/* empty input */
-	sylt_dostring(ctx, "", name);
+	//sylt_dostring(ctx, "", name);
 	
 	/* make sure ensure() works */
-	//sylt_dostring(
-	//	ctx, "ensure(false)", name);
+	sylt_dostring(
+		ctx, "ensure(false)", name);
 	
 	/* test suite */
 	sylt_dofile(ctx, "tests.sylt");

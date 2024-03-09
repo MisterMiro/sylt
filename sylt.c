@@ -25,12 +25,12 @@
 /* ==== debug settings ==== */
 
 #define DBG_PRINT_SYLT_STATE 1
-#define DBG_PRINT_GC_STATE 1
+#define DBG_PRINT_GC_STATE 0
 #define DBG_PRINT_SOURCE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_DATA 0
-#define DBG_PRINT_OPCODES 1
+#define DBG_PRINT_OPCODES 0
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_ALLOCS 0
 #define DBG_PRINT_MEM_STATS 1
@@ -78,23 +78,19 @@
 
 typedef enum {
 	/* initial state */
-	SYLT_STATE_PRE_INIT,
+	SYLT_STATE_INITIALIZING,
 	/* context initialized */
-	SYLT_STATE_POST_INIT,
+	SYLT_STATE_INITIALIZED,
 	
 	/* compiling input */
 	SYLT_STATE_COMPILING,
 	/* done compiling */
 	SYLT_STATE_COMPILED,
 	
-	/* state after calling vm_exec() but
-	 * before entering bytecode dispatch
-	 * loop */
-	SYLT_STATE_SETUP_EXEC,
-	/* executing bytecode */
-	SYLT_STATE_EXEC,
-	/* done */
-	SYLT_STATE_FINISH_EXEC,
+	/* executing a program */
+	SYLT_STATE_EXECUTING,
+	/* execution finished */
+	SYLT_STATE_DONE,
 	
 	/* sylt_free() called */
 	SYLT_STATE_FREEING,
@@ -103,13 +99,12 @@ typedef enum {
 } sylt_state_t;
 
 static const char* SYLT_STATE_NAME[] = {
-	"Pre-Init",
-	"Post-Init",
+	"Initializing",
+	"Initialized",
 	"Compiling",
 	"Compiled",
-	"Setup-Exec",
-	"Exec",
-	"Finish-Exec",
+	"Executing",
+	"Done",
 	"Freeing",
 	"Free",
 };
@@ -125,12 +120,14 @@ typedef enum {
 	GC_STATE_PAUSED,
 } gc_state_t;
 
+#if DBG_PRINT_GC_STATE
 static const char* GC_STATE_NAME[] = {
 	"Idle",
 	"Marking",
 	"Sweeping",
 	"Paused",
 };
+#endif
 
 typedef struct {
 	gc_state_t state;
@@ -228,7 +225,7 @@ void halt(sylt_t*, const char*, ...);
 	"too many upvalues; max is %d", \
 		(MAX_UPVALUES)
 #define E_DIVBYZERO \
-	"attempted to divide by zero"
+	"attempted division by zero"
 #define E_STACKOVERFLOW \
 	"call stack overflow"
 
@@ -632,6 +629,7 @@ typedef struct vm_s {
 void dbg_print_obj_mem(
 	obj_t* obj, bool freed)
 {
+	#if DBG_PRINT_GC_STATE
 	if (!obj)
 		return;
 	
@@ -639,6 +637,7 @@ void dbg_print_obj_mem(
 		(freed) ? " free" : "alloc",
 		obj,
 		TYPE_NAMES[obj->tag]);
+	#endif
 }
 
 /* allocates a generic object */
@@ -1645,7 +1644,7 @@ void vm_closeupvals(
 
 void vm_exec(vm_t* vm) {
 	sylt_set_state(vm->ctx, 	
-		SYLT_STATE_SETUP_EXEC);
+		SYLT_STATE_EXECUTING);
 		
 	const func_t* entry = getfunc(peek(0));
 	
@@ -1668,9 +1667,6 @@ void vm_exec(vm_t* vm) {
 	
 	/* ensure an empty stack */
 	vm->sp = vm->stack;
-	
-	/* showtime */
-	sylt_set_state(vm->ctx, SYLT_STATE_EXEC);
 	
 	#if DBG_PRINT_OPCODES
 	dbg_print_header(vm, vm->fp->cls);
@@ -1962,7 +1958,7 @@ void vm_exec(vm_t* vm) {
 			vm->nframes--;
 			if (vm->nframes == 0) {
 				sylt_set_state(vm->ctx,
-					SYLT_STATE_FINISH_EXEC);
+					SYLT_STATE_DONE);
 				return;
 			}
 			
@@ -2243,6 +2239,41 @@ value_t slib_round(sylt_t* ctx) {
 		num_func(roundf, round)(numarg(0)));
 }
 
+/* returns arg(0) converted from degrees to
+ * radians */
+value_t slib_rads(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(numarg(0) * M_PI / 180.0);
+}
+
+/* returns arg(0) converted from radians to
+ * degrees */
+value_t slib_degs(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(numarg(0) * 180.0 / M_PI);
+}
+
+/* returns the sine of arg(0) */
+value_t slib_sin(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(sinf, sin)(numarg(0)));
+}
+
+/* returns the cosine of arg(0) */
+value_t slib_cos(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(cosf, cos)(numarg(0)));
+}
+
+/* returns the tangent of arg(0) */
+value_t slib_tan(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(tanf, tan)(numarg(0)));
+}
+
 void slib_add(
 	sylt_t* ctx,
 	const char* name,
@@ -2254,7 +2285,7 @@ void load_slib(sylt_t* ctx) {
 	slib_add(ctx, "put", slib_put, 1);
 	slib_add(ctx, "putln", slib_putln, 1);
 	slib_add(ctx, "typeof", slib_typeof, 1);
-	slib_add(ctx, "stringify", 
+	slib_add(ctx, "stringify",
 		slib_stringify, 1);
 	slib_add(ctx, "ensure", slib_ensure, 1);
 	
@@ -2274,6 +2305,11 @@ void load_slib(sylt_t* ctx) {
 	slib_add(ctx, "floor", slib_floor, 1);
 	slib_add(ctx, "ceil", slib_ceil, 1);
 	slib_add(ctx, "round", slib_round, 1);
+	slib_add(ctx, "rads", slib_rads, 1);
+	slib_add(ctx, "degs", slib_degs, 1);
+	slib_add(ctx, "sin", slib_sin, 1);
+	slib_add(ctx, "cos", slib_cos, 1);
+	slib_add(ctx, "tan", slib_tan, 1);
 }
 
 /* ==== compiler ==== */
@@ -2920,13 +2956,15 @@ typedef void (*parsefn_t)(comp_t*);
 void printfname(
 	const char* name, sylt_t* ctx)
 {
+	return;
+	
 	comp_t* cmp = ctx->cmp;
 	while (cmp->child) {
 		sylt_dprintf("  ");
 		cmp = cmp->child;
 	}
 	
-	sylt_dprintf("  parse(%s)\n", name);
+	sylt_dprintf("  %s\n", name);
 }
 
 #define dbg_printfname() \
@@ -3385,11 +3423,9 @@ void parse_func(
 	/* setup a new compiler instance
 	* in order to parse the function */
 	comp_t fcmp;
-	comp_init(&fcmp,
-		cmp,
-		NULL,
-		cmp->ctx);
+	comp_init(&fcmp, cmp, NULL, cmp->ctx);
 	comp_copystate(&fcmp, cmp);
+	cmp->child = &fcmp;
 		
 	/* parse parameter list */
 	while (!check(&fcmp, T_RPAREN)
@@ -3438,13 +3474,11 @@ void parse_func(
 		cmp_upvalue_t* upval =
 			&fcmp.upvals[i];
 			
-		func_write(
-			cmp->func,
+		func_write(cmp->func,
 			upval->islocal,
 			cmp->prev.line,
 			cmp->ctx);
-		func_write(
-			cmp->func,
+		func_write(cmp->func,
 			upval->index,
 			cmp->prev.line,
 			cmp->ctx);
@@ -3651,31 +3685,6 @@ void block(comp_t* cmp) {
 		cmp->ctx);
 }
 
-void compile(comp_t* cmp) {
-	sylt_set_state(cmp->ctx,
-		SYLT_STATE_COMPILING);
-	
-	#if DBG_PRINT_SOURCE
-	puts((char*)cmp->src->bytes);
-	#endif
-	
-	/* scan initial token for lookahead */
-	cmp->cur = scan(cmp);
-	
-	/* parse the entire source */
-	while (!check(cmp, T_EOF)) {
-		expr(cmp, ANY_PREC);
-		emit_nullary(cmp, OP_POP);
-	}
-	
-	emit_nullary(cmp, OP_RET);
-	vm_push(cmp->ctx->vm,
-		wrapfunc(cmp->func));
-	
-	sylt_set_state(cmp->ctx,
-		SYLT_STATE_COMPILED);
-}
-
 void slib_add(
 	sylt_t* ctx,
 	const char* name,
@@ -3761,10 +3770,15 @@ void gc_mark(sylt_t* ctx) {
 	/* mark root objects */
 	gc_mark_vm_roots(ctx);
 	gc_mark_compiler_roots(ctx);
+	
+	#if DBG_PRINT_GC_STATE
 	size_t roots = ctx->mem.gc.nmarked;
+	#endif
 	
 	/* mark objects reachable from roots */
 	gc_trace_refs(ctx);
+	
+	#if DBG_PRINT_GC_STATE
 	size_t refs = ctx->mem.gc.nmarked - roots;
 	
 	sylt_dprintf(
@@ -3773,7 +3787,8 @@ void gc_mark(sylt_t* ctx) {
 		(roots == 1) ? "" : "s",
 		refs,
 		(refs == 1) ? "" : "s");
-		
+	#endif
+	
 	gc_free(ctx->mem.gc.marked);
 	ctx->mem.gc.marked = NULL;
 	ctx->mem.gc.nmarked = 0;
@@ -3918,7 +3933,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	case SYLT_STATE_COMPILING: {
 		/* find the deepest compiler */
 		comp_t* cmp = ctx->cmp;
-		while (cmp && cmp->child)
+		while (cmp->child)
 			cmp = cmp->child;
 		
 		sylt_eprintf("error in %.*s:%d: ",
@@ -3927,7 +3942,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 			cmp->prev.line);
 		break;
 	}
-	case SYLT_STATE_EXEC: {
+	case SYLT_STATE_EXECUTING: {
 		const func_t* func =
 			ctx->vm->fp->func;
 		
@@ -3954,8 +3969,8 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 
 sylt_t* sylt_new(void) {
 	sylt_t* ctx = ptr_alloc(sylt_t, NULL);
-	sylt_set_state(ctx, SYLT_STATE_PRE_INIT);
-	gc_pause(ctx);
+	sylt_set_state(ctx, 
+		SYLT_STATE_INITIALIZING);
 	
 	ctx->vm = ptr_alloc(vm_t, ctx);
 	vm_init(ctx->vm, ctx);
@@ -3976,8 +3991,8 @@ sylt_t* sylt_new(void) {
 	ctx->mem.gc.nruns = 0;
 	ctx->mem.gc.npauses = 0;
 	
-	sylt_set_state(ctx, SYLT_STATE_POST_INIT);
-	gc_resume(ctx);
+	sylt_set_state(ctx,
+		SYLT_STATE_INITIALIZED);
 	return ctx;
 }
 
@@ -4006,9 +4021,69 @@ void sylt_free(sylt_t* ctx) {
 	ptr_free(ctx, sylt_t, ctx);
 }
 
+void compile(sylt_t* ctx) {
+	/* init a fresh compiler */
+	comp_t cmp;
+	ctx->cmp = &cmp;
+	comp_init(&cmp, NULL, NULL, ctx);
+	
+	/* load standard library */
+	cmp.prev.line = 1; /* TODO: hack */
+	load_slib(ctx);
+	
+	sylt_set_state(ctx, SYLT_STATE_COMPILING);
+	
+	#if DBG_PRINT_SOURCE
+	puts((char*)cmp.src->bytes);
+	#endif
+	
+	/* scan initial token for lookahead */
+	cmp.cur = scan(&cmp);
+	
+	/* parse the entire source */
+	while (!check(&cmp, T_EOF)) {
+		expr(&cmp, ANY_PREC);
+		emit_nullary(&cmp, OP_POP);
+	}
+	
+	emit_nullary(&cmp, OP_RET);
+	vm_push(ctx->vm, wrapfunc(cmp.func));
+	
+	/* cleanup */
+	sylt_set_state(ctx, SYLT_STATE_COMPILED);
+	comp_free(&cmp);
+	ctx->cmp = NULL;
+}
+
+void sylt_dostring(
+	sylt_t* ctx,
+	const char* src,
+	const char* name)
+{
+	if (!src || !name)
+		return;
+	
+	if (strlen(src) == 0 || strlen(name) == 0)
+		return;
+	
+	/* push the source code */
+	sylt_pushstring(ctx,
+		string_lit(src, ctx));
+	
+	/* push the file name */
+	sylt_pushstring(ctx,
+		string_lit(name, ctx));
+	
+	compile(ctx);
+	vm_exec(ctx->vm);
+}
+
 void sylt_dofile(
 	sylt_t* ctx, const char* path)
 {
+	if (!path)
+		return;
+	
 	/* push the source code */
 	sylt_pushstring(ctx,
 		load_file(path, ctx));
@@ -4017,22 +4092,22 @@ void sylt_dofile(
 	sylt_pushstring(ctx,
 		string_lit(path, ctx));
 	
-	/* setup a compiler */
-	comp_t cmp;
-	ctx->cmp = &cmp;
-	comp_init(ctx->cmp, NULL, NULL, ctx);
-	
-	/* load standard library */
-	ctx->cmp->prev.line = 1; /* TODO: hack */
-	load_slib(ctx);
-	
-	/* compile the code */
-	compile(ctx->cmp);
-	comp_free(ctx->cmp);
-	ctx->cmp = NULL;
-	
-	/* execute bytecode */
+	compile(ctx);
 	vm_exec(ctx->vm);
+}
+
+void sylt_dotests(sylt_t* ctx) {
+	const char* name = "test";
+	
+	/* empty input */
+	sylt_dostring(ctx, "", name);
+	
+	/* make sure ensure() works */
+	//sylt_dostring(
+	//	ctx, "ensure(false)", name);
+	
+	/* test suite */
+	sylt_dofile(ctx, "tests.sylt");
 }
 
 int main(int argc, char *argv[]) {
@@ -4042,7 +4117,8 @@ int main(int argc, char *argv[]) {
 	}
 	
 	sylt_t* ctx = sylt_new();
-	sylt_dofile(ctx, argv[1]);
+	sylt_dotests(ctx);
+	//sylt_dofile(ctx, argv[1]);
 	sylt_free(ctx);
 	
 	return EXIT_SUCCESS;

@@ -8,7 +8,7 @@
 #include <ctype.h>
 #include <math.h>
 
-/* ==== configuration ==== */
+/* == configuration == */
 
 /* 1 = use doubles
  * 0 = use floats */
@@ -23,7 +23,7 @@
 /* initial stack size */
 #define SYLT_INIT_STACK 512
 
-/* ==== debug flags ==== */
+/* == debug flags == */
 
 #define DBG_PRINT_SYLT_STATE 1
 #define DBG_PRINT_GC_STATE 0
@@ -34,16 +34,16 @@
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_ALLOCS 0
-#define DBG_PRINT_MEM_STATS 0
+#define DBG_PRINT_MEM_STATS 1
 #define DBG_PRINT_MEM_SIZES 0
 #define DBG_ASSERTIONS 1
 
-/* ==== optimizations ==== */
+/* == optimizations == */
 
 #define OPTZ_DEDUP_CONSTANTS 1
 #define OPTZ_SPECIAL_PUSHOPS 1
 
-/* ==== constant limits ==== */
+/* == constant limits == */
 
 #define MAX_CODE (UINT16_MAX + 1)
 #define MAX_DATA (UINT8_MAX + 1)
@@ -56,7 +56,7 @@
 #define MAX_MATCH_ARMS 512
 #define MAX_ERRMSGLEN 1024
 
-/* ==== debug macros ==== */
+/* == debug macros == */
 
 #if DBG_ASSERTIONS
 #define dbgerr(msg) \
@@ -75,7 +75,7 @@
 #define unreachable()
 #endif
 
-/* ==== sylt context ==== */
+/* == sylt context == */
 
 typedef enum {
 	/* initial state */
@@ -181,7 +181,7 @@ static void sylt_set_state(
 	#endif
 }
 
-/* ==== error messages ==== */
+/* == error messages == */
 
 void halt(sylt_t*, const char*, ...);
 
@@ -226,7 +226,7 @@ void halt(sylt_t*, const char*, ...);
 /* == runtime errors == */
 
 #define E_DIVBYZERO \
-	"attempted division by zero"
+	"attempted to divide by zero"
 #define E_STACKOVERFLOW \
 	"call stack overflow"
 #define E_INDEX(len, index) \
@@ -236,7 +236,7 @@ void halt(sylt_t*, const char*, ...);
 	"expected %d arguments but got %d", \
 	(need), (got)
 
-/* ==== memory ==== */
+/* == memory == */
 
 #define gc_realloc realloc
 #define gc_free free
@@ -308,7 +308,7 @@ void* ptr_resize(
 	ptr_resize(p, sizeof(t) * (os), 0,\
 		__func__, ctx)
 
-/* ==== opcodes ==== */
+/* == opcodes == */
 
 typedef enum {
 	/* == stack == */
@@ -812,7 +812,7 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	}
 }
 
-/* ==== list ==== */
+/* == list == */
 
 /* creates an empty list */
 list_t* list_new(sylt_t* ctx) {
@@ -873,7 +873,7 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 	return last;
 }
 
-/* ==== string ==== */
+/* == string == */
 
 /* creates a new string
  * if [take] is true we take ownership of the
@@ -892,7 +892,6 @@ string_t* string_new(
 		str->bytes = (uint8_t*)bytes;
 		
 	} else {
-		/* TODO: should we assert instead? */
 		if (len == 0) {
 			str->bytes = NULL;
 			str->len = len;
@@ -936,14 +935,11 @@ string_t* string_fmt(
 {
 	va_list args;
 	va_start(args, fmt);
-	
 	size_t len = vsnprintf(
 		NULL, 0, fmt, args);
 		
-	char* bytes =
-		arr_alloc(char, len, ctx);
-	vsnprintf(
-		bytes, len + 1, fmt, args);
+	char* bytes = arr_alloc(char, len, ctx);
+	vsnprintf(bytes, len + 1, fmt, args);
 	va_end(args);
 	
 	return string_new(
@@ -991,7 +987,7 @@ void string_append_lit(
 		*dst, string_lit(src, ctx), ctx);	
 }
 
-/* ==== function ==== */
+/* == function == */
 
 /* creates a new function */
 func_t* func_new(
@@ -1098,7 +1094,7 @@ size_t func_write_data(
 	return func->ndata - 1;
 }
 
-/* ==== closure ==== */
+/* == closure == */
 
 /* creates a new closure around a function */
 closure_t* closure_new(
@@ -1118,7 +1114,7 @@ closure_t* closure_new(
 	return cls;
 }
 
-/* ==== upvalue ==== */
+/* == upvalue == */
 
 /* creates a new upvalue */
 upvalue_t* upvalue_new(
@@ -1132,7 +1128,7 @@ upvalue_t* upvalue_new(
 	return upval;
 }
 
-/* ==== value ==== */
+/* == value == */
 
 /* marks a value as reachable in case it
  * wraps an object */
@@ -2070,7 +2066,7 @@ void vm_math(vm_t* vm, op_t opcode) {
 #undef pop
 #undef peek
 
-/* ==== standard library ==== */
+/* == standard library == */
 
 #define argc() (ctx->vm->fp->ip[-1])
 #define arg(n) \
@@ -2085,7 +2081,7 @@ void vm_math(vm_t* vm, op_t opcode) {
 
 /* prints arg(0) to the standard output
  * and flushes the stream  */
-value_t slib_put(sylt_t* ctx) {
+value_t std_put(sylt_t* ctx) {
 	val_print(arg(0), false, 0, ctx);
 	fflush(stdout);
 	return wrapnil();
@@ -2094,28 +2090,28 @@ value_t slib_put(sylt_t* ctx) {
 /* prints arg(0) to the standard output,
  * followed by a newline (\n) character
  * (which flushes the stream automatically) */
-value_t slib_putln(sylt_t* ctx) {
+value_t std_putln(sylt_t* ctx) {
 	val_print(arg(0), false, 0, ctx);
 	sylt_printf("\n");
 	return wrapnil();
 }
 
-/* returns the type of arg(0) as a string */
-value_t slib_typeof(sylt_t* ctx) {
-	return wrapstring(string_lit(
-		user_type_name(arg(0).tag), ctx));
-}
-
 /* returns arg(0) converted to a string */
-value_t slib_stringify(sylt_t* ctx) {
+value_t std_tostring(sylt_t* ctx) {
 	string_t* str =
 		val_tostring(arg(0), ctx);
 	return wrapstring(str);
 }
 
+/* returns the type of arg(0) as a string */
+value_t std_typeof(sylt_t* ctx) {
+	return wrapstring(string_lit(
+		user_type_name(arg(0).tag), ctx));
+}
+
 /* meant for debug builds, halts the VM with
  * an error if arg(0) evaluates to false */
-value_t slib_ensure(sylt_t* ctx) {
+value_t std_ensure(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_BOOL);
 	if (!boolarg(0)) {
 		halt(ctx, "ensure failed");
@@ -2128,13 +2124,13 @@ value_t slib_ensure(sylt_t* ctx) {
 /* == list lib == */
 
 /* returns the length of arg(0) */
-value_t slib_length(sylt_t* ctx) {
+value_t std_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return wrapnum(listarg(0)->len);
 }
 
 /* appends a value to the end of arg(0) */
-value_t slib_push(sylt_t* ctx) {
+value_t std_push(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	list_push(listarg(0), arg(1), ctx);
 	return wrapnil();
@@ -2142,7 +2138,7 @@ value_t slib_push(sylt_t* ctx) {
 
 /* removes and returns the last value of
  * arg(0), or nil if it was empty */
-value_t slib_pop(sylt_t* ctx) {
+value_t std_pop(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return list_pop(listarg(0), ctx);
 }
@@ -2150,18 +2146,18 @@ value_t slib_pop(sylt_t* ctx) {
 /* == math lib == */
 
 /* returns pi */
-value_t slib_pi(sylt_t* ctx) {
+value_t std_pi(sylt_t* ctx) {
 	return wrapnum(M_PI);
 }
 
 /* returns euler's number */
-value_t slib_eulers(sylt_t* ctx) {
+value_t std_eulers(sylt_t* ctx) {
 	return wrapnum(M_E);
 }
 
 /* returns true if arg(0) is nearly equal
  * to arg(1), within a tolerance of arg(2) */
-value_t slib_nearly(sylt_t* ctx) {
+value_t std_nearly(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
@@ -2178,7 +2174,7 @@ value_t slib_nearly(sylt_t* ctx) {
 }
 
 /* returns the absolute value of arg(0) */
-value_t slib_abs(sylt_t* ctx) {
+value_t std_abs(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
 		num_func(fabsf, fabs)(numarg(0));
@@ -2188,7 +2184,7 @@ value_t slib_abs(sylt_t* ctx) {
 /* returns the exponent to which the base
  * arg(1) needs to be raised in order to 
  * produce the target value arg(0) */
-value_t slib_log(sylt_t* ctx) {
+value_t std_log(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
@@ -2219,7 +2215,7 @@ value_t slib_log(sylt_t* ctx) {
 
 /* returns arg(0) raised to the power of
  * arg(1) */
-value_t slib_raise(sylt_t* ctx) {
+value_t std_raise(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
@@ -2231,7 +2227,7 @@ value_t slib_raise(sylt_t* ctx) {
 }
 
 /* returns the square root of arg(0) */
-value_t slib_sqrt(sylt_t* ctx) {
+value_t std_sqrt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
 		num_func(sqrtf, sqrt)(numarg(0));
@@ -2239,14 +2235,14 @@ value_t slib_sqrt(sylt_t* ctx) {
 }
 
 /* returns arg(0) rounded towards -infinity */
-value_t slib_floor(sylt_t* ctx) {
+value_t std_floor(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(floorf, floor)(numarg(0)));
 }
 
 /* returns arg(0) rounded towards +infinity */
-value_t slib_ceil(sylt_t* ctx) {
+value_t std_ceil(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(ceilf, ceil)(numarg(0)));
@@ -2254,7 +2250,7 @@ value_t slib_ceil(sylt_t* ctx) {
 
 /* returns the nearest value to arg(0), 
  * rounding halfway cases away from zero */
-value_t slib_round(sylt_t* ctx) {
+value_t std_round(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(roundf, round)(numarg(0)));
@@ -2262,78 +2258,78 @@ value_t slib_round(sylt_t* ctx) {
 
 /* returns arg(0) converted from degrees to
  * radians */
-value_t slib_rads(sylt_t* ctx) {
+value_t std_rads(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * M_PI / 180.0);
 }
 
 /* returns arg(0) converted from radians to
  * degrees */
-value_t slib_degs(sylt_t* ctx) {
+value_t std_degs(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * 180.0 / M_PI);
 }
 
 /* returns the sine of arg(0) */
-value_t slib_sin(sylt_t* ctx) {
+value_t std_sin(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(sinf, sin)(numarg(0)));
 }
 
 /* returns the cosine of arg(0) */
-value_t slib_cos(sylt_t* ctx) {
+value_t std_cos(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(cosf, cos)(numarg(0)));
 }
 
 /* returns the tangent of arg(0) */
-value_t slib_tan(sylt_t* ctx) {
+value_t std_tan(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(tanf, tan)(numarg(0)));
 }
 
-void slib_add(
+void std_add(
 	sylt_t* ctx,
 	const char* name,
 	cfunc_t cfunc,
 	int params);
 
-void load_slib(sylt_t* ctx) {
+void load_stdlib(sylt_t* ctx) {
 	/* prelude */
-	slib_add(ctx, "put", slib_put, 1);
-	slib_add(ctx, "putln", slib_putln, 1);
-	slib_add(ctx, "typeof", slib_typeof, 1);
-	slib_add(ctx, "stringify",
-		slib_stringify, 1);
-	slib_add(ctx, "ensure", slib_ensure, 1);
+	std_add(ctx, "put", std_put, 1);
+	std_add(ctx, "putln", std_putln, 1);
+	std_add(ctx, "tostring",
+		std_tostring, 1);
+	std_add(ctx, "typeof", std_typeof, 1);
+	std_add(ctx, "ensure", std_ensure, 1);
 	
 	/* list */
-	slib_add(ctx, "length", slib_length, 1);
-	slib_add(ctx, "push", slib_push, 2);
-	slib_add(ctx, "pop", slib_pop, 1);
+	std_add(ctx, "length", std_length, 1);
+	std_add(ctx, "push", std_push, 2);
+	std_add(ctx, "pop", std_pop, 1);
 	
 	/* math */
-	slib_add(ctx, "pi", slib_pi, 0);
-	slib_add(ctx, "eulers", slib_eulers, 0);
-	slib_add(ctx, "nearly", slib_nearly, 3);
-	slib_add(ctx, "abs", slib_abs, 1);
-	slib_add(ctx, "log", slib_log, 2);
-	slib_add(ctx, "raise", slib_raise, 2);
-	slib_add(ctx, "sqrt", slib_sqrt, 1);
-	slib_add(ctx, "floor", slib_floor, 1);
-	slib_add(ctx, "ceil", slib_ceil, 1);
-	slib_add(ctx, "round", slib_round, 1);
-	slib_add(ctx, "rads", slib_rads, 1);
-	slib_add(ctx, "degs", slib_degs, 1);
-	slib_add(ctx, "sin", slib_sin, 1);
-	slib_add(ctx, "cos", slib_cos, 1);
-	slib_add(ctx, "tan", slib_tan, 1);
+	std_add(ctx, "pi", std_pi, 0);
+	std_add(ctx, "eulers", std_eulers, 0);
+	std_add(ctx, "nearly", std_nearly, 3);
+	std_add(ctx, "abs", std_abs, 1);
+	std_add(ctx, "log", std_log, 2);
+	std_add(ctx, "raise", std_raise, 2);
+	std_add(ctx, "sqrt", std_sqrt, 1);
+	std_add(ctx, "floor", std_floor, 1);
+	std_add(ctx, "ceil", std_ceil, 1);
+	std_add(ctx, "round", std_round, 1);
+	std_add(ctx, "rads", std_rads, 1);
+	std_add(ctx, "degs", std_degs, 1);
+	std_add(ctx, "sin", std_sin, 1);
+	std_add(ctx, "cos", std_cos, 1);
+	std_add(ctx, "tan", std_tan, 1);
 }
 
-/* ==== compiler ==== */
+/* == compiler == */
 
 typedef enum {
 	T_NAME,
@@ -2497,7 +2493,7 @@ void comp_free(comp_t* cmp) {
 		cmp->ctx);
 }
 
-/* ==== lexer ==== */
+/* == lexer == */
 
 /* scans the source code for the next token */
 token_t scan(comp_t* cmp) {
@@ -2672,7 +2668,7 @@ token_t scan(comp_t* cmp) {
 	#undef match
 }
 
-/* ==== codegen ==== */
+/* == codegen == */
 
 void comp_simstack(comp_t* cmp, int n) {
 	cmp->curslots += n;
@@ -2893,7 +2889,6 @@ int find_upvalue(comp_t* cmp, token_t name) {
 	if (local != -1) {
 		cmp->parent->names[local].capped =
 			true;
-		
 		return add_upvalue(cmp, local, true);
 	}
 	
@@ -3271,7 +3266,6 @@ void unary(comp_t* cmp) {
 /* parses a binary expression */
 void binary(comp_t* cmp) {
 	dbg_printfname();
-	
 	/* left hand expression has already been
 	 * compiled */
 	
@@ -3706,7 +3700,7 @@ void block(comp_t* cmp) {
 		cmp->ctx);
 }
 
-void slib_add(
+void std_add(
 	sylt_t* ctx,
 	const char* name,
 	cfunc_t cfunc,
@@ -3730,14 +3724,13 @@ void slib_add(
 		str,
 		cfunc,
 		params);
-		
 	emit_value(ctx->cmp, wrapfunc(func));
 	
 	sylt_popstring(ctx); /* GC */
 	gc_resume(ctx);
 }
 
-/* ==== GC ==== */
+/* == GC == */
 
 void gc_set_state(
 	sylt_t* ctx, gc_state_t state)
@@ -3928,11 +3921,9 @@ string_t* load_file(
 	size_t len = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 	
-	/* create buffer */
+	/* read the file contents */
 	string_t* str = string_new(
 		NULL, len + 1, false, ctx);
-	
-	/* read the file contents */
 	fread(str->bytes, 1, len, fp);
 	fclose(fp);
 	
@@ -3988,12 +3979,9 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	longjmp(err_jump, 1);
 }
 
-void sylt_free(sylt_t*);
-
 sylt_t* sylt_new(void) {
-	if (setjmp(err_jump)) {
+	if (setjmp(err_jump))
 		return NULL;
-	}
 	
 	sylt_t* ctx = ptr_alloc(sylt_t, NULL);
 	sylt_set_state(ctx, 
@@ -4002,7 +3990,7 @@ sylt_t* sylt_new(void) {
 	ctx->vm = ptr_alloc(vm_t, ctx);
 	vm_init(ctx->vm, ctx);
 	
-	ctx->cmp = NULL;
+	ctx->cmp = ptr_alloc(comp_t, ctx);
 	
 	/* init memory */
 	ctx->mem.objs = NULL;
@@ -4020,7 +4008,6 @@ sylt_t* sylt_new(void) {
 	
 	sylt_set_state(ctx,
 		SYLT_STATE_INITIALIZED);
-		
 	return ctx;
 }
 
@@ -4040,6 +4027,13 @@ void sylt_free(sylt_t* ctx) {
 		ctx->vm = NULL;
 	}
 	
+	/* free compiler */
+	if (ctx->cmp) {
+		comp_free(ctx->cmp);
+		ptr_free(ctx->cmp, comp_t, ctx);
+		ctx->cmp = NULL;
+	}
+	
 	/* ensure that no memory was leaked */
 	ptrdiff_t bytesleft =
 		ctx->mem.bytes - sizeof(sylt_t);
@@ -4056,102 +4050,93 @@ void sylt_free(sylt_t* ctx) {
 
 void compile(sylt_t* ctx) {
 	/* init a fresh compiler */
-	comp_t cmp;
-	ctx->cmp = &cmp;
-	comp_init(&cmp, NULL, NULL, ctx);
+	comp_init(ctx->cmp, NULL, NULL, ctx);
 	
 	/* load standard library */
-	cmp.prev.line = 1; /* TODO: hack */
-	load_slib(ctx);
+	ctx->cmp->prev.line = 1; /* TODO: hack */
+	load_stdlib(ctx);
 	
 	sylt_set_state(ctx, SYLT_STATE_COMPILING);
 	
 	#if DBG_PRINT_SOURCE
-	puts((char*)cmp.src->bytes);
+	puts((char*)ctx->cmp->src->bytes);
 	#endif
 	
 	/* scan initial token for lookahead */
-	cmp.cur = scan(&cmp);
+	ctx->cmp->cur = scan(ctx->cmp);
 	
 	/* parse the entire source */
-	while (!check(&cmp, T_EOF)) {
-		expr(&cmp, ANY_PREC);
-		emit_nullary(&cmp, OP_POP);
+	while (!check(ctx->cmp, T_EOF)) {
+		expr(ctx->cmp, ANY_PREC);
+		emit_nullary(ctx->cmp, OP_POP);
 	}
 	
-	emit_nullary(&cmp, OP_RET);
-	vm_push(ctx->vm, wrapfunc(cmp.func));
+	emit_nullary(ctx->cmp, OP_RET);
+	vm_push(ctx->vm,
+		wrapfunc(ctx->cmp->func));
 	
-	/* cleanup */
 	sylt_set_state(ctx, SYLT_STATE_COMPILED);
-	comp_free(&cmp);
-	ctx->cmp = NULL;
 }
 
-void sylt_dostring(
-	sylt_t* ctx,
-	const char* src,
-	const char* name)
+/* compiles and runs a sylt program from
+ * a string, returning true if successful */
+bool sylt_dostring(
+	sylt_t* ctx, const char* src)
 {
-	if (!src || !name || !ctx)
-		return;
-	
-	if (strlen(src) == 0 || strlen(name) == 0)
-		return;
+	if (!ctx || !src)
+		return false;
 		
 	if (setjmp(err_jump)) {
 		sylt_free(ctx);
 		ctx = sylt_new();
-		return;
+		return false;
 	}
 	
-	/* push the source code */
+	/* push the source code + program name */
 	sylt_pushstring(ctx,
 		string_lit(src, ctx));
-	
-	/* push the file name */
 	sylt_pushstring(ctx,
-		string_lit(name, ctx));
+		string_lit("input", ctx));
 	
 	compile(ctx);
 	vm_exec(ctx->vm);
+	return true;
 }
 
-void sylt_dofile(
+/* compiles and runs a sylt program from
+ * file, returning true if successful */
+bool sylt_dofile(
 	sylt_t* ctx, const char* path)
 {
-	if (!path || !ctx)
-		return;
+	if (!ctx || !path)
+		return false;
 	
 	if (setjmp(err_jump)) {
 		sylt_free(ctx);
 		ctx = sylt_new();
-		return;
+		return false;
 	}
 	
-	/* push the source code */
+	/* push the source code + file name */
 	sylt_pushstring(ctx,
 		load_file(path, ctx));
-	
-	/* push the file name */
 	sylt_pushstring(ctx,
 		string_lit(path, ctx));
 	
 	compile(ctx);
 	vm_exec(ctx->vm);
+	return true;
 }
 
-void sylt_dotests(sylt_t* ctx) {
-	const char* name = "test";
-	
+void sylt_test(sylt_t* ctx) {
 	/* empty input */
-	//sylt_dostring(ctx, "", name);
+	//sylt_dostring(ctx, "");
 	
 	/* make sure ensure() works */
-	sylt_dostring(
-		ctx, "ensure(false)", name);
+	//assert(!sylt_dostring(
+	//	ctx, "ensure(false)"));
 	
-	/* test suite */
+	/* run lang tests */
 	sylt_dofile(ctx, "tests.sylt");
 }
 
@@ -4162,7 +4147,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	sylt_t* ctx = sylt_new();
-	sylt_dotests(ctx);
+	sylt_test(ctx);
 	//sylt_dofile(ctx, argv[1]);
 	sylt_free(ctx);
 	

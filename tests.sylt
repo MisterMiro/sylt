@@ -356,6 +356,66 @@ let blocks() = {
 	ensure(result == 123)
 }
 
+let lists() = {
+	let list = [1, 2, 3]
+	
+	## indexing
+	ensure(list[0] == 1
+		and list[1] == 2
+		and list[2] == 3)
+		
+	## negative indices count from the end
+	## i.e. index -1 is equivalent to len - 1
+	ensure(list[1] == list[-2])
+}
+
+let functions() = {
+	## empty body returns nil
+	let empty() = {}
+	ensure(empty() == nil)
+	
+	## argument passing
+	let add(a, b) = a + b
+	ensure(add(3, 4) == 7)
+	
+	## arguments + local variables
+	let add(a, b) = {
+		let stack_mate = 18
+		a + b
+	}
+	ensure(add(3, 4) == 7)
+	
+	## accessing variable outside of
+	## a functions stack window
+	let outside = "outside"
+	let f() = outside
+	ensure(f() == outside)
+	
+	## moving surrounding context to
+	## the heap if necessary
+	let f() = {
+		let keep = "jewel"
+		let f2() = keep
+		f2
+	}
+	ensure(f()() == "jewel")
+	
+	## anonymous functions using 'fun'
+	let anon = fun(r, s, t) -> r * s * t
+	ensure(anon(2, 4, 8) == 64)
+	
+	## recursion
+	let clear(ls) =
+		if length(ls) > 0 {
+			pop(ls)
+			clear(ls)
+		}
+		
+	let list = [1, 2, 3]
+	clear(list)
+	ensure(length(list) == 0)
+}
+
 let if_else() = {
 	## implicit nil
 	ensure(if true {} == nil)
@@ -416,55 +476,16 @@ let match_with() = {
 	ensure(name(3) == "Too high")
 }
 
-let functions() = {
-	## empty body returns nil
-	let empty() = {}
-	ensure(empty() == nil)
-	
-	## argument passing
-	let add(a, b) = a + b
-	ensure(add(3, 4) == 7)
-	
-	## arguments + local variables
-	let add(a, b) = {
-		let stack_mate = 18
-		a + b
-	}
-	ensure(add(3, 4) == 7)
-	
-	## accessing variable outside of
-	## a functions stack window
-	let outside = "outside"
-	let f() = outside
-	ensure(f() == outside)
-	
-	## moving surrounding context to
-	## the heap if necessary
-	let f() = {
-		let keep = "jewel"
-		let f2() = keep
-		f2
-	}
-	ensure(f()() == "jewel")
-	
-	## anonymous functions using 'fun'
-	let anon = fun(r, s, t) -> r * s * t
-	ensure(anon(2, 4, 8) == 64)
-}
-
-let recursion() = {
-	let clear(ls) =
-		if length(ls) > 0 {
-			pop(ls)
-			clear(ls)
-		}
-		
-	let list = [1, 2, 3]
-	clear(list)
-	ensure(length(list) == 0)
-}
-
 let prelude_lib() = {
+	## tostring
+	ensure(tostring(nil) == "nil")
+	ensure(tostring(true) == "true"
+		and tostring(false) == "false")
+	ensure(tostring(707) == "707")
+	ensure(tostring(["bananas", 18, true])
+		== "[\"bananas\", 18, true]")
+	ensure(tostring(repn) == "repn()")
+	
 	## typeof
 	ensure(typeof(nil) == "Nil")
 	ensure(typeof(true) == "Bool")
@@ -472,15 +493,6 @@ let prelude_lib() = {
 	ensure(typeof([]) == "List")
 	ensure(typeof("") == "String")
 	ensure(typeof(fun() -> {}) == "Function")
-	
-	## stringify
-	ensure(stringify(nil) == "nil")
-	ensure(stringify(true) == "true"
-		and stringify(false) == "false")
-	ensure(stringify(707) == "707")
-	ensure(stringify(["bananas", 18, true])
-		== "[\"bananas\", 18, true]")
-	ensure(stringify(repn) == "repn()")
 }
 
 let list_lib() = {
@@ -662,13 +674,16 @@ let run = flatten([
 		bool_and,
 		bool_or,
 	],
-	"Control flow",
+	"General",
 	[
 		blocks,
+		lists,
+		functions,
+	],
+	"Control flow",
+	[
 		if_else,
 		match_with,
-		functions,
-		recursion,
 	],
 	"Standard library",
 	[
@@ -690,7 +705,7 @@ repn(iterations, fun(_) ->
 		
 		} else {
 			put("  ")
-			put(stringify(val))
+			put(tostring(val))
 			put(".....")
 		
 			## run it

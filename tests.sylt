@@ -1,9 +1,11 @@
 
-## helper functions
+## implementations of some higher-order
+## functions; these will be moved to
+## native code eventually
 
 let repn(n, f) = {
 	let loop(i) =
-		if i < n {
+		if (i < n) {
 			f(i)
 			loop(i + 1)
 		}
@@ -13,7 +15,7 @@ let repn(n, f) = {
 
 let foreach(ls, f) = {
 	let loop(i) =
-		if i < length(ls) {
+		if (i < length(ls)) {
 			f(i, ls[i])
 			loop(i + 1)
 		}
@@ -43,10 +45,10 @@ let concat_mut(a, b) = {
 let flatten(ls) = {
 	let flat = []
 	let loop(i) =
-		if i < length(ls) {
+		if (i < length(ls)) {
 			let item = ls[i]
 			
-			if typeof(item) == "List" {
+			if (typeof(item) == "List") {
 				let rec = flatten(item)
 				concat_mut(flat, rec)
 				
@@ -63,12 +65,11 @@ let flatten(ls) = {
 
 let any(ls, f) = {
 	let loop(i) =
-		if i < length(ls) {
-			if f(ls[i]) {
+		if (i < length(ls)) {
+			if (f(ls[i]))
 				true
-			} else {
+			else
 				loop(i + 1)
-			}
 		} else {
 			false
 		}
@@ -78,12 +79,11 @@ let any(ls, f) = {
 
 let all(ls, f) = {
 	let loop(i) =
-		if i < length(ls) {
-			if !f(ls[i]) {
+		if (i < length(ls)) {
+			if (!f(ls[i]))
 				false
-			} else {
+			else
 				loop(i + 1)
-			}
 		} else {
 			true
 		}
@@ -214,7 +214,7 @@ let division() = {
 	ensure(x / y != y / x)
 }
 
-let euclidean_division() = {
+let euclid_division() = {
 	let x = 17
 	let y = 12
 	let remainder = 5
@@ -283,9 +283,8 @@ let equality() = {
 		## not equal to a value of any other
 		## type
 		foreach(values, fun(idx, v) ->
-			if idx != slot {
+			if (idx != slot)
 				ensure(target != v)
-			}
 		)
 	})
 	
@@ -327,6 +326,18 @@ let bool_or() = {
 	## short-circuit evaluation
 	let would_crash() = ensure(false)
 	true or would_crash()
+}
+
+let variables() = {
+	## declaring
+	let x = 70
+	
+	## accessing
+	ensure(x == 70)
+	
+	## shadowing
+	let x = x - 2
+	ensure(x == 68)
 }
 
 let blocks() = {
@@ -406,7 +417,7 @@ let functions() = {
 	
 	## recursion
 	let clear(ls) =
-		if length(ls) > 0 {
+		if (length(ls) > 0) {
 			pop(ls)
 			clear(ls)
 		}
@@ -418,16 +429,22 @@ let functions() = {
 
 let if_else() = {
 	## implicit nil
-	ensure(if true {} == nil)
-	ensure(if false {} == nil)
-	ensure(if false {} else {} == nil)
+	ensure(if (false) {} == nil)
 	
 	## if branch
-	let result = if true { "A" } else { "B" }
+	let result = if (true) "A" else "B"
 	ensure(result == "A")
 	
 	## else branch
-	let result = if false { "A" } else { "B" }
+	let result = if (false) "A" else "B"
+	ensure(result == "B")
+	
+	## else if / chaining
+	let i = 10
+	let result =
+		if (i < 0) "A"
+		else if (i > 0) "B"
+		else "C"
 	ensure(result == "B")
 }
 
@@ -503,12 +520,13 @@ let list_lib() = {
 	
 	## push...
 	let x = []
+	
 	push(x, 3) ## = [3]
 	ensure(x == [3] and length(x) == 1)
 	push(x, 7) ## = [3, 7]
 	ensure(x == [3, 7] and length(x) == 2)
 	
-	## ...and pop
+	## ...pop
 	pop(x) ## = [3]
 	ensure(x == [3] and length(x) == 1)
 	pop(x) ## = []
@@ -609,7 +627,7 @@ let math_lib() = {
 	ensure(sqrt(256) == 16)
 	ensure(raise(32, 0.5) == sqrt(32))
 	
-	## floor, ceil and round
+	## floor, ceil, round
 	let check_rounding(n) = {
 		let low = n + 0.2
 		let mid = n + 0.5
@@ -625,7 +643,7 @@ let math_lib() = {
 		ensure(round(high) == n + 1)
 	
 		ensure(round(mid) ==
-			if n >= 0 {
+			if (n >= 0) {
 				n + 1
 			} else {
 				n
@@ -662,7 +680,7 @@ let run = flatten([
 		subtraction,
 		multiplication,
 		division,
-		euclidean_division,
+		euclid_division,
 		unary_minus,
 		arithmetic,
 	],
@@ -676,6 +694,7 @@ let run = flatten([
 	],
 	"General",
 	[
+		variables,
 		blocks,
 		lists,
 		functions,

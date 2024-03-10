@@ -3509,48 +3509,37 @@ void parse_func(
 void if_else(comp_t* cmp) {
 	dbg_printfname();
 	
-	/* compile condition */
+	/* (condition) */
+	eat(cmp, T_LPAREN,
+		"expected '(' after 'if'");
 	expr(cmp, ANY_PREC);
-	eat(cmp, T_LCURLY,
-		"expected '{' after condition");
+	eat(cmp, T_RPAREN,
+		"expected ')' after if condition");
 	
-	/* optionally jump to else branch
-	 * if condition is false */
+	/* jump to else branch if
+	 * the condition is false */
 	int then_addr =
 		emit_jump(cmp, OP_JMPIFN);
-	emit_nullary(cmp, OP_POP);
-	/* condition was true, pop it and
-	 * stay on the then branch */
 		
-	block(cmp);
+	/* 'then' branch */
+	emit_nullary(cmp, OP_POP); /* condition */
+	expr(cmp, ANY_PREC);
 	
-	/* unconditionally jump past the 
+	/* unconditionally jump over the 
 	 * else branch */
 	int else_addr =
 		emit_jump(cmp, OP_JMP);
-	
 	patch_jump(cmp, then_addr);
-	emit_nullary(cmp, OP_POP);
-	/* condition was false so we skipped
-	 * to the else branch. make sure
-	 * we pop the condition here */
 	
-	if (match(cmp, T_ELSE)) {
-		eat(cmp, T_LCURLY,
-			"expected '{' after 'else'");
-		block(cmp);
-	
-	} else {
-		/* make sure we always leave a
-		 * value on the stack, even if
-		 * the condition evaluates
-		 * to false and we don't have
-		 * an 'else' branch */
+	/* 'else' branch */
+	emit_nullary(cmp, OP_POP); /* condition */
+	if (match(cmp, T_ELSE))
+		expr(cmp, ANY_PREC);
+	else
 		emit_value(cmp, wrapnil());
-	}
 	
-	patch_jump(cmp, else_addr);
 	/* skipped past else */
+	patch_jump(cmp, else_addr);
 }
 
 /* parses a match expression */
@@ -4052,15 +4041,15 @@ void compile(sylt_t* ctx) {
 	/* init a fresh compiler */
 	comp_init(ctx->cmp, NULL, NULL, ctx);
 	
+	#if DBG_PRINT_SOURCE
+	puts((char*)ctx->cmp->src->bytes);
+	#endif
+	
 	/* load standard library */
 	ctx->cmp->prev.line = 1; /* TODO: hack */
 	load_stdlib(ctx);
 	
 	sylt_set_state(ctx, SYLT_STATE_COMPILING);
-	
-	#if DBG_PRINT_SOURCE
-	puts((char*)ctx->cmp->src->bytes);
-	#endif
 	
 	/* scan initial token for lookahead */
 	ctx->cmp->cur = scan(ctx->cmp);
@@ -4072,9 +4061,8 @@ void compile(sylt_t* ctx) {
 	}
 	
 	emit_nullary(ctx->cmp, OP_RET);
-	vm_push(ctx->vm,
-		wrapfunc(ctx->cmp->func));
-	
+	vm_push(
+		ctx->vm, wrapfunc(ctx->cmp->func));
 	sylt_set_state(ctx, SYLT_STATE_COMPILED);
 }
 

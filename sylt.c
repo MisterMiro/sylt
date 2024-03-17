@@ -33,7 +33,7 @@
 /* disables garbage collection, though
  * memory will still be freed at shutdown
  * (sylt_free) to prevent memory leaks */
-#define DBG_NO_GC 1
+#define DBG_NO_GC 0
 
 /* makes the GC collect on every allocation */
 #define DBG_GC_EVERY_ALLOC 1
@@ -43,7 +43,7 @@
 #define DBG_PRINT_SOURCE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
-#define DBG_PRINT_AST 1
+#define DBG_PRINT_AST 0
 #define DBG_PRINT_CODE 1
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
@@ -272,9 +272,6 @@ void* ptr_resize(
 	int line,
 	sylt_t* ctx)
 {
-	assert(ns >= 0);
-	assert(os >= 0);
-	
 	/* keep track of heap size.
 	 * the null check is for when we
 	 * allocate the ctx struct itself */
@@ -1012,6 +1009,8 @@ string_t* string_fmt(
 		
 	char* bytes = NULL;
 	arr_alloc(bytes, char, len, ctx);
+	
+	/* TODO: isn't this UB? */
 	vsnprintf(bytes, len + 1, fmt, args);
 	va_end(args);
 	
@@ -1305,11 +1304,10 @@ static string_t* val_tostring(
 			}
 		}
 		
-		string_t* close =
-			string_lit("]", ctx);
-		
 		string_t* result = string_concat(
-			str, close, ctx);
+			str,
+			string_lit("]", ctx),
+			ctx);
 		
 		sylt_pop(ctx); /* GC */
 		return result;
@@ -1320,13 +1318,6 @@ static string_t* val_tostring(
 	case TYPE_CLOSURE: {
 		return
 			getclosure(val)->func->name;
-		/*string_t* suffix =
-			string_lit("()", ctx);
-		
-		return string_concat(
-			getclosure(val)->func->name,
-			suffix,
-			ctx);*/
 	}
 	default: unreachable();
 	}
@@ -1789,12 +1780,16 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_PUSH_FUNC: {
+			gc_pause(vm->ctx);
+			
 			func_t* func = 
 				getfunc(vm->fp->func->
 					data[read()]);
 			
+			/* wrap it in a closure */
 			closure_t* cls =
 				closure_new(vm->ctx, func);
+				
 			push(wrapclosure(cls));
 			
 			arr_alloc(
@@ -1821,6 +1816,7 @@ void vm_exec(vm_t* vm) {
 				}
 			}
 			
+			gc_resume(vm->ctx);
 			break;
 		}
 		case OP_POP: {
@@ -1976,6 +1972,8 @@ void vm_exec(vm_t* vm) {
 			}
 			
 			if (func->cfunc) {
+				gc_pause(vm->ctx);
+				
 				/* calling a C function
 				 * does not involve the
 				 * sylt callstack */
@@ -1988,6 +1986,7 @@ void vm_exec(vm_t* vm) {
 				sylt_dprintf("\n");
 				#endif
 				
+				gc_resume(vm->ctx);
 				break;
 			}
 			
@@ -3815,7 +3814,7 @@ void gc_collect(
 	
 	if (ctx->mem.gc.state == GC_STATE_PAUSED)
 		return;
-	/*if (ctx->state == SYLT_STATE_COMPILING) return;*/
+	if (ctx->state == SYLT_STATE_COMPILING) return;
 	assert(ctx->mem.gc.state
 		== GC_STATE_IDLE);
 
@@ -3848,23 +3847,8 @@ void gc_mark(
 	gc_mark_vm_roots(ctx);
 	gc_mark_compiler_roots(ctx);
 	
-	#if DBG_PRINT_GC_STATE
-	size_t roots = ctx->mem.gc.nmarked;
-	#endif
-	
 	/* mark objects reachable from roots */
 	gc_trace_refs(ctx);
-	
-	#if DBG_PRINT_GC_STATE
-	size_t refs = ctx->mem.gc.nmarked - roots;
-	
-	sylt_dprintf(
-		"%ld root%s + %ld ref%s, ",
-		roots,
-		(roots == 1) ? "" : "s",
-		refs,
-		(refs == 1) ? "" : "s");
-	#endif
 	
 	gc_free(ctx->mem.gc.marked);
 	ctx->mem.gc.marked = NULL;
@@ -3884,12 +3868,9 @@ void gc_mark_vm_roots(sylt_t* ctx) {
 		val_mark(*v, ctx);
 		
 	/* call stack */
-	for (size_t i = 0; i < vm->nframes; i++) {
-		/*obj_mark((obj_t*)vm->frames[i].func,
-			ctx);*/
+	for (size_t i = 0; i < vm->nframes; i++)
 		obj_mark((obj_t*)vm->frames[i].cls,
 			ctx);
-	}
 	
 	/* open upvalues */
 	upvalue_t* upval = vm->openups;
@@ -3903,7 +3884,7 @@ void gc_mark_vm_roots(sylt_t* ctx) {
 /* marks all roots that can be reached from
  * the compiler */
 void gc_mark_compiler_roots(sylt_t* ctx) {
-	if (ctx->state != SYLT_STATE_COMPILING)
+	if (ctx->state < SYLT_STATE_COMPILING)
 		return;
 	assert(ctx->cmp);
 	
@@ -3920,9 +3901,9 @@ void gc_mark_compiler_roots(sylt_t* ctx) {
  * and marks any child objects reachable
  * from them */
 void gc_trace_refs(sylt_t* ctx) {
-	size_t n = ctx->mem.gc.nmarked;
-	while (n > 0) {
-		obj_t* obj = ctx->mem.gc.marked[--n];
+	while (ctx->mem.gc.nmarked > 0) {
+		obj_t* obj = ctx->mem.gc.marked[
+			--ctx->mem.gc.nmarked];
 		obj_deep_mark(obj, ctx);
 	}
 }
@@ -3945,7 +3926,7 @@ void gc_sweep(sylt_t* ctx) {
 		o = o->next;
 		n++;
 	}
-	sylt_dprintf("%ld swept\n", n);
+	sylt_dprintf("freeing %ld\n", n);
 	#endif
 	
 	while (obj) {
@@ -4221,11 +4202,6 @@ int main(int argc, char *argv[]) {
 		sylt_printf("Usage: sylt [file]\n");
 		return EXIT_SUCCESS;
 	}
-	
-	printf("%d\n", nextpow2(0));
-	printf("%d\n", nextpow2(1));
-	printf("%d\n", nextpow2(7));
-	printf("%d\n", nextpow2(500));
 	
 	sylt_t* ctx = sylt_new();
 	//sylt_test(ctx);

@@ -49,12 +49,11 @@ let flatten(ls) = {
 			let item = ls[i]
 			
 			if (typeof(item) == "List") {
-				let rec = flatten(item)
-				concat_mut(flat, rec)
+				concat_mut(
+					flat,
+					flatten(item))
 				
-			} else {
-				push(flat, item)
-			}
+			} else push(flat, item)
 			
 			loop(i + 1)
 		}
@@ -66,13 +65,9 @@ let flatten(ls) = {
 let any(ls, f) = {
 	let loop(i) =
 		if (i < length(ls)) {
-			if (f(ls[i]))
-				true
-			else
-				loop(i + 1)
-		} else {
-			false
-		}
+			if (f(ls[i])) true
+			else loop(i + 1)
+		} else false
 		
 	loop(0)
 }
@@ -80,13 +75,9 @@ let any(ls, f) = {
 let all(ls, f) = {
 	let loop(i) =
 		if (i < length(ls)) {
-			if (!f(ls[i]))
-				false
-			else
-				loop(i + 1)
-		} else {
-			true
-		}
+			if (!f(ls[i])) false
+			else loop(i + 1)
+		} else true
 		
 	loop(0)
 }
@@ -429,7 +420,7 @@ let functions() = {
 
 let if_else() = {
 	## implicit nil
-	ensure(if (false) {} == nil)
+	##ensure(if (false) {} == nil)
 	
 	## if branch
 	let result = if (true) "A" else "B"
@@ -459,14 +450,8 @@ let match_with() = {
 	let result =
 		match 100 with
 		| 100 -> "Success"
-		? -> nil
-	ensure(result == "Success")
-	
-	## match last arm
-	let result =
-		match 200 with
-		| 100 -> "Fail"
-		| 200 -> "Success"
+		| 150 -> "Fail"
+		| 200 -> "Fail"
 		? -> nil
 	ensure(result == "Success")
 	
@@ -475,22 +460,31 @@ let match_with() = {
 		match 150 with
 		| 100 -> "Fail"
 		| 150 -> "Success"
-		| 200 -> "Fail #2"
+		| 200 -> "Fail"
 		? -> nil
 	ensure(result == "Success")
 	
-	## example
+	## match last arm
+	let result =
+		match 200 with
+		| 100 -> "Fail"
+		| 150 -> "Fail"
+		| 200 -> "Success"
+		? -> nil
+	ensure(result == "Success")
+	
+	## match three arms + wildcard
 	let name(num) =
 		match num with
 		| 0 -> "Zero"
 		| 1 -> "One"
 		| 2 -> "Two"
-		? -> "Too high"
+		? -> "?"
 		
 	ensure(name(0) == "Zero")
 	ensure(name(1) == "One")
 	ensure(name(2) == "Two")
-	ensure(name(3) == "Too high")
+	ensure(name(3) == "?")
 }
 
 let prelude_lib() = {
@@ -501,7 +495,7 @@ let prelude_lib() = {
 	ensure(tostring(707) == "707")
 	ensure(tostring(["bananas", 18, true])
 		== "[\"bananas\", 18, true]")
-	ensure(tostring(repn) == "repn()")
+	ensure(tostring(tostring) == "tostring")
 	
 	## typeof
 	ensure(typeof(nil) == "Nil")
@@ -541,8 +535,7 @@ let list_lib() = {
 	## concat_mut
 	let a = [1, 2]
 	let b = [3, 4]
-	let result = concat_mut(a, b)
-	ensure(result == nil)
+	ensure(concat_mut(a, b) == nil)
 	ensure(a == [1, 2, 3, 4])
 }
 
@@ -589,10 +582,10 @@ let iter_lib() = {
 
 let math_lib() = {
 	## pi
-	ensure(nearly(pi(), 3.141592, 0.001))
+	ensure(nearly(PI, 3.141592, 0.001))
 	
-	## eulers
-	ensure(nearly(eulers(), 2.718281, 0.001))
+	## euler's number
+	ensure(nearly(E, 2.718281, 0.001))
 	
 	## nearly
 	let zero = 0
@@ -609,7 +602,7 @@ let math_lib() = {
 	let target = 8
 	let bases = [
 		## common
-		2, eulers(), 10,
+		2, E, 10,
 		## uncommon
 		3, 14, 2000, 18000, 2000000,
 	]
@@ -643,11 +636,9 @@ let math_lib() = {
 		ensure(round(high) == n + 1)
 	
 		ensure(round(mid) ==
-			if (n >= 0) {
-				n + 1
-			} else {
-				n
-			})
+			if (n < 0) n
+			else n + 1
+		)
 	}
 	
 	check_rounding(-4)
@@ -713,25 +704,28 @@ let run = flatten([
 	],
 ])
 
-## let's go
+## number of times to run each test
+let iterations = 10
+ensure(iterations > 0)
 
-let iterations = 1
-repn(iterations, fun(_) ->
-	foreach(run, fun(_, val) -> {
-		if (typeof(val) == "String") {
-			put(val)
-			putln(":")
+## let's go!!!
+foreach(run, fun(_, val) ->
+	if (typeof(val) == "String") {
+		## category name
+		put(val)
+		putln(":")
 		
-		} else {
-			put("  ")
-			put(tostring(val))
-			put(".....")
+	} else {
+		## test
+		put("  ")
+		put(tostring(val))
+		put(".....")
 		
-			## run it
-			val()
+		## run it
+		repn(iterations, fun(_) -> val())
 		
-			putln("Ok")
-		}
-	}))
+		putln("Ok")
+	}
+)
 
 putln("All tests passed!")

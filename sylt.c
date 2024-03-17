@@ -32,8 +32,11 @@
 
 /* disables garbage collection, though
  * memory will still be freed at shutdown
- * to prevent memory leaks */
-#define DBG_NO_GC 0
+ * (sylt_free) to prevent memory leaks */
+#define DBG_NO_GC 1
+
+/* makes the GC collect on every allocation */
+#define DBG_GC_EVERY_ALLOC 1
 
 #define DBG_PRINT_SYLT_STATE 1
 #define DBG_PRINT_GC_STATE 1
@@ -121,7 +124,7 @@ static const char* SYLT_STATE_NAME[] = {
 
 typedef enum {
 	/* not busy */
-	GC_STATE_DONE,
+	GC_STATE_IDLE,
 	/* marking reachable objects */
 	GC_STATE_MARK,
 	/* deallocating unreachable objects */
@@ -167,7 +170,10 @@ typedef struct {
 	mem_t mem;
 } sylt_t;
 
-/* longjmp destination on error */
+/* longjmp destination on error.
+ * kept outside sylt_t struct as an
+ * out of memory error could occur
+ * while allocating it */
 static jmp_buf err_jump;
 
 static void sylt_set_state(
@@ -238,7 +244,17 @@ void halt(sylt_t*, const char*, ...);
 
 /* == memory == */
 
-#define GC_EVERY_ALLOC 1
+/* returns n rounded up to the nearest
+ * power of two */
+static unsigned nextpow2(unsigned n) {
+	n--;
+	n |= n >> 1;
+	n |= n >> 2;
+	n |= n >> 4;
+	n |= n >> 8;
+	n |= n >> 16;
+	return ++n;
+}
 
 #define gc_realloc realloc
 #define gc_free free
@@ -270,7 +286,7 @@ void* ptr_resize(
 				
 		ctx->mem.count++;
 		
-		#if GC_EVERY_ALLOC
+		#if DBG_GC_EVERY_ALLOC
 		if (ns > os)
 			gc_collect(ctx, func_name, line);
 		#endif
@@ -760,15 +776,15 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 		func_t* func = (func_t*)obj;
 		arr_free(func->code,
 			uint8_t,
-			func->ncode,
+			nextpow2(func->ncode),
 			ctx);
     	arr_free(func->data,
     		value_t,
-    		func->ndata,
+    		nextpow2(func->ndata),
     		ctx);
     	arr_free(func->lines,
     		uint32_t,
-    		func->nlines,
+    		nextpow2(func->nlines),
     		ctx);
 		
 		ptr_free(func, func_t, ctx);
@@ -1076,20 +1092,6 @@ func_t* func_new(
 	return func;
 }
 
-/* creates a new function pointing to a
- * C function */
-func_t* func_newc(
-	sylt_t* ctx,
-	string_t* name,
-	cfunc_t cfunc,
-	int params)
-{
-	func_t* func = func_new(ctx, name);
-	func->params = params;
-	func->cfunc = cfunc;
-	return func;
-}
-
 /* writes a byte to the functions
  * bytecode array */
 void func_write(
@@ -1103,21 +1105,29 @@ void func_write(
 		return;
 	}
 	
-	func->code = arr_resize(
-		func->code,
-		uint8_t,
-		func->ncode,
-		func->ncode + 1,
-		ctx);
+	size_t oldsz = nextpow2(func->ncode);
+	size_t newsz = nextpow2(func->ncode + 1);
+	if (newsz > oldsz) {
+		func->code = arr_resize(
+			func->code,
+			uint8_t,
+			oldsz,
+			newsz,
+			ctx);
+	}
 	func->code[func->ncode++] = byte;
 	
 	/* map line number to byte */
-	func->lines = arr_resize(
-		func->lines,
-		uint32_t,
-		func->nlines,
-		func->nlines + 1,
-		ctx);
+	oldsz = nextpow2(func->nlines);
+	newsz = nextpow2(func->nlines + 1);
+	if (newsz > oldsz) {
+		func->lines = arr_resize(
+			func->lines,
+			uint32_t,
+			oldsz,
+			newsz,
+			ctx);
+	}
 	func->lines[func->nlines++] = line;
 }
 
@@ -1143,12 +1153,18 @@ size_t func_write_data(
 	}
 	
 	vm_push(ctx->vm, val); /* GC */
-	func->data = arr_resize(
-		func->data,
-		value_t,
-		func->ndata,
-		func->ndata + 1,
-		ctx);
+	
+	size_t oldsz = nextpow2(func->ndata);
+	size_t newsz = nextpow2(func->ndata + 1);
+	if (newsz > oldsz) {
+		func->data = arr_resize(
+			func->data,
+			value_t,
+			oldsz,
+			newsz,
+			ctx);
+	}
+	
 	vm_pop(ctx->vm); /* GC */
 		
 	func->data[func->ndata++] = val;
@@ -3749,10 +3765,10 @@ void std_addf(
 	/* hide from GC */
 	sylt_pushstring(ctx,
 		string_lit(name, ctx));
-	sylt_pushfunc(ctx, func_newc(ctx,
-		sylt_peekstring(ctx, 0),
-		cfunc,
-		params));
+	sylt_pushfunc(ctx, func_new(
+		ctx, sylt_peekstring(ctx, 0)));
+	sylt_peekfunc(ctx, 0)->cfunc = cfunc;
+	sylt_peekfunc(ctx, 0)->params = params;
 	
 	std_add(ctx, name, sylt_peek(ctx, 0));
 	
@@ -3781,7 +3797,7 @@ void gc_resume(sylt_t* ctx) {
 		ctx->mem.gc.npauses--;
 	
 	if (ctx->mem.gc.npauses == 0)
-		gc_set_state(ctx, GC_STATE_DONE);
+		gc_set_state(ctx, GC_STATE_IDLE);
 }
 
 void gc_mark(sylt_t*, const char*, int);
@@ -3793,21 +3809,21 @@ void gc_collect(
 	const char* func_name,
 	int line)
 {
-	#if DBG_NOGC
+	#if DBG_NO_GC
 	return;
 	#endif
 	
 	if (ctx->mem.gc.state == GC_STATE_PAUSED)
 		return;
-	//if (ctx->state == SYLT_STATE_COMPILING) return;
+	/*if (ctx->state == SYLT_STATE_COMPILING) return;*/
 	assert(ctx->mem.gc.state
-		== GC_STATE_DONE);
+		== GC_STATE_IDLE);
 
 	gc_mark(ctx, func_name, line);
 	gc_sweep(ctx);
 	
 	ctx->mem.gc.nruns++;
-	gc_set_state(ctx, GC_STATE_DONE);
+	gc_set_state(ctx, GC_STATE_IDLE);
 }
 
 void gc_mark_vm_roots(sylt_t*);
@@ -4205,6 +4221,11 @@ int main(int argc, char *argv[]) {
 		sylt_printf("Usage: sylt [file]\n");
 		return EXIT_SUCCESS;
 	}
+	
+	printf("%d\n", nextpow2(0));
+	printf("%d\n", nextpow2(1));
+	printf("%d\n", nextpow2(7));
+	printf("%d\n", nextpow2(500));
 	
 	sylt_t* ctx = sylt_new();
 	//sylt_test(ctx);

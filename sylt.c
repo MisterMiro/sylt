@@ -139,9 +139,8 @@ typedef struct {
 	struct obj_s** marked;
 	size_t nmarked;
 	/* number of succesful gc_collect calls */
-	size_t nruns;
-	/* how many times the GC was paused */
-	size_t npauses;
+	size_t cycles;
+	size_t pause_depth;
 } gc_t;
 
 typedef struct {
@@ -153,6 +152,8 @@ typedef struct {
 	ptrdiff_t highest;
 	/* total number of allocations */
 	size_t count;
+	/* number of objects allocated */
+	size_t objcount;
 	/* garbage collector */
 	gc_t gc;
 } mem_t;
@@ -244,9 +245,20 @@ void halt(sylt_t*, const char*, ...);
 
 /* == memory == */
 
+/* initial capacity for dynamic arrays.
+ * higher values lead to less allocations
+ * but more wasted memory and vice versa.
+ * should be a power of two */
+#define INIT_ARRAY_CAP 8
+
 /* returns n rounded up to the nearest
- * power of two */
+ * power of two. this is used to avoid
+ * having to store a separate value for
+ * the length and the capacity of an array */
 static unsigned nextpow2(unsigned n) {
+	if (n > 0 && n < INIT_ARRAY_CAP)
+		return INIT_ARRAY_CAP;
+	
 	n--;
 	n |= n >> 1;
 	n |= n >> 2;
@@ -256,6 +268,8 @@ static unsigned nextpow2(unsigned n) {
 	return ++n;
 }
 
+/* the GC needs to allocate some memory
+ * while working */
 #define gc_realloc realloc
 #define gc_free free
 
@@ -263,6 +277,8 @@ void gc_pause(sylt_t*);
 void gc_resume(sylt_t*);
 void gc_collect(sylt_t*, const char*, int);
 
+/* handles all memory allocation
+ * (see macros below) */
 void* ptr_resize(
 	void* p,
 	size_t os,
@@ -343,13 +359,13 @@ typedef enum {
 	OP_PUSH_LIST,
 	OP_PUSH_FUNC,
 	OP_POP,
+	OP_POP_HEAP,
 	OP_DUP,
 	OP_SWAP,
 	OP_LOAD,
 	OP_STORE,
 	OP_LOAD_LIST,
 	OP_LOAD_UPVAL,
-	OP_MOVE_HEAP,
 	OP_HIDE_RET,
 	OP_SHOW_RET,
 	/* arithmetic */
@@ -397,13 +413,13 @@ static opinfo_t OPINFO[] = {
 	[OP_PUSH_LIST] = {"push list", 1, +1},
 	[OP_PUSH_FUNC] = {"push func", 1, +1},
 	[OP_POP] = {"pop", 0, -1},
+	[OP_POP_HEAP] = {"pop heap", 0, -1},
 	[OP_DUP] = {"dup", 0, +1},
 	[OP_SWAP] = {"swap", 0, 0},
 	[OP_LOAD] = {"load", 1, +1},
 	[OP_STORE] = {"store", 1, 0},
 	[OP_LOAD_LIST] = {"load list", 0, -1},
 	[OP_LOAD_UPVAL] = {"load upval", 1, +1},
-	[OP_MOVE_HEAP] = {"move heap", 0, -1},
 	[OP_HIDE_RET] = {"hide ret", 0, -1},
 	[OP_SHOW_RET] = {"show ret", 0, +1},
 	[OP_ADD] = {"add", 0, -1},
@@ -636,6 +652,9 @@ typedef struct vm_s {
 #define wrapclosure(v) \
 	(value_t){TYPE_CLOSURE, \
 		{.obj = (obj_t*)(v)}}
+#define wrapupvalue(v) \
+	(value_t){TYPE_UPVALUE, \
+		{.obj = (obj_t*)(v)}}
 
 /* macros for getting the raw value from 
  * a value_t. the type must be
@@ -652,6 +671,8 @@ typedef struct vm_s {
 	((func_t*)(v).data.obj)
 #define getclosure(v) \
 	((closure_t*)(v).data.obj)
+#define getupvalue(v) \
+	((upvalue_t*)(v).data.obj)
 
 #define typecheck(ctx, v, t) \
 	if (v.tag != t) \
@@ -730,6 +751,7 @@ obj_t* obj_new_impl(
 	obj->marked = false;
 	obj->next = ctx->mem.objs;
 	ctx->mem.objs = obj;
+	ctx->mem.objcount++;
 	
 	dbg_print_obj_mem(obj, false);
 	return obj;
@@ -753,7 +775,7 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 		list_t* list = (list_t*)obj;
 		arr_free(list->items,
 			value_t,
-			list->len,
+			nextpow2(list->len),
 			ctx);
 		
 		ptr_free(list, list_t, ctx);
@@ -915,27 +937,34 @@ value_t list_get(
 void list_push(
 	list_t* ls, value_t val, sylt_t* ctx)
 {
-	ls->items = arr_resize(
-		ls->items,
-		value_t,
-		ls->len,
-		ls->len + 1,
-		ctx);
+	/* grow allocation */
+	size_t oldsz = nextpow2(ls->len);
+	size_t newsz = nextpow2(ls->len + 1);
+	if (newsz > oldsz) {
+		ls->items = arr_resize(
+			ls->items, value_t,
+			oldsz, newsz, ctx);
+	}
+	
 	ls->items[ls->len++] = val;
 }
 
-/* deletes and returns the last item
- * in the list */
+/* returns and then removes the last item
+ * from the list */
 value_t list_pop(list_t* ls, sylt_t* ctx) {
 	if (ls->len == 0)
 		return wrapnil();
 	value_t last = list_get(ls, -1, ctx);
-	ls->items = arr_resize(
-		ls->items,
-		value_t,
-		ls->len,
-		ls->len - 1,
-		ctx);
+	
+	/* shrink allocation */
+	size_t oldsz = nextpow2(ls->len);
+	size_t newsz = nextpow2(ls->len - 1);
+	if (newsz < oldsz) {
+		ls->items = arr_resize(
+			ls->items, value_t,
+			oldsz, newsz, ctx);
+	}
+	
 	ls->len--;
 	return last;
 }
@@ -1018,6 +1047,21 @@ string_t* string_fmt(
 		bytes, len, true, ctx);
 }
 
+/* returns true if a == b */
+bool string_eq(
+	const string_t* a,
+	const string_t* b)
+{
+	if (a == b)
+		return true;
+		
+	if (a->len != b->len)
+		return false;
+		
+	return memcmp(
+			a->bytes, b->bytes, a->len) == 0;
+}
+
 /* concatenates two strings */
 string_t* string_concat(
 	const string_t* a,
@@ -1066,6 +1110,21 @@ void string_append(
 	*dst = sylt_popstring(ctx);
 }
 
+void string_print(string_t* str) {
+	sylt_printf("%.*s",
+		(int)str->len, str->bytes);
+}
+
+void string_eprint(string_t* str) {
+	sylt_eprintf("%.*s",
+		(int)str->len, str->bytes);
+}
+
+void string_dprint(string_t* str) {
+	sylt_dprintf("%.*s",
+		(int)str->len, str->bytes);
+}
+
 /* == function == */
 
 /* creates a new function */
@@ -1108,11 +1167,8 @@ void func_write(
 	size_t newsz = nextpow2(func->ncode + 1);
 	if (newsz > oldsz) {
 		func->code = arr_resize(
-			func->code,
-			uint8_t,
-			oldsz,
-			newsz,
-			ctx);
+			func->code, uint8_t,
+			oldsz, newsz, ctx);
 	}
 	func->code[func->ncode++] = byte;
 	
@@ -1121,11 +1177,8 @@ void func_write(
 	newsz = nextpow2(func->nlines + 1);
 	if (newsz > oldsz) {
 		func->lines = arr_resize(
-			func->lines,
-			uint32_t,
-			oldsz,
-			newsz,
-			ctx);
+			func->lines, uint32_t,
+			oldsz, newsz, ctx);
 	}
 	func->lines[func->nlines++] = line;
 }
@@ -1238,23 +1291,13 @@ bool val_eq(value_t a, value_t b) {
 		
 		return true;
 	}
-	case TYPE_STRING: {
-		string_t* stra = getstring(a);
-		string_t* strb = getstring(b);
-		if (stra == strb)
-			return true;
-		
-		return stra->len == strb->len
-			&& memcmp(
-				stra->bytes,
-				strb->bytes,
-				stra->len) == 0;
-	}
+	case TYPE_STRING:
+		return string_eq(
+			getstring(a), getstring(b));
 	case TYPE_FUNCTION:
 	case TYPE_CLOSURE:
-	case TYPE_UPVALUE: {
+	case TYPE_UPVALUE:
 		return getobj(a) == getobj(b);
-	}
 	default: unreachable();
 	}
 }
@@ -1403,21 +1446,35 @@ void vm_free(vm_t* vm) {
 		vm->ctx);
 }
 
+/* virtual machine macros */
+#define read() *vm->fp->ip++
+#define read16() \
+	(vm->fp->ip += 2, (uint16_t) \
+		((vm->fp->ip[-2] << 8) \
+			| vm->fp->ip[-1]))
+
+#define push(v) vm_push(vm, (v))
+#define pop() vm_pop(vm)
+#define peek(n) vm_peek(vm, (n))
+#define shrink(n) vm_shrink(vm, (n))
+
+#define func_stack() \
+	vm->stack + vm->fp->offs
+
 void dbg_print_mem_stats(sylt_t* ctx) {
 	#if DBG_PRINT_MEM_STATS
 	sylt_dprintf(
-		"[memory information]\n"
+		"[memory info]\n"
 		"- leaked: %ld bytes\n"
 		"- highest usage: %ld bytes\n"
 		"- allocations: %ld\n"
-		"- GC runs: %ld\n"
-		"- GC pauses: %ld",
+		"- objects: %ld\n"
+		"- gc cycles: %ld\n",
 		ctx->mem.bytes - sizeof(sylt_t),
 		ctx->mem.highest,
 		ctx->mem.count,
-		ctx->mem.gc.nruns,
-		ctx->mem.gc.npauses);
-	sylt_dprintf("\n");
+		ctx->mem.objcount,
+		ctx->mem.gc.cycles);
 	#endif
 }
 
@@ -1453,9 +1510,9 @@ void dbg_print_header(
 {
 	const func_t* func = cls->func;
 	
-	sylt_dprintf("\n-> %.*s\n",
-		(int)func->name->len,
-		func->name->bytes);
+	sylt_dprintf("\n-> ");
+	string_dprint(func->name);
+	sylt_dprintf("\n");
 	
 	sylt_dprintf("depth %d/%d, ",
 		(int)vm->nframes, MAX_CFRAMES);
@@ -1486,11 +1543,9 @@ void dbg_print_header(
 			24,
 			vm->ctx);
 		
-		sylt_dprintf(
-			"    #%-2ld -- %.*s\n",
-			i,
-			(int)str->len,
-			str->start);
+		sylt_dprintf("    #%-2ld -- ", i);
+		string_dprint(str);
+		sylt_dprintf("\n");
 	}
 	#endif
 		
@@ -1545,8 +1600,7 @@ void dbg_print_stack(
 	if (vm->fp->ip - 1 == func->code)
 		return;
 	
-	value_t* start =
-		vm->stack + vm->fp->offs;
+	value_t* start = func_stack();
 	
 	/* only display the last N values */
 	ptrdiff_t diff = vm->sp - start;
@@ -1621,23 +1675,18 @@ static inline value_t vm_peek(
 	return *ptr;
 }
 
-/* virtual machine macros */
-#define read() *vm->fp->ip++
-#define read16() \
-	(vm->fp->ip += 2, (uint16_t) \
-		((vm->fp->ip[-2] << 8) \
-			| vm->fp->ip[-1]))
-#define push(v) vm_push(vm, (v))
-#define pop() vm_pop(vm)
-#define shrink(n) vm_shrink(vm, (n))
-#define peek(n) vm_peek(vm, (n))
-
 void vm_math(vm_t* vm, op_t opcode);
+
+/* some extra stack space for hiding stuff
+ * from the GC */
+#define EXTRA_STACK 32
 
 /* grows the stack if necessary */
 void vm_ensurestack(vm_t* vm, int needed) {
+	needed += EXTRA_STACK;
 	if (vm->maxstack >= needed)
 		return;
+	
 	gc_pause(vm->ctx);
 	size_t offset = vm->sp - vm->stack;
 	
@@ -1662,9 +1711,13 @@ value_t vm_getupval(
 	return vm->stack[upval->index];
 }
 
+/* captures a stack variable into an
+ * upvalue */
 upvalue_t* vm_capupval(
 	vm_t* vm, size_t index)
 {
+	/* check if there already exists an
+	 * upvalue for the given index */
 	upvalue_t* prev = NULL;
 	upvalue_t* cur = vm->openups;
 	while (cur && cur->index > index) {
@@ -1672,12 +1725,15 @@ upvalue_t* vm_capupval(
 		cur = cur->next;
 	}
 	
+	/* return previous upvalue */
 	if (cur && cur->index == index)
 		return cur;
 	
+	/* create a fresh upvalue */
 	upvalue_t* fresh = upvalue_new(
 		vm->ctx, index);
 	
+	/* insert it into linked list */
 	fresh->next = cur;
 	if (!prev)
 		vm->openups = fresh;
@@ -1769,10 +1825,9 @@ void vm_exec(vm_t* vm) {
 			list_t* ls = list_new(vm->ctx);
 			
 			push(wraplist(ls)); /* GC */
-			for (int i = len; i > 0; i--) {
+			for (int i = len; i > 0; i--)
 				list_push(
 					ls, peek(i), vm->ctx);
-			}
 			pop(); /* GC */
 			
 			shrink(len);
@@ -1804,22 +1859,27 @@ void vm_exec(vm_t* vm) {
 			{
 				uint8_t islocal = read();
 				uint8_t index = read();
-				if (islocal) {
-					size_t pos =
-						vm->fp->offs + index;
-			
-					cls->upvals[i] =
-						vm_capupval(vm, pos);
-				} else {
-					cls->upvals[i] = vm->fp->
+				
+				upvalue_t* upval = NULL;
+				if (islocal)
+					upval = vm_capupval(vm,
+						vm->fp->offs + index);
+				else
+					upval = vm->fp->
 						cls->upvals[index];
-				}
+				cls->upvals[i] = upval;
 			}
 			
 			gc_resume(vm->ctx);
 			break;
 		}
 		case OP_POP: {
+			pop();
+			break;
+		}
+		case OP_POP_HEAP: {
+			vm_closeupvals(vm,
+				vm->sp - vm->stack - 1);
 			pop();
 			break;
 		}
@@ -1869,13 +1929,6 @@ void vm_exec(vm_t* vm) {
 			value_t val = vm_getupval(vm,
 				vm->fp->cls->upvals[index]);
 			push(val);
-			break;
-		}
-		case OP_MOVE_HEAP: {
-			size_t pos = 
-				vm->sp - vm->stack - 1;
-			vm_closeupvals(vm, pos);
-			pop();
 			break;
 		}
 		case OP_HIDE_RET: {
@@ -2022,8 +2075,7 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_RET: {
-			/* save return value */
-			value_t result = pop();
+			value_t retval = pop();
 			
 			/* move any values referenced by
 			 * upvalues that are about to
@@ -2039,11 +2091,8 @@ void vm_exec(vm_t* vm) {
 			
 			/* shrink stack to get rid of
 			 * function and arguments */
-			vm->sp =
-				vm->stack + vm->fp->offs - 1;
-				
-			/* restore return value */
-			push(result);
+			vm->sp = func_stack() - 1;
+			push(retval);
 			
 			vm->fp =
 				&vm->frames[vm->nframes - 1];
@@ -2120,9 +2169,13 @@ void vm_math(vm_t* vm, op_t opcode) {
 
 #undef read
 #undef read16
+
 #undef push
 #undef pop
 #undef peek
+#undef shrink
+
+#undef func_stack
 
 /* == standard library == */
 
@@ -2429,10 +2482,8 @@ typedef enum {
 typedef struct {
 	/* token type */
 	token_type_t tag;
-	/* pointer to the start of the token */
-	const char* start;
-	/* length of the token */
-	size_t len;
+	/* lexeme */
+	string_t* lex;
 	/* line number */
 	uint32_t line;
 } token_t;
@@ -2465,7 +2516,8 @@ typedef enum {
 const int ANY_PREC = PREC_ASSIGN;
 
 typedef struct {
-	token_t name;
+	/* symbol name */
+	string_t* name;
 	/* scope depth */
 	int depth;
 	/* captured by a closure */
@@ -2497,8 +2549,8 @@ typedef struct comp_s {
 	token_t prev;
 	token_t cur;
 	/* symbol table */
-	symbol_t* names;
-	size_t nnames;
+	symbol_t* syms;
+	size_t nsyms;
 	/* current scope depth */
 	int depth;
 	/* upvalues for current function */
@@ -2524,8 +2576,8 @@ void comp_init(
 	cmp->src = src;
 	cmp->pos = (char*)cmp->src->bytes;
 	cmp->line = 1;
-	cmp->names = NULL;
-	cmp->nnames = 0;
+	cmp->syms = NULL;
+	cmp->nsyms = 0;
 	cmp->depth = 0;
 	cmp->ctx = ctx;
 	
@@ -2537,9 +2589,9 @@ void comp_init(
 
 void comp_free(comp_t* cmp) {
 	arr_free(
-		cmp->names,
+		cmp->syms,
 		symbol_t,
-		cmp->nnames,
+		cmp->nsyms,
 		cmp->ctx);
 }
 
@@ -2550,8 +2602,11 @@ token_t scan(comp_t* cmp) {
 	#define token(tag) \
 		(token_t){ \
 			tag, \
-			start, \
-			cmp->pos - start, \
+			string_new( \
+				start, \
+				cmp->pos - start, \
+				false, \
+				cmp->ctx), \
 			cmp->line}
 	#define step() cmp->pos++
 	#define peek() (*cmp->pos)
@@ -2855,12 +2910,14 @@ void patch_jump(comp_t* cmp, int addr) {
 
 /* adds a name to the symbol table
  * and returns its index */
-int add_symbol(comp_t* cmp, token_t name) {
+int add_symbol(comp_t* cmp, string_t* name) {
 	#if DBG_PRINT_NAMES
 	for (int i = 0; i < cmp->depth; i++)
 		sylt_dprintf("  ");
-	sylt_dprintf("(sym) %.*s\n",
-		(int)name.len, name.start);
+	
+	sylt_dprintf("(sym) %.*s\n");
+	string_dprint(name);
+	sylt_dprintf("\n");
 	#endif
 	
 	symbol_t sym;
@@ -2868,36 +2925,29 @@ int add_symbol(comp_t* cmp, token_t name) {
 	sym.depth = cmp->depth;
 	sym.capped = false;
 	
-	cmp->names = arr_resize(
-		cmp->names,
+	cmp->syms = arr_resize(
+		cmp->syms,
 		symbol_t,
-		cmp->nnames,
-		cmp->nnames + 1,
+		cmp->nsyms,
+		cmp->nsyms + 1,
 		cmp->ctx);
 	
-	cmp->names[cmp->nnames++] = sym;
-	return cmp->nnames - 1;
+	cmp->syms[cmp->nsyms++] = sym;
+	return cmp->nsyms - 1;
 }
 
 /* returns the index of a local variable
  * in the symbol table or -1 if not found */
-int find_symbol(comp_t* cmp, token_t name) {
-	if (cmp->nnames == 0)
+int find_symbol(comp_t* cmp, string_t* name) {
+	if (cmp->nsyms == 0)
 		return -1;
 	
 	/* search backwards in case of
 	 * shadowed variable names */
-	int start = cmp->nnames - 1;
+	int start = cmp->nsyms - 1;
 	for (int i = start; i >= 0; i--) {
-		token_t other = cmp->names[i].name;
-		bool match =
-			other.len == name.len
-			&& memcmp(
-				name.start,
-				other.start,
-				name.len) == 0;
-		
-		if (match)
+		string_t* other = cmp->syms[i].name;
+		if (string_eq(name, other))
 			return i;
 	}
 	
@@ -2934,7 +2984,9 @@ int add_upvalue(
 
 /* returns the index of an upvalue in the
  * upvalue array or -1 if not found */
-int find_upvalue(comp_t* cmp, token_t name) {
+int find_upvalue(
+	comp_t* cmp, string_t* name)
+{
 	if (!cmp->parent)
 		return -1;
 	
@@ -2943,7 +2995,7 @@ int find_upvalue(comp_t* cmp, token_t name) {
 	int local =
 		find_symbol(cmp->parent, name);
 	if (local != -1) {
-		cmp->parent->names[local].capped =
+		cmp->parent->syms[local].capped =
 			true;
 		return add_upvalue(cmp, local, true);
 	}
@@ -3104,8 +3156,8 @@ void expr(comp_t* cmp, prec_t prec) {
 	if (!prefix) {
 		halt(cmp->ctx,
 			"expected expression, got '%.*s'",
-			(int)cmp->prev.len,
-			cmp->prev.start);
+			(int)cmp->prev.lex->len,
+			cmp->prev.lex->bytes);
 		return;
 	}
 	
@@ -3142,20 +3194,23 @@ void literal(comp_t* cmp) {
 void name(comp_t* cmp) {
 	dbg_printfname();
 	
-	int index = find_symbol(cmp, cmp->prev);
+	int index = find_symbol(
+		cmp, cmp->prev.lex);
+	
 	if (index != -1) {
 		emit_unary(cmp, OP_LOAD, index);
 		return;
 	}
 	
-	index = find_upvalue(cmp, cmp->prev);
+	index = find_upvalue(cmp, cmp->prev.lex);
 	if (index != -1) {
 		emit_unary(cmp, OP_LOAD_UPVAL, index);
 		return;
 	}
 	
 	halt(cmp->ctx, E_UNDEFINED(
-		cmp->prev.len, cmp->prev.start));
+		cmp->prev.lex->len,
+		cmp->prev.lex->bytes));
 }
 
 /* parses a list literal */
@@ -3183,19 +3238,19 @@ void string(comp_t* cmp) {
 	dbg_printfname();
 	
 	token_t token = cmp->prev;
-	assert(token.len >= 2); /* "" */
+	assert(token.lex->len >= 2); /* "" */
 	
 	/* allocate an empty string the same size
 	 * as the length of the string literal */
 	string_t* dst = string_new(
 		NULL,
-		token.len - 2,
+		token.lex->len - 2,
 		false,
 		cmp->ctx);
 	size_t write = 0;
 	
-	const char* src = token.start;
-	size_t end = token.len - 1;
+	const uint8_t* src = token.lex->bytes;
+	size_t end = token.lex->len - 1;
 	
 	for (size_t read = 1; read < end;) {
 		if (src[read] != '\\') {
@@ -3285,7 +3340,7 @@ void number(comp_t* cmp) {
 	dbg_printfname();
 	
 	sylt_num_t num = num_func(strtof, strtod)
-		(cmp->prev.start, NULL);
+		((char*)cmp->prev.lex->bytes, NULL);
 	
 	emit_value(cmp, wrapnum(num));
 }
@@ -3412,8 +3467,7 @@ void index(comp_t* cmp) {
 	emit_nullary(cmp, OP_LOAD_LIST);
 }
 
-void parse_func(
-	comp_t* cmp, token_t name, bool);
+void parse_func(comp_t*, string_t*, bool);
 
 /* parses a variable or function binding */
 void let(comp_t* cmp) {
@@ -3421,9 +3475,7 @@ void let(comp_t* cmp) {
 	
 	eat(cmp, T_NAME,
 		"expected variable name after 'let'");
-	
-	/* remember the name token */
-	token_t name = cmp->prev;
+	string_t* name = cmp->prev.lex;
 	
 	if (match(cmp, T_LPAREN)) {
 		 /* parse a function declaration
@@ -3433,7 +3485,6 @@ void let(comp_t* cmp) {
 		 /* add symbol first in order
 	 	 * to support recursion */
 		 add_symbol(cmp, name);
-		 
 		 parse_func(cmp, name, false);
 		
 	} else {
@@ -3461,8 +3512,8 @@ void fun(comp_t* cmp) {
 	eat(cmp, T_LPAREN,
 		"expected '(' after 'fun' keyword");
 	
-	token_t name =
-		(token_t){T_NAME, "_", 1, cmp->line};
+	string_t* name =
+		string_new("_", 1, false, cmp->ctx);
 	parse_func(cmp, name, true);
 }
 
@@ -3476,16 +3527,9 @@ void comp_copystate(
 }
 
 void parse_func(
-	comp_t* cmp,
-	token_t name_tok,
-	bool lambda)
+	comp_t* cmp, string_t* name, bool lambda)
 {
 	dbg_printfname();
-	string_t* name = string_new(
-		name_tok.start,
-		name_tok.len,
-		false, 
-		cmp->ctx);
 		
 	sylt_pushstring(cmp->ctx, cmp->src);
 	sylt_pushstring(cmp->ctx, name);
@@ -3508,9 +3552,7 @@ void parse_func(
 			
 		eat(&fcmp, T_NAME,
 			"expected parameter name");
-			
-		token_t name = fcmp.prev;
-		add_symbol(&fcmp, name);
+		add_symbol(&fcmp, fcmp.prev.lex);
 		fcmp.func->params++;
 			
 		if (!match(&fcmp, T_COMMA))
@@ -3700,9 +3742,9 @@ void block(comp_t* cmp) {
 	 
 	/* count the number of local variables */
 	int locals = 0;
-	int index = cmp->nnames - 1;
+	int index = cmp->nsyms - 1;
 	while (index >= 0 &&
-		cmp->names[index].depth > cmp->depth)
+		cmp->syms[index].depth > cmp->depth)
 	{
 		locals++;
 		index--;
@@ -3716,16 +3758,16 @@ void block(comp_t* cmp) {
 	emit_nullary(cmp, OP_HIDE_RET);
 	
 	/* pop the locals */
-	while (cmp->nnames > 0 &&
-		cmp->names[cmp->nnames - 1].depth
+	while (cmp->nsyms > 0 &&
+		cmp->syms[cmp->nsyms - 1].depth
 			> cmp->depth)
 	{
 		symbol_t* name =
-			&cmp->names[cmp->nnames - 1];
-		cmp->nnames--;
+			&cmp->syms[cmp->nsyms - 1];
+		cmp->nsyms--;
 		
 		if (name->capped)
-			emit_nullary(cmp, OP_MOVE_HEAP);
+			emit_nullary(cmp, OP_POP_HEAP);
 		else
 			emit_nullary(cmp, OP_POP);
 	}
@@ -3734,22 +3776,26 @@ void block(comp_t* cmp) {
 	emit_nullary(cmp, OP_SHOW_RET);
 	
 	/* shrink symbol table */
-	cmp->names = arr_resize(
-		cmp->names,
+	cmp->syms = arr_resize(
+		cmp->syms,
 		symbol_t,
-		cmp->nnames + locals,
-		cmp->nnames,
+		cmp->nsyms + locals,
+		cmp->nsyms,
 		cmp->ctx);
 }
 
 void std_add(
 	sylt_t* ctx,
-	const char* name,
+	const char* name_lit,
 	value_t val)
 {
-	token_t token = (token_t){
-		T_NAME, name, strlen(name), 1};
-	add_symbol(ctx->cmp, token);
+	string_t* name = string_new(
+		name_lit,
+		strlen(name_lit),
+		false,
+		ctx);
+	add_symbol(ctx->cmp, name);
+	
 	gc_pause(ctx);
 	emit_value(ctx->cmp, val);
 	gc_resume(ctx);
@@ -3785,17 +3831,17 @@ void gc_set_state(
 
 void gc_pause(sylt_t* ctx) {
 	gc_set_state(ctx, GC_STATE_PAUSED);
-	ctx->mem.gc.npauses++;
+	ctx->mem.gc.pause_depth++;
 }
 
 void gc_resume(sylt_t* ctx) {
 	if (ctx->mem.gc.state != GC_STATE_PAUSED)
 		return;
 		
-	if (ctx->mem.gc.npauses > 0)
-		ctx->mem.gc.npauses--;
+	if (ctx->mem.gc.pause_depth > 0)
+		ctx->mem.gc.pause_depth--;
 	
-	if (ctx->mem.gc.npauses == 0)
+	if (ctx->mem.gc.pause_depth == 0)
 		gc_set_state(ctx, GC_STATE_IDLE);
 }
 
@@ -3814,14 +3860,18 @@ void gc_collect(
 	
 	if (ctx->mem.gc.state == GC_STATE_PAUSED)
 		return;
-	if (ctx->state == SYLT_STATE_COMPILING) return;
+	
+	/* TODO: temporary */
+	if (ctx->state == SYLT_STATE_COMPILING) 
+		return;
+	
 	assert(ctx->mem.gc.state
 		== GC_STATE_IDLE);
 
 	gc_mark(ctx, func_name, line);
 	gc_sweep(ctx);
 	
-	ctx->mem.gc.nruns++;
+	ctx->mem.gc.cycles++;
 	gc_set_state(ctx, GC_STATE_IDLE);
 }
 
@@ -3893,6 +3943,13 @@ void gc_mark_compiler_roots(sylt_t* ctx) {
 	do {
 		obj_mark((obj_t*)cmp->func, ctx);
 		obj_mark((obj_t*)cmp->src, ctx);
+		obj_mark((obj_t*)cmp->prev.lex, ctx);
+		obj_mark((obj_t*)cmp->cur.lex, ctx);
+		for (int i = 0; i < cmp->nsyms; i++)
+			obj_mark(
+				(obj_t*)cmp->syms[i].name,
+				ctx);
+		
 		cmp = cmp->child;
 	} while (cmp);
 }
@@ -3926,7 +3983,7 @@ void gc_sweep(sylt_t* ctx) {
 		o = o->next;
 		n++;
 	}
-	sylt_dprintf("freeing %ld\n", n);
+	sylt_dprintf("Freeing %ld\n", n);
 	#endif
 	
 	while (obj) {
@@ -4010,10 +4067,9 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		while (cmp->child)
 			cmp = cmp->child;
 		
-		sylt_eprintf("error in %.*s:%d: ",
-			(int)cmp->func->name->len,
-			cmp->func->name->bytes,
-			cmp->prev.line);
+		sylt_eprintf("error in ");
+		string_eprint(cmp->func->name);
+		sylt_eprintf(":%d: ", cmp->prev.line);
 		break;
 	}
 	case SYLT_STATE_EXEC: {
@@ -4025,10 +4081,9 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 				func->code - 1);
 		uint32_t line = func->lines[addr];
 		
-		sylt_eprintf("error in %.*s:%d: ",
-			(int)func->name->len,
-			func->name->bytes,
-			line);
+		sylt_eprintf("error in ");
+		string_eprint(func->name);
+		sylt_eprintf(":%d: ", line);
 		break;
 	}
 	default: sylt_eprintf("error: ");
@@ -4058,12 +4113,13 @@ sylt_t* sylt_new(void) {
 	ctx->mem.bytes += sizeof(sylt_t);
 	ctx->mem.highest = 0;
 	ctx->mem.count = 0;
+	ctx->mem.objcount = 0;
 	
 	/* init GC state */
 	ctx->mem.gc.marked = NULL;
 	ctx->mem.gc.nmarked = 0;
-	ctx->mem.gc.nruns = 0;
-	ctx->mem.gc.npauses = 0;
+	ctx->mem.gc.cycles = 0;
+	ctx->mem.gc.pause_depth = 0;
 	
 	sylt_set_state(ctx, SYLT_STATE_INIT);
 	return ctx;
@@ -4091,6 +4147,8 @@ void sylt_free(sylt_t* ctx) {
 		ptr_free(ctx->cmp, comp_t, ctx);
 		ctx->cmp = NULL;
 	}
+	
+	assert(ctx->mem.gc.pause_depth == 0);
 	
 	/* ensure that no memory was leaked */
 	ptrdiff_t bytesleft =

@@ -328,6 +328,27 @@ let variables() = {
 	## shadowing
 	let x = x - 2
 	ensure(x = 68)
+	
+	## assigning local
+	x <- 14
+	ensure(x = 14)
+	
+	## assigning open upvalue
+	let y = 888
+	let func() =
+		y <- 333
+	func()
+	ensure(y = 333)
+	
+	## assigning closed upvalue
+	let out() = {
+		let z = 4
+		let in() =
+			z <- 900
+		in
+	}
+	let z = out()()
+	ensure(z = 900)
 }
 
 let blocks() = {
@@ -368,6 +389,10 @@ let lists() = {
 	## negative indices count from the end
 	## i.e. index -1 is equivalent to len - 1
 	ensure(list[1] = list[-2])
+	
+	## assignment
+	list[0] <- list[-1]
+	ensure(list = [3, 2, 3])
 }
 
 let functions() = {
@@ -732,7 +757,7 @@ let run = flatten([
 let iterations = 1
 ensure(iterations > 0)
 
-## let's go!!!
+## let's go!
 foreach(run, fun(_, val) ->
 	if (typeof(val) = "String") {
 		let title = val
@@ -745,10 +770,10 @@ foreach(run, fun(_, val) ->
 		put("  ")
 		put(name)
 		
-		## even width
-		let target = 20
+		## align
+		let width = 20
 		let len = length(chars(name))
-		repn(target - len, fun(_) -> put("."))
+		repn(width - len, fun(_) -> put("."))
 		
 		## run it
 		repn(iterations, fun(_) -> val())

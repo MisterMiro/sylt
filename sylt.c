@@ -8,6 +8,11 @@
 #include <ctype.h>
 #include <math.h>
 
+#define SYLT_VERSION_STR "sylt dev"
+#define SYLT_VERSION_MAJ 0
+#define SYLT_VERSION_MIN 0
+#define SYLT_VERSION_REV 0
+
 /* == configuration == */
 
 /* 1 = use doubles
@@ -39,12 +44,12 @@
 #define DBG_GC_EVERY_ALLOC 1
 
 #define DBG_PRINT_SYLT_STATE 1
-#define DBG_PRINT_GC_STATE 1
+#define DBG_PRINT_GC_STATE 0
 #define DBG_PRINT_SOURCE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_AST 0
-#define DBG_PRINT_CODE 1
+#define DBG_PRINT_CODE 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_MEM_STATS 1
@@ -62,7 +67,7 @@
 #define MAX_STACK (UINT8_MAX + 1)
 #define MAX_LINES UINT32_MAX
 #define MAX_JUMP UINT16_MAX
-#define MAX_CFRAMES 64
+#define MAX_CFRAMES 1024
 #define MAX_PARAMS UINT8_MAX
 #define MAX_UPVALUES UINT8_MAX
 #define MAX_MATCH_ARMS 512
@@ -252,13 +257,13 @@ void halt(sylt_t*, const char*, ...);
 #define INIT_ARRAY_CAP 8
 
 /* returns n rounded up to the nearest
- * power of two. this is used to avoid
- * having to store a separate value for
- * the length and the capacity of an array */
+ * power of two. this is used when resizing
+ * dynamic arrays in order to avoid
+ * having to store separate values for
+ * the length and capacity */
 static unsigned nextpow2(unsigned n) {
 	if (n > 0 && n < INIT_ARRAY_CAP)
 		return INIT_ARRAY_CAP;
-	
 	n--;
 	n |= n >> 1;
 	n |= n >> 2;
@@ -361,7 +366,6 @@ typedef enum {
 	OP_POP,
 	OP_POP_HEAP,
 	OP_DUP,
-	OP_SWAP,
 	OP_LOAD,
 	OP_STORE,
 	OP_LOAD_LIST,
@@ -407,21 +411,20 @@ typedef struct {
 /* can be indexed by an opcode byte */
 static opinfo_t OPINFO[] = {
 	[OP_PUSH] = {"push", 1, +1},
-	[OP_PUSH_NIL] = {"push nil", 0, +1},
-	[OP_PUSH_TRUE] = {"push true", 0, +1},
-	[OP_PUSH_FALSE] = {"push false", 0, +1},
-	[OP_PUSH_LIST] = {"push list", 1, +1},
-	[OP_PUSH_FUNC] = {"push func", 1, +1},
+	[OP_PUSH_NIL] = {"push_nil", 0, +1},
+	[OP_PUSH_TRUE] = {"push_true", 0, +1},
+	[OP_PUSH_FALSE] = {"push_false", 0, +1},
+	[OP_PUSH_LIST] = {"push_list", 1, +1},
+	[OP_PUSH_FUNC] = {"push_func", 1, +1},
 	[OP_POP] = {"pop", 0, -1},
-	[OP_POP_HEAP] = {"pop heap", 0, -1},
+	[OP_POP_HEAP] = {"pop_heap", 0, -1},
 	[OP_DUP] = {"dup", 0, +1},
-	[OP_SWAP] = {"swap", 0, 0},
 	[OP_LOAD] = {"load", 1, +1},
 	[OP_STORE] = {"store", 1, 0},
-	[OP_LOAD_LIST] = {"load list", 0, -1},
-	[OP_LOAD_UPVAL] = {"load upval", 1, +1},
-	[OP_HIDE_RET] = {"hide ret", 0, -1},
-	[OP_SHOW_RET] = {"show ret", 0, +1},
+	[OP_LOAD_LIST] = {"load_list", 0, -1},
+	[OP_LOAD_UPVAL] = {"load_upval", 1, +1},
+	[OP_HIDE_RET] = {"hide_ret", 0, -1},
+	[OP_SHOW_RET] = {"show_ret", 0, +1},
 	[OP_ADD] = {"add", 0, -1},
 	[OP_SUB] = {"sub", 0, -1},
 	[OP_MUL] = {"mul", 0, -1},
@@ -975,7 +978,7 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
  * if [take] is true we take ownership of the
  * buffer, otherwise we create a copy */
 string_t* string_new(
-	const char* bytes,
+	uint8_t* bytes,
 	size_t len,
 	bool take,
 	sylt_t* ctx)
@@ -1024,7 +1027,10 @@ string_t* string_lit(
 	const char* lit, sylt_t* ctx)
 {
 	return string_new(
-		lit, strlen(lit), false, ctx);
+		(uint8_t*)lit,
+		strlen(lit),
+		false,
+		ctx);
 }
 
 /* creates a new formatted string */
@@ -1044,7 +1050,7 @@ string_t* string_fmt(
 	va_end(args);
 	
 	return string_new(
-		bytes, len, true, ctx);
+		(uint8_t*)bytes, len, true, ctx);
 }
 
 /* returns true if a == b */
@@ -1076,8 +1082,7 @@ string_t* string_concat(
 	memcpy(bytes + a->len, b->bytes, b->len);
 	
 	string_t* result = string_new(
-		(const char*)bytes,
-		len, true, ctx);
+		bytes, len, true, ctx);
 	return result;
 }
 
@@ -1459,7 +1464,7 @@ void vm_free(vm_t* vm) {
 #define shrink(n) vm_shrink(vm, (n))
 
 #define func_stack() \
-	vm->stack + vm->fp->offs
+	(vm->stack + vm->fp->offs)
 
 void dbg_print_mem_stats(sylt_t* ctx) {
 	#if DBG_PRINT_MEM_STATS
@@ -1888,25 +1893,12 @@ void vm_exec(vm_t* vm) {
 			push(val);
 			break;
 		}
-		case OP_SWAP: {
-			value_t tmp = vm->sp[-2];
-			vm->sp[-2] = vm->sp[-1];
-			vm->sp[-1] = tmp;
-			break;
-		}
 		case OP_LOAD: {
-			value_t val =
-				*(vm->stack
-					+ vm->fp->offs
-					+ read());
-			push(val);
+			push(func_stack()[read()]);
 			break;
 		}
 		case OP_STORE: {
-			value_t val = peek(0);
-			*(vm->stack
-				+ vm->fp->offs
-				+ read()) = val;
+			func_stack()[read()] = peek(0);
 			break;
 		}
 		case OP_LOAD_LIST: {
@@ -1950,9 +1942,7 @@ void vm_exec(vm_t* vm) {
 		}
 		case OP_UMIN: {
 			typecheck(
-				vm->ctx,
-				peek(0),
-				TYPE_NUM);
+				vm->ctx, peek(0), TYPE_NUM);
 			push(wrapnum(-getnum(pop())));
 			break;
 		}
@@ -1979,9 +1969,7 @@ void vm_exec(vm_t* vm) {
 		}
 		case OP_NOT: {
 			typecheck(
-				vm->ctx,
-				vm->sp[-1],
-				TYPE_BOOL);
+				vm->ctx, peek(0), TYPE_BOOL);
 			push(wrapbool(!getbool(pop())));
 			break;
 		}
@@ -2103,11 +2091,9 @@ void vm_exec(vm_t* vm) {
 			#endif
 			break;
 		}
-		default: unreachable(); return;
+		default: unreachable();
 		}
 	}
-	
-	unreachable();
 }
 
 void vm_math(vm_t* vm, op_t opcode) {
@@ -2254,6 +2240,24 @@ value_t std_pop(sylt_t* ctx) {
 	return list_pop(listarg(0), ctx);
 }
 
+/* == string lib == */
+
+/* returns all chars (bytes) in a string
+ * as a list */
+value_t std_chars(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	string_t* str = stringarg(0);
+	list_t* ls = list_new(ctx);
+	
+	for (int i = 0; i < str->len; i++) {
+		string_t* ch = string_new(
+			&str->bytes[i], 1, false, ctx);
+		list_push(ls, wrapstring(ch), ctx);
+	}
+	
+	return wraplist(ls);
+}
+
 /* == math lib == */
 
 /* returns true if arg(0) is nearly equal
@@ -2274,7 +2278,19 @@ value_t std_nearly(sylt_t* ctx) {
 	return wrapbool(diff < epsilon);
 }
 
-/* returns the absolute value of arg(0) */
+/* returns -1 if x is negative, 0 if it's
+ * zero, and 1 if positive */
+value_t std_signum(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	sylt_num_t x = numarg(0);
+	if (x < 0)
+		return wrapnum(-1);
+	if (x == 0)
+		return wrapnum(0);
+	return wrapnum(1);
+}
+
+/* returns the absolute value of x */
 value_t std_abs(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
@@ -2335,14 +2351,49 @@ value_t std_sqrt(sylt_t* ctx) {
 	return wrapnum(result);
 }
 
-/* returns arg(0) rounded towards -infinity */
+/* returns the smaller value of a and b */
+value_t std_min(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	return wrapnum((numarg(0) < numarg(1))
+			? numarg(0)
+			: numarg(1));
+}
+
+/* returns the larger value of a and b */
+value_t std_max(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	return wrapnum((numarg(0) > numarg(1))
+			? numarg(0)
+			: numarg(1));
+}
+
+/* clamps x between lo and hi */
+value_t std_clamp(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	typecheck(ctx, arg(2), TYPE_NUM);
+	
+	sylt_num_t x = numarg(0);
+	sylt_num_t lo = numarg(1);
+	sylt_num_t hi = numarg(2);
+	
+	if (x < lo)
+		return wrapnum(lo);
+	if (x > hi)
+		return wrapnum(hi);
+	return wrapnum(x);
+}
+
+/* returns n rounded towards -infinity */
 value_t std_floor(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(floorf, floor)(numarg(0)));
 }
 
-/* returns arg(0) rounded towards +infinity */
+/* returns n rounded towards +infinity */
 value_t std_ceil(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
@@ -2357,35 +2408,35 @@ value_t std_round(sylt_t* ctx) {
 		num_func(roundf, round)(numarg(0)));
 }
 
-/* returns arg(0) converted from degrees to
+/* returns x converted from degrees to
  * radians */
 value_t std_rads(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * M_PI / 180.0);
 }
 
-/* returns arg(0) converted from radians to
+/* returns x converted from radians to
  * degrees */
 value_t std_degs(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * 180.0 / M_PI);
 }
 
-/* returns the sine of arg(0) */
+/* returns the sine of x */
 value_t std_sin(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(sinf, sin)(numarg(0)));
 }
 
-/* returns the cosine of arg(0) */
+/* returns the cosine of x */
 value_t std_cos(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(cosf, cos)(numarg(0)));
 }
 
-/* returns the tangent of arg(0) */
+/* returns the tangent of x */
 value_t std_tan(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
@@ -2416,14 +2467,21 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "push", std_push, 2);
 	std_addf(ctx, "pop", std_pop, 1);
 	
+	/* string */
+	std_addf(ctx, "chars", std_chars, 1);
+	
 	/* math */
 	std_add(ctx, "PI", wrapnum(M_PI));
 	std_add(ctx, "E", wrapnum(M_E));
 	std_addf(ctx, "nearly", std_nearly, 3);
+	std_addf(ctx, "signum", std_signum, 1);
 	std_addf(ctx, "abs", std_abs, 1);
 	std_addf(ctx, "log", std_log, 2);
 	std_addf(ctx, "raise", std_raise, 2);
 	std_addf(ctx, "sqrt", std_sqrt, 1);
+	std_addf(ctx, "min", std_min, 2);
+	std_addf(ctx, "max", std_max, 2);
+	std_addf(ctx, "clamp", std_clamp, 3);
 	std_addf(ctx, "floor", std_floor, 1);
 	std_addf(ctx, "ceil", std_ceil, 1);
 	std_addf(ctx, "round", std_round, 1);
@@ -2595,6 +2653,243 @@ void comp_free(comp_t* cmp) {
 		cmp->ctx);
 }
 
+/* == codegen == */
+
+void comp_simstack(comp_t* cmp, int n) {
+	cmp->curslots += n;
+	assert(cmp->curslots >= 0);
+	
+	if (cmp->curslots > MAX_STACK) {
+		halt(cmp->ctx, E_STACKLIMIT);
+		unreachable();
+	}
+	
+	/* record the largest stack size */
+	if (cmp->curslots > cmp->func->slots)
+		cmp->func->slots = cmp->curslots;
+}
+
+/* should not be used directly; use the
+ * emit_ functions below instead */
+void emit_op(
+	comp_t* cmp,
+	op_t op,
+	const uint8_t* args,
+	size_t nargs)
+{
+	comp_simstack(cmp, OPINFO[op].effect);
+	
+	/* write the instruction opcode */
+	func_write(
+		cmp->func,
+		op,
+		cmp->prev.line,
+		cmp->ctx);
+	
+	/* write the arguments */
+	for (size_t i = 0; i < nargs; i++) {
+		func_write(
+			cmp->func,
+			args[i],
+			cmp->prev.line,
+			cmp->ctx);
+	}
+}
+
+/* emits an instruction with no operands */
+void emit_nullary(comp_t* cmp, op_t op) {
+	assert(OPINFO[op].rank == 0);
+	emit_op(cmp, op, NULL, 0);
+}
+
+/* emits an instruction with one operand */
+void emit_unary(
+	comp_t* cmp, op_t op, uint8_t arg)
+{
+	assert(OPINFO[op].rank == 1);
+	const uint8_t args[] = {arg};
+	emit_op(cmp, op, args, 1);
+}
+
+/* emits an instruction with two operands */
+void emit_binary(
+	comp_t* cmp,
+	op_t op,
+	uint8_t a,
+	uint8_t b)
+{
+	assert(OPINFO[op].rank == 2);
+	const uint8_t args[] = {a, b};
+	emit_op(cmp, op, args, 2);
+}
+
+/* emits an instruction to push a value
+ * on to the operand stack */
+void emit_value(
+	comp_t* cmp, value_t val)
+{
+	sylt_push(cmp->ctx, val); /* GC */
+	
+	#if OPTZ_SPECIAL_PUSHOPS
+	switch (val.tag) {
+	case TYPE_NIL: {
+		emit_nullary(cmp, OP_PUSH_NIL);
+		sylt_pop(cmp->ctx); /* GC */
+		return;
+	}
+	case TYPE_BOOL: {
+		emit_nullary(cmp, (getbool(val))
+			? OP_PUSH_TRUE
+			: OP_PUSH_FALSE);
+		sylt_pop(cmp->ctx); /* GC */
+		return;
+	}
+	default: break;
+	}
+	#endif
+	
+	size_t slot = func_write_data(
+		cmp->func, val, cmp->ctx);
+		
+	if (val.tag == TYPE_FUNCTION) {
+		emit_unary(cmp, OP_PUSH_FUNC, slot);
+	} else {
+		emit_unary(cmp, OP_PUSH, slot);
+	}
+	
+	sylt_pop(cmp->ctx); /* GC */
+}
+
+/* emits a jump instruction followed by
+ * two placeholder bytes, returning an
+ * address used for backpatching them
+ * into a 16-bit jump offset later on */
+int emit_jump(comp_t* cmp, op_t opcode) {
+	emit_binary(cmp, opcode, 0xff, 0xff);
+	return cmp->func->ncode - 2;
+}
+
+/* takes the return value of emit_jump
+ * after we've emitted the code we need to
+ * jump over and then backpatches the
+ * jump target short to the correct offset */
+void patch_jump(comp_t* cmp, int addr) {
+	int dist =
+		cmp->func->ncode - addr - 2;
+	if (dist > MAX_JUMP) {
+		halt(cmp->ctx, E_JUMPLIMIT);
+		return;
+	}
+	
+	/* encode short as two bytes */
+	cmp->func->code[addr] =
+		(dist >> 8) & 0xff;
+	cmp->func->code[addr + 1] =
+		dist & 0xff;
+}
+
+/* adds a name to the symbol table
+ * and returns its index */
+int add_symbol(comp_t* cmp, string_t* name) {
+	#if DBG_PRINT_NAMES
+	for (int i = 0; i < cmp->depth; i++)
+		sylt_dprintf("  ");
+	
+	sylt_dprintf("(sym) ");
+	string_dprint(name);
+	sylt_dprintf("\n");
+	#endif
+	
+	symbol_t sym;
+	sym.name = name;
+	sym.depth = cmp->depth;
+	sym.capped = false;
+	
+	cmp->syms = arr_resize(
+		cmp->syms,
+		symbol_t,
+		cmp->nsyms,
+		cmp->nsyms + 1,
+		cmp->ctx);
+	
+	cmp->syms[cmp->nsyms++] = sym;
+	return cmp->nsyms - 1;
+}
+
+/* returns the index of a local variable
+ * in the symbol table or -1 if not found */
+int find_symbol(comp_t* cmp, string_t* name) {
+	if (cmp->nsyms == 0)
+		return -1;
+	
+	/* search backwards in case of
+	 * shadowed variable names */
+	int start = cmp->nsyms - 1;
+	for (int i = start; i >= 0; i--) {
+		string_t* other = cmp->syms[i].name;
+		if (string_eq(name, other))
+			return i;
+	}
+	
+	return -1;
+}
+
+/* adds an upvalue to the upvalue array
+ * and returns its index */
+int add_upvalue(
+	comp_t* cmp, uint8_t index, bool islocal)
+{
+	size_t n = cmp->func->upvalues;
+	
+	/* check if one already exists */
+	for (size_t i = 0; i < n; i++) {
+		cmp_upvalue_t upval = cmp->upvals[i];
+		if (upval.index == index
+			&& upval.islocal == islocal)
+			return i;
+		
+	}
+	
+	if (n == MAX_UPVALUES) {
+		halt(cmp->ctx, E_TOOMANYUPVALUES);
+		unreachable();
+	}
+	
+	cmp->upvals[n].islocal = islocal;
+	cmp->upvals[n].index = index;
+	return cmp->func->upvalues++;
+}
+
+/* returns the index of an upvalue in the
+ * upvalue array or -1 if not found */
+int find_upvalue(
+	comp_t* cmp, string_t* name)
+{
+	if (!cmp->parent)
+		return -1;
+	
+	/* search for a local variable in the
+	 * enclosing function */
+	int local =
+		find_symbol(cmp->parent, name);
+	if (local != -1) {
+		cmp->parent->syms[local].capped =
+			true;
+		return add_upvalue(cmp, local, true);
+	}
+	
+	/* recursively search for an upvalue
+	 * higher up */
+	int upvalue =
+		find_upvalue(cmp->parent, name);
+	if (upvalue != -1) {
+		return
+			add_upvalue(cmp, upvalue, false);
+	}
+	
+	return -1;
+}
+
 /* == lexer == */
 
 /* scans the source code for the next token */
@@ -2603,7 +2898,7 @@ token_t scan(comp_t* cmp) {
 		(token_t){ \
 			tag, \
 			string_new( \
-				start, \
+				(uint8_t*)start, \
 				cmp->pos - start, \
 				false, \
 				cmp->ctx), \
@@ -2771,245 +3066,6 @@ token_t scan(comp_t* cmp) {
 	#undef next_is
 	#undef eof
 	#undef match
-}
-
-/* == codegen == */
-
-void comp_simstack(comp_t* cmp, int n) {
-	cmp->curslots += n;
-	assert(cmp->curslots >= 0);
-	
-	if (cmp->curslots > MAX_STACK) {
-		halt(cmp->ctx, E_STACKLIMIT);
-		unreachable();
-	}
-	
-	/* record the largest stack size */
-	if (cmp->curslots > cmp->func->slots)
-		cmp->func->slots = cmp->curslots;
-}
-
-/* should not be used directly; use the
- * emit_ functions below instead */
-void emit_op(
-	comp_t* cmp,
-	op_t op,
-	const uint8_t* args,
-	size_t nargs)
-{
-	comp_simstack(cmp, OPINFO[op].effect);
-	
-	/* write the instruction opcode */
-	func_write(
-		cmp->func,
-		op,
-		cmp->prev.line,
-		cmp->ctx);
-	
-	/* write the arguments */
-	for (size_t i = 0; i < nargs; i++) {
-		func_write(
-			cmp->func,
-			args[i],
-			cmp->prev.line,
-			cmp->ctx);
-	}
-}
-
-/* emits an instruction with no operands */
-void emit_nullary(comp_t* cmp, op_t op) {
-	assert(OPINFO[op].rank == 0);
-	emit_op(cmp, op, NULL, 0);
-}
-
-/* emits an instruction with one operand */
-void emit_unary(
-	comp_t* cmp, op_t op, uint8_t arg)
-{
-	assert(OPINFO[op].rank == 1);
-	const uint8_t args[] = {arg};
-	emit_op(cmp, op, args, 1);
-}
-
-/* emits an instruction with two operands */
-void emit_binary(
-	comp_t* cmp,
-	op_t op,
-	uint8_t a,
-	uint8_t b)
-{
-	assert(OPINFO[op].rank == 2);
-	const uint8_t args[] = {a, b};
-	emit_op(cmp, op, args, 2);
-}
-
-/* emits an instruction to push a value
- * on to the operand stack */
-void emit_value(
-	comp_t* cmp, value_t val)
-{
-	sylt_push(cmp->ctx, val); /* GC */
-	
-	#if OPTZ_SPECIAL_PUSHOPS
-	switch (val.tag) {
-	case TYPE_NIL: {
-		emit_nullary(cmp, OP_PUSH_NIL);
-		sylt_pop(cmp->ctx); /* GC */
-		return;
-	}
-	case TYPE_BOOL: {
-		emit_nullary(cmp, (getbool(val))
-			? OP_PUSH_TRUE
-			: OP_PUSH_FALSE);
-		sylt_pop(cmp->ctx); /* GC */
-		return;
-	}
-	default: break;
-	}
-	#endif
-	
-	size_t slot = func_write_data(
-		cmp->func, val, cmp->ctx);
-		
-	if (val.tag == TYPE_FUNCTION) {
-		emit_unary(cmp, OP_PUSH_FUNC, slot);
-	} else {
-		emit_unary(cmp, OP_PUSH, slot);
-	}
-	
-	sylt_pop(cmp->ctx); /* GC */
-}
-
-/* emits a jump instruction followed by
- * two placeholder bytes, returning an
- * address used for backpatching them
- * into a 16-bit jump offset later on */
-int emit_jump(comp_t* cmp, op_t opcode) {
-	emit_binary(cmp, opcode, 0xff, 0xff);
-	return cmp->func->ncode - 2;
-}
-
-/* takes the return value of emit_jump
- * after we've emitted the code we need to
- * jump over and then backpatches the
- * jump target short to the correct offset */
-void patch_jump(comp_t* cmp, int addr) {
-	int dist =
-		cmp->func->ncode - addr - 2;
-	if (dist > MAX_JUMP) {
-		halt(cmp->ctx, E_JUMPLIMIT);
-		return;
-	}
-	
-	/* encode short as two bytes */
-	cmp->func->code[addr] =
-		(dist >> 8) & 0xff;
-	cmp->func->code[addr + 1] =
-		dist & 0xff;
-}
-
-/* adds a name to the symbol table
- * and returns its index */
-int add_symbol(comp_t* cmp, string_t* name) {
-	#if DBG_PRINT_NAMES
-	for (int i = 0; i < cmp->depth; i++)
-		sylt_dprintf("  ");
-	
-	sylt_dprintf("(sym) %.*s\n");
-	string_dprint(name);
-	sylt_dprintf("\n");
-	#endif
-	
-	symbol_t sym;
-	sym.name = name;
-	sym.depth = cmp->depth;
-	sym.capped = false;
-	
-	cmp->syms = arr_resize(
-		cmp->syms,
-		symbol_t,
-		cmp->nsyms,
-		cmp->nsyms + 1,
-		cmp->ctx);
-	
-	cmp->syms[cmp->nsyms++] = sym;
-	return cmp->nsyms - 1;
-}
-
-/* returns the index of a local variable
- * in the symbol table or -1 if not found */
-int find_symbol(comp_t* cmp, string_t* name) {
-	if (cmp->nsyms == 0)
-		return -1;
-	
-	/* search backwards in case of
-	 * shadowed variable names */
-	int start = cmp->nsyms - 1;
-	for (int i = start; i >= 0; i--) {
-		string_t* other = cmp->syms[i].name;
-		if (string_eq(name, other))
-			return i;
-	}
-	
-	return -1;
-}
-
-/* adds an upvalue to the upvalue array
- * and returns its index */
-int add_upvalue(
-	comp_t* cmp, uint8_t index, bool islocal)
-{
-	size_t n = cmp->func->upvalues;
-	
-	/* check if one already exists */
-	for (size_t i = 0; i < n; i++) {
-		cmp_upvalue_t* upval =
-			&cmp->upvals[i];
-		if (upval->index == index
-			&& upval->islocal == islocal)
-		{
-			return i;
-		}
-	}
-	
-	if (n == MAX_UPVALUES) {
-		halt(cmp->ctx, E_TOOMANYUPVALUES);
-		unreachable();
-	}
-	
-	cmp->upvals[n].islocal = islocal;
-	cmp->upvals[n].index = index;
-	return cmp->func->upvalues++;
-}
-
-/* returns the index of an upvalue in the
- * upvalue array or -1 if not found */
-int find_upvalue(
-	comp_t* cmp, string_t* name)
-{
-	if (!cmp->parent)
-		return -1;
-	
-	/* search for a local variable in the
-	 * enclosing function */
-	int local =
-		find_symbol(cmp->parent, name);
-	if (local != -1) {
-		cmp->parent->syms[local].capped =
-			true;
-		return add_upvalue(cmp, local, true);
-	}
-	
-	/* recursively search for an upvalue
-	 * higher up */
-	int upvalue =
-		find_upvalue(cmp->parent, name);
-	if (upvalue != -1) {
-		return
-			add_upvalue(cmp, upvalue, false);
-	}
-	
-	return -1;
 }
 
 /* == parser == */
@@ -3513,7 +3569,7 @@ void fun(comp_t* cmp) {
 		"expected '(' after 'fun' keyword");
 	
 	string_t* name =
-		string_new("_", 1, false, cmp->ctx);
+		string_lit("_", cmp->ctx);
 	parse_func(cmp, name, true);
 }
 
@@ -3789,14 +3845,11 @@ void std_add(
 	const char* name_lit,
 	value_t val)
 {
-	string_t* name = string_new(
-		name_lit,
-		strlen(name_lit),
-		false,
-		ctx);
+	gc_pause(ctx);
+	string_t* name = string_lit(
+		name_lit, ctx);
 	add_symbol(ctx->cmp, name);
 	
-	gc_pause(ctx);
 	emit_value(ctx->cmp, val);
 	gc_resume(ctx);
 }

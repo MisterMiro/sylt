@@ -2520,7 +2520,6 @@ typedef enum {
 	T_GREATER,
 	T_GREATER_EQ,
 	T_EQ,
-	T_EQ_EQ,
 	T_BANG,
 	T_BANG_EQ,
 	T_LPAREN,
@@ -3034,10 +3033,7 @@ token_t scan(comp_t* cmp) {
 		return token((!match('='))
 			? T_GREATER
 			: T_GREATER_EQ);
-	case '=':
-		return token((!match('='))
-			? T_EQ
-			: T_EQ_EQ);
+	case '=': return token(T_EQ);
 	case '!':
 		return token((!match('='))
 			? T_BANG
@@ -3182,8 +3178,7 @@ static parserule_t RULES[] = {
 	[T_LESS_EQ] = {NULL, binary, PREC_CMP},
 	[T_GREATER] = {NULL, binary, PREC_CMP},
 	[T_GREATER_EQ] = {NULL, binary, PREC_CMP},
-	[T_EQ] = {NULL, NULL, PREC_NONE},
-	[T_EQ_EQ] = {NULL, binary, PREC_EQ},
+	[T_EQ] = {NULL, binary, PREC_EQ},
 	[T_BANG] = {unary, NULL, PREC_NONE},
 	[T_BANG_EQ] = {NULL, binary, PREC_EQ},
 	[T_LPAREN] = {grouping, call, PREC_UPOST},
@@ -3456,7 +3451,7 @@ void binary(comp_t* cmp) {
 	case T_GREATER: opcode = OP_GT; break;
 	case T_GREATER_EQ: opcode = OP_GTE; break;
 	/* equality */
-	case T_EQ_EQ: opcode = OP_EQ; break;
+	case T_EQ: opcode = OP_EQ; break;
 	case T_BANG_EQ: opcode = OP_NEQ; break;
 	/* control flow */
 	case T_AND: {

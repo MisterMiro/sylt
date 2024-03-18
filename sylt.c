@@ -49,7 +49,7 @@
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_AST 0
-#define DBG_PRINT_CODE 0
+#define DBG_PRINT_CODE 1
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_MEM_STATS 1
@@ -369,7 +369,9 @@ typedef enum {
 	OP_LOAD,
 	OP_STORE,
 	OP_LOAD_LIST,
+	OP_STORE_LIST,
 	OP_LOAD_UPVAL,
+	OP_STORE_UPVAL,
 	OP_HIDE_RET,
 	OP_SHOW_RET,
 	/* arithmetic */
@@ -422,7 +424,9 @@ static opinfo_t OPINFO[] = {
 	[OP_LOAD] = {"load", 1, +1},
 	[OP_STORE] = {"store", 1, 0},
 	[OP_LOAD_LIST] = {"load_list", 0, -1},
+	[OP_STORE_LIST] = {"store_list", 0, 0},
 	[OP_LOAD_UPVAL] = {"load_upval", 1, +1},
+	[OP_STORE_UPVAL] = {"store_upval", 1, 0},
 	[OP_HIDE_RET] = {"hide_ret", 0, -1},
 	[OP_SHOW_RET] = {"show_ret", 0, +1},
 	[OP_ADD] = {"add", 0, -1},
@@ -916,7 +920,7 @@ list_t* list_new(sylt_t* ctx) {
 }
 
 /* returns the item at the given index */
-value_t list_get(
+value_t* list_get(
 	const list_t* ls, int index, sylt_t* ctx)
 {
 	/* allow negative indices */
@@ -926,14 +930,14 @@ value_t list_get(
 			halt(ctx, E_INDEX(ls->len, mod));
 			unreachable();
 		}
-		return ls->items[mod];
+		return &ls->items[mod];
 	}
 	
 	if (index > ls->len - 1) {
 		halt(ctx, E_INDEX(ls->len, index));
 		unreachable();
 	}
-	return ls->items[index];
+	return &ls->items[index];
 }
 
 /* appends an item to the end of the list */
@@ -957,7 +961,7 @@ void list_push(
 value_t list_pop(list_t* ls, sylt_t* ctx) {
 	if (ls->len == 0)
 		return wrapnil();
-	value_t last = list_get(ls, -1, ctx);
+	value_t last = *list_get(ls, -1, ctx);
 	
 	/* shrink allocation */
 	size_t oldsz = nextpow2(ls->len);
@@ -1708,12 +1712,23 @@ void vm_ensurestack(vm_t* vm, int needed) {
 
 /* returns the value referenced by
  * an upvalue */
-value_t vm_getupval(
+value_t vm_load_upval(
 	vm_t* vm, upvalue_t* upval)
 {
 	if (upval->index == -1)
 		return upval->closed;
 	return vm->stack[upval->index];
+}
+
+void vm_store_upval(
+	vm_t* vm, upvalue_t* upval, value_t val)
+{
+	if (upval->index == -1) {
+		upval->closed = val;
+		return;
+	}
+	
+	vm->stack[upval->index] = val;
 }
 
 /* captures a stack variable into an
@@ -1902,25 +1917,45 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_LOAD_LIST: {
-			value_t index = pop();
 			typecheck(
-				vm->ctx, index, TYPE_NUM);
-				
-			value_t list = pop();
-			typecheck(
-				vm->ctx, list, TYPE_LIST);
+				vm->ctx, peek(0), TYPE_NUM);
+			sylt_num_t index = getnum(pop());
 			
-			push(list_get(
-				getlist(list),
-				getnum(index),
-				vm->ctx));
+			typecheck(
+				vm->ctx, peek(0), TYPE_LIST);
+			list_t* ls = getlist(pop());
+			
+			push(*list_get(
+				ls, index, vm->ctx));
+			break;
+		}
+		case OP_STORE_LIST: {
+			value_t val = pop();
+			
+			typecheck(
+				vm->ctx, peek(0), TYPE_NUM);
+			sylt_num_t index = getnum(pop());
+				
+			typecheck(
+				vm->ctx, peek(0), TYPE_LIST);
+			list_t* ls = getlist(pop());
+			
+			*list_get(
+				ls, index, vm->ctx) = val;
+			
+			push(val);
 			break;
 		}
 		case OP_LOAD_UPVAL: {
-			uint8_t index = read();
-			value_t val = vm_getupval(vm,
-				vm->fp->cls->upvals[index]);
+			value_t val = vm_load_upval(vm,
+				vm->fp->cls->upvals[read()]);
 			push(val);
+			break;
+		}
+		case OP_STORE_UPVAL: {
+			vm_store_upval(vm,
+				vm->fp->cls->upvals[read()],
+				peek(0));
 			break;
 		}
 		case OP_HIDE_RET: {
@@ -2517,6 +2552,7 @@ typedef enum {
 	T_PERCENT,
 	T_LESS,
 	T_LESS_EQ,
+	T_LESS_MINUS,
 	T_GREATER,
 	T_GREATER_EQ,
 	T_EQ,
@@ -3027,7 +3063,9 @@ token_t scan(comp_t* cmp) {
 	case '%': return token(T_PERCENT);
 	case '<':
 		return token((!match('='))
-			? T_LESS
+			? (match('-'))
+				? T_LESS_MINUS
+				: T_LESS
 			: T_LESS_EQ);
 	case '>':
 		return token((!match('='))
@@ -3171,11 +3209,14 @@ static parserule_t RULES[] = {
 	[T_NUMBER] = {number, NULL, PREC_NONE},
 	[T_PLUS] = {NULL, binary, PREC_TERM},
 	[T_MINUS] = {unary, binary, PREC_TERM},
+	[T_MINUS_GREATER] = 
+		{NULL, NULL, PREC_NONE},
 	[T_STAR] = {NULL, binary, PREC_FACTOR},
 	[T_SLASH] = {NULL, binary, PREC_FACTOR},
 	[T_PERCENT] = {NULL, binary, PREC_FACTOR},
 	[T_LESS] = {NULL, binary, PREC_CMP},
 	[T_LESS_EQ] = {NULL, binary, PREC_CMP},
+	[T_LESS_MINUS] = {NULL, NULL, PREC_NONE},
 	[T_GREATER] = {NULL, binary, PREC_CMP},
 	[T_GREATER_EQ] = {NULL, binary, PREC_CMP},
 	[T_EQ] = {NULL, binary, PREC_EQ},
@@ -3244,18 +3285,34 @@ void literal(comp_t* cmp) {
 /* parses a symbol name */
 void name(comp_t* cmp) {
 	dbg_printfname();
+	string_t* name = cmp->prev.lex;
 	
-	int index = find_symbol(
-		cmp, cmp->prev.lex);
+	bool assign = false;
+	if (match(cmp, T_LESS_MINUS)) {
+		expr(cmp, ANY_PREC);
+		assign = true;
+	}
 	
+	/* check if the name is in this functions
+	 * symbol table */
+	int index = find_symbol(cmp, name);
 	if (index != -1) {
-		emit_unary(cmp, OP_LOAD, index);
+		if (assign)
+			emit_unary(cmp, OP_STORE, index);
+		else
+			emit_unary(cmp, OP_LOAD, index);
 		return;
 	}
 	
-	index = find_upvalue(cmp, cmp->prev.lex);
+	/* check if the name is in an upvalue */
+	index = find_upvalue(cmp, name);
 	if (index != -1) {
-		emit_unary(cmp, OP_LOAD_UPVAL, index);
+		if (assign)
+			emit_unary(cmp,
+				OP_STORE_UPVAL, index);
+		else
+			emit_unary(cmp,
+				OP_LOAD_UPVAL, index);
 		return;
 	}
 	
@@ -3515,6 +3572,13 @@ void index(comp_t* cmp) {
 	
 	expr(cmp, PREC_OR);
 	eat(cmp, T_RSQUARE, "expected ']'");
+	
+	if (match(cmp, T_LESS_MINUS)) {
+		expr(cmp, ANY_PREC);
+		emit_nullary(cmp, OP_STORE_LIST);
+		return;
+	}
+	
 	emit_nullary(cmp, OP_LOAD_LIST);
 }
 

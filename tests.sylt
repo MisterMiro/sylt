@@ -48,7 +48,7 @@ let flatten(ls) = {
 		if (i < length(ls)) {
 			let item = ls[i]
 			
-			if (typeof(item) == "List") {
+			if (typeof(item) = "List") {
 				concat_mut(
 					flat,
 					flatten(item))
@@ -111,7 +111,6 @@ let names() = {
 
 let strings() = {
 	let empty = ""
-	
 	let alpha = "abcDEFGHijklMNOPqrstUVWxyz"
 	
 	## all escape sequences...
@@ -124,13 +123,13 @@ let strings() = {
 	let null = "\0"
 	
 	## ...translate properly
-	ensure(hex == "A")
-	ensure(backslash == "\x5c")
-	ensure(quote == "\x22")
-	ensure(tab == "\x09")
-	ensure(newline == "\x0a")
-	ensure(carriage_return == "\x0d")
-	ensure(null == "\x00")
+	ensure(hex = "A")
+	ensure(backslash = "\x5c")
+	ensure(quote = "\x22")
+	ensure(tab = "\x09")
+	ensure(newline = "\x0a")
+	ensure(carriage_return = "\x0d")
+	ensure(null = "\x00")
 }
 
 let numbers() = {
@@ -140,13 +139,13 @@ let numbers() = {
 
 let precedence() = {
 	## multiplication > addition
-	ensure(5 * 2 + 8 == 18)
-	ensure(5 / 2 + 8 == 10.5)
-	ensure(5 % 2 + 8 == 9)
+	ensure(5 * 2 + 8 = 18)
+	ensure(5 / 2 + 8 = 10.5)
+	ensure(5 % 2 + 8 = 9)
 	
-	ensure(10 * 2 - 8 == 12)
-	ensure(10 / 2 - 8 == -3)
-	ensure(10 % 2 - 8 == -8)
+	ensure(10 * 2 - 8 = 12)
+	ensure(10 / 2 - 8 = -3)
+	ensure(10 % 2 - 8 = -8)
 	
 	## addition > comparison
 	ensure(1 < 1 + 1)
@@ -155,8 +154,8 @@ let precedence() = {
 	ensure(2 >= 1 - 1)
 	
 	## comparison > equality
-	ensure(true == 1 < 2)
-	ensure(true == 1 <= 2)
+	ensure(true = 1 < 2)
+	ensure(true = 1 <= 2)
 	ensure(true != 1 > 2)
 	ensure(true != 1 >= 2)
 }
@@ -165,18 +164,18 @@ let addition() = {
 	let x = 8
 	let y = 12
 	let sum = 20
-	ensure(x + y == sum)
+	ensure(x + y = sum)
 	
 	## commutative
-	ensure(y + x == sum)
-	ensure(x + y == y + x)
+	ensure(y + x = sum)
+	ensure(x + y = y + x)
 }
 
 let subtraction() = {
 	let x = 20
 	let y = 12
 	let difference = 8
-	ensure(x - y == difference)
+	ensure(x - y = difference)
 	
 	## not commutative
 	ensure(y - x != difference)
@@ -187,18 +186,18 @@ let multiplication() = {
 	let x = 5
 	let y = 16
 	let product = 80
-	ensure(x * y == product)
+	ensure(x * y = product)
 	
 	## commutative
-	ensure(y * x == product)
-	ensure(x * y == y * x)
+	ensure(y * x = product)
+	ensure(x * y = y * x)
 }
 
 let division() = {
 	let x = 33
 	let y = 3
 	let quotient = 11
-	ensure(x / y == quotient)
+	ensure(x / y = quotient)
 	
 	## not commutative
 	ensure(y / x != quotient)
@@ -209,34 +208,34 @@ let euclid_division() = {
 	let x = 17
 	let y = 12
 	let remainder = 5
-	ensure(x % y == remainder)
+	ensure(x % y = remainder)
 	
 	## not commutative
 	ensure(y % x != remainder)
 	ensure(x % y != y % x)
 	
 	## remainder is always positive
-	ensure(7 % 3 == 1)
-	ensure(7 % -3 == 1)
-	ensure(-7 % 3 == 2)
-	ensure(-7 % -3 == 2)
+	ensure(7 % 3 = 1)
+	ensure(7 % -3 = 1)
+	ensure(-7 % 3 = 2)
+	ensure(-7 % -3 = 2)
 }
 
 let unary_minus() = {
 	let x = 25
-	ensure(-x == 0 - x)
+	ensure(-x = 0 - x)
 	
 	## double negative
-	ensure(--x == x)
+	ensure(--x = x)
 	
 	## quadruple negative
-	ensure(----x == x)
+	ensure(----x = x)
 }
 
 let arithmetic() = {
 	let a = 1
 	let b = a + 2
-	ensure(a + b == a - (-b))
+	ensure(a + b = a - (-b))
 }
 
 let comparison() = {
@@ -269,7 +268,7 @@ let equality() = {
 	
 	foreach(values, fun(skip, value) -> {
 		## equal to itself
-		ensure(value == value)
+		ensure(value = value)
 		
 		## not equal to a value of any other
 		## type
@@ -282,26 +281,26 @@ let equality() = {
 	## perform more type-specific tests
 	ensure(true != false)
 	
-	ensure([] == [])
-	ensure([[]] == [[]])
+	ensure([] = [])
+	ensure([[]] = [[]])
 	ensure([0] != [1])
 	
-	ensure("" == "")
+	ensure("" = "")
 	ensure("ABC" != "abc")
 	
 	ensure(raise != sqrt)
 }
 
 let bool_not() = {
-	ensure(true == !false)
-	ensure(false == !true)
+	ensure(true = !false)
+	ensure(false = !true)
 }
 
 let bool_and() = {
-	ensure((false and false) == false)
-	ensure((false and true) == false)
-	ensure((true and false) == false)
-	ensure((true and true) == true)
+	ensure((false and false) = false)
+	ensure((false and true) = false)
+	ensure((true and false) = false)
+	ensure((true and true) = true)
 	
 	## short-circuit evaluation
 	let would_crash() = ensure(false)
@@ -309,10 +308,10 @@ let bool_and() = {
 }
 
 let bool_or() = {
-	ensure((false or false) == false)
-	ensure((false or true) == true)
-	ensure((true or false) == true)
-	ensure((true or true) == true)
+	ensure((false or false) = false)
+	ensure((false or true) = true)
+	ensure((true or false) = true)
+	ensure((true or true) = true)
 	
 	## short-circuit evaluation
 	let would_crash() = ensure(false)
@@ -324,21 +323,21 @@ let variables() = {
 	let x = 70
 	
 	## accessing
-	ensure(x == 70)
+	ensure(x = 70)
 	
 	## shadowing
 	let x = x - 2
-	ensure(x == 68)
+	ensure(x = 68)
 }
 
 let blocks() = {
 	## empty block returns nil
 	let result = {}
-	ensure(result == nil)
+	ensure(result = nil)
 	
 	## last expression is returned and...
 	let result = {123}
-	ensure(result == 123)
+	ensure(result = 123)
 	
 	## ...variables do not break anything...
 	let result = {
@@ -346,7 +345,7 @@ let blocks() = {
 		let v2 = 17
 		123
 	}
-	ensure(result == 123)
+	ensure(result = 123)
 	
 	## ...and neither do captured values
 	let c = 35
@@ -355,43 +354,43 @@ let blocks() = {
 		let sum = c + v
 		123
 	}
-	ensure(result == 123)
+	ensure(result = 123)
 }
 
 let lists() = {
 	let list = [1, 2, 3]
 	
 	## indexing
-	ensure(list[0] == 1
-		and list[1] == 2
-		and list[2] == 3)
+	ensure(list[0] = 1
+		and list[1] = 2
+		and list[2] = 3)
 		
 	## negative indices count from the end
 	## i.e. index -1 is equivalent to len - 1
-	ensure(list[1] == list[-2])
+	ensure(list[1] = list[-2])
 }
 
 let functions() = {
 	## empty body returns nil
 	let empty() = {}
-	ensure(empty() == nil)
+	ensure(empty() = nil)
 	
 	## argument passing
 	let add(a, b) = a + b
-	ensure(add(3, 4) == 7)
+	ensure(add(3, 4) = 7)
 	
 	## arguments + local variables
 	let add(a, b) = {
 		let stack_mate = 18
 		a + b
 	}
-	ensure(add(3, 4) == 7)
+	ensure(add(3, 4) = 7)
 	
 	## accessing variable outside of
 	## a functions stack window
 	let outside = "outside"
 	let f() = outside
-	ensure(f() == outside)
+	ensure(f() = outside)
 	
 	## moving surrounding context to
 	## the heap if necessary
@@ -400,11 +399,11 @@ let functions() = {
 		let f2() = keep
 		f2
 	}
-	ensure(f()() == "jewel")
+	ensure(f()() = "jewel")
 	
 	## anonymous functions using 'fun'
 	let anon = fun(r, s, t) -> r * s * t
-	ensure(anon(2, 4, 8) == 64)
+	ensure(anon(2, 4, 8) = 64)
 	
 	## recursion
 	let clear(ls) =
@@ -415,20 +414,20 @@ let functions() = {
 		
 	let list = [1, 2, 3]
 	clear(list)
-	ensure(length(list) == 0)
+	ensure(length(list) = 0)
 }
 
 let if_else() = {
 	## implicit nil
-	##ensure(if (false) {} == nil)
+	ensure((if (false) {}) = nil)
 	
 	## if branch
 	let result = if (true) "A" else "B"
-	ensure(result == "A")
+	ensure(result = "A")
 	
 	## else branch
 	let result = if (false) "A" else "B"
-	ensure(result == "B")
+	ensure(result = "B")
 	
 	## else if / chaining
 	let i = 10
@@ -436,7 +435,7 @@ let if_else() = {
 		if (i < 0) "A"
 		else if (i > 0) "B"
 		else "C"
-	ensure(result == "B")
+	ensure(result = "B")
 }
 
 let match_with() = {
@@ -444,7 +443,7 @@ let match_with() = {
 	let result =
 		match "Anything" with
 		? -> "Wildcard"
-	ensure(result == "Wildcard")
+	ensure(result = "Wildcard")
 	
 	## match first arm
 	let result =
@@ -453,7 +452,7 @@ let match_with() = {
 		| 150 -> "Fail"
 		| 200 -> "Fail"
 		? -> nil
-	ensure(result == "Success")
+	ensure(result = "Success")
 	
 	## match middle arm
 	let result =
@@ -462,7 +461,7 @@ let match_with() = {
 		| 150 -> "Success"
 		| 200 -> "Fail"
 		? -> nil
-	ensure(result == "Success")
+	ensure(result = "Success")
 	
 	## match last arm
 	let result =
@@ -471,7 +470,7 @@ let match_with() = {
 		| 150 -> "Fail"
 		| 200 -> "Success"
 		? -> nil
-	ensure(result == "Success")
+	ensure(result = "Success")
 	
 	## match three arms + wildcard
 	let name(num) =
@@ -481,67 +480,67 @@ let match_with() = {
 		| 2 -> "Two"
 		? -> "?"
 		
-	ensure(name(0) == "Zero")
-	ensure(name(1) == "One")
-	ensure(name(2) == "Two")
-	ensure(name(3) == "?")
+	ensure(name(0) = "Zero")
+	ensure(name(1) = "One")
+	ensure(name(2) = "Two")
+	ensure(name(3) = "?")
 }
 
 let prelude_lib() = {
 	## tostring
-	ensure(tostring(nil) == "nil")
-	ensure(tostring(true) == "true"
-		and tostring(false) == "false")
-	ensure(tostring(707) == "707")
+	ensure(tostring(nil) = "nil")
+	ensure(tostring(true) = "true"
+		and tostring(false) = "false")
+	ensure(tostring(707) = "707")
 	ensure(tostring(["bananas", 18, true])
-		== "[\"bananas\", 18, true]")
-	ensure(tostring(tostring) == "tostring")
+		= "[\"bananas\", 18, true]")
+	ensure(tostring(tostring) = "tostring")
 	
 	## typeof
-	ensure(typeof(nil) == "Nil")
-	ensure(typeof(true) == "Bool")
-	ensure(typeof(1) == "Num")
-	ensure(typeof([]) == "List")
-	ensure(typeof("") == "String")
-	ensure(typeof(fun() -> {}) == "Function")
+	ensure(typeof(nil) = "Nil")
+	ensure(typeof(true) = "Bool")
+	ensure(typeof(1) = "Num")
+	ensure(typeof([]) = "List")
+	ensure(typeof("") = "String")
+	ensure(typeof(fun() -> {}) = "Function")
 }
 
 let list_lib() = {
 	## length
-	ensure(length([]) == 0)
-	ensure(length([1]) == 1)
-	ensure(length([1, 2]) == 2)
+	ensure(length([]) = 0)
+	ensure(length([1]) = 1)
+	ensure(length([1, 2]) = 2)
 	
 	## push...
 	let x = []
 	
 	push(x, 3) ## = [3]
-	ensure(x == [3] and length(x) == 1)
+	ensure(x = [3] and length(x) = 1)
 	push(x, 7) ## = [3, 7]
-	ensure(x == [3, 7] and length(x) == 2)
+	ensure(x = [3, 7] and length(x) = 2)
 	
 	## ...pop
 	pop(x) ## = [3]
-	ensure(x == [3] and length(x) == 1)
+	ensure(x = [3] and length(x) = 1)
 	pop(x) ## = []
-	ensure(x == [] and length(x) == 0)
+	ensure(x = [] and length(x) = 0)
 	
 	## concat
 	let a = [1, 2]
 	let b = [3, 4]
 	let concatenated = concat(a, b)
-	ensure(concatenated == [1, 2, 3, 4])
+	ensure(concatenated = [1, 2, 3, 4])
 	
 	## concat_mut
 	let a = [1, 2]
 	let b = [3, 4]
-	ensure(concat_mut(a, b) == nil)
-	ensure(a == [1, 2, 3, 4])
+	ensure(concat_mut(a, b) = nil)
+	ensure(a = [1, 2, 3, 4])
 }
 
 let string_lib() = {
 	## chars
-	ensure(chars("Abc") == ["A", "b", "c"])
+	ensure(chars("Abc") = ["A", "b", "c"])
 }
 
 let math_lib() = {
@@ -560,12 +559,12 @@ let math_lib() = {
 	ensure(!nearly(zero, epsilon, epsilon))
 	
 	## signum
-	ensure(signum(-80) == -1)
-	ensure(signum(0) == 0)
-	ensure(signum(80) == 1)
+	ensure(signum(-80) = -1)
+	ensure(signum(0) = 0)
+	ensure(signum(80) = 1)
 	
 	## abs
-	ensure(abs(-8) == 8 and abs(8) == 8)
+	ensure(abs(-8) = 8 and abs(8) = 8)
 	
 	## log and raise
 	let target = 8
@@ -586,22 +585,22 @@ let math_lib() = {
 		log_raise(base, target))
 	
 	## sqrt
-	ensure(sqrt(256) == 16)
-	ensure(raise(32, 0.5) == sqrt(32))
+	ensure(sqrt(256) = 16)
+	ensure(raise(32, 0.5) = sqrt(32))
 	
 	## min and max
-	ensure(min(-1, 1) == -1)
-	ensure(max(-1, 1) == 1)
+	ensure(min(-1, 1) = -1)
+	ensure(max(-1, 1) = 1)
 	
 	## clamp
 	let x = 2
-	ensure(clamp(x, -5, 5) == x)
+	ensure(clamp(x, -5, 5) = x)
 	
 	let x = 20
-	ensure(clamp(x, 1, 4) == 4)
+	ensure(clamp(x, 1, 4) = 4)
 	
 	let x = -12
-	ensure(clamp(x, -8, 3) == -8)
+	ensure(clamp(x, -8, 3) = -8)
 	
 	## floor, ceil, and round
 	let check_rounding(n) = {
@@ -609,16 +608,16 @@ let math_lib() = {
 		let mid = n + 0.5
 		let high = n + 0.8
 	
-		ensure(floor(low) == n)
-		ensure(floor(high) == n)
+		ensure(floor(low) = n)
+		ensure(floor(high) = n)
 	
-		ensure(ceil(low) == n + 1)
-		ensure(ceil(high) == n + 1)
+		ensure(ceil(low) = n + 1)
+		ensure(ceil(high) = n + 1)
 	
-		ensure(round(low) == n)
-		ensure(round(high) == n + 1)
+		ensure(round(low) = n)
+		ensure(round(high) = n + 1)
 	
-		ensure(round(mid) ==
+		ensure(round(mid) =
 			if (n < 0) n
 			else n + 1
 		)
@@ -642,25 +641,25 @@ let iter_lib() = {
 	## repn
 	let nums = []
 	repn(3, fun(i) -> push(nums, (i + 1) * 3))
-	ensure(nums == [3, 6, 9])
+	ensure(nums = [3, 6, 9])
 	
 	## foreach
 	let indices = [0, 1, 2]
 	let copy = []
 	foreach(indices, fun(index, value) -> {
-		ensure(index == indices[index])
+		ensure(index = indices[index])
 		push(copy, value)
 	})
-	ensure(copy == indices)
+	ensure(copy = indices)
 	
 	## map
 	let list = map([4, 8], fun(x) -> x * 2)
-	ensure(list == [8, 16])
+	ensure(list = [8, 16])
 
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]
 	let clean = flatten(mess)
-	ensure(clean == [1, 2, 3, 4, 5])
+	ensure(clean = [1, 2, 3, 4, 5])
 	
 	## any
 	let set = [true, true, false]
@@ -735,7 +734,7 @@ ensure(iterations > 0)
 
 ## let's go!!!
 foreach(run, fun(_, val) ->
-	if (typeof(val) == "String") {
+	if (typeof(val) = "String") {
 		let title = val
 		put(title)
 		putln(":")
@@ -743,11 +742,10 @@ foreach(run, fun(_, val) ->
 	} else {
 		let test = val
 		let name = tostring(test)
-		
 		put("  ")
 		put(name)
 		
-		## spacing
+		## even width
 		let target = 20
 		let len = length(chars(name))
 		repn(target - len, fun(_) -> put("."))

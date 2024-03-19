@@ -237,7 +237,7 @@ void halt(sylt_t*, const char*, ...);
 	"undefined variable '%.*s'", \
 	(name->len), (name->bytes)
 #define E_ESCAPESEQ(code) \
-	"unknown escape sequence '\\%c'", \
+	"unknown escape sequence: \\%c", \
 	(code)
 #define E_UNTERMSTRING \
 	"unterminated string literal"
@@ -258,8 +258,8 @@ void halt(sylt_t*, const char*, ...);
 	"index out of range, len: %d, i=%d", \
 	(len), (index)
 #define E_WRONGARGC(need, got) \
-	"expected %d arguments but got %d", \
-	(need), (got)
+	"expected %d argument%s, got %d", \
+	(need), ((need) == 1 ? "" : "s"), (got)
 
 /* triggers one of each error */
 void test_errors(sylt_t* ctx) {
@@ -644,6 +644,8 @@ typedef struct {
 	/* name, used in error messages and
 	 * for debugging */
 	string_t* name;
+	/* full name, including file name */
+	string_t* path;
 	/* if set this calls a C function
 	 * and the bytecode is unused */
 	cfunc_t cfunc;
@@ -964,6 +966,7 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 			val_mark(func->data[i], ctx);
 			
 		obj_mark((obj_t*)func->name, ctx);
+		obj_mark((obj_t*)func->path, ctx);
 		break;
 	}
 	case TYPE_CLOSURE: {
@@ -1233,6 +1236,7 @@ func_t* func_new(
 	func->upvalues = 0;
 	
 	func->name = name;
+	func->path = name;
 	func->cfunc = NULL;
 	return func;
 }
@@ -1604,7 +1608,10 @@ void dbg_print_header(
 	const func_t* func = cls->func;
 	
 	sylt_dprintf("\n-> ");
-	string_dprint(func->name);
+	sylt_dprintf("%-29.*s",
+		(int)func->name->len,
+		func->name->bytes);
+	string_dprint(func->path);
 	sylt_dprintf("\n");
 	
 	sylt_dprintf("depth %d/%d, ",
@@ -2744,6 +2751,18 @@ void comp_init(
 	cmp->parent = parent;
 	cmp->child = child;
 	cmp->func = func_new(ctx, name);
+	if (parent) {
+		sylt_pushstring(ctx,
+			parent->func->path);
+		sylt_pushstring(ctx,
+			string_lit("/", ctx));
+		sylt_concat(ctx);
+		
+		sylt_pushstring(ctx, name);
+		sylt_concat(ctx);
+		
+		cmp->func->path = sylt_popstring(ctx);
+	}
 	cmp->curslots = 0;
 	
 	cmp->src = src;
@@ -2766,6 +2785,15 @@ void comp_free(comp_t* cmp) {
 		symbol_t,
 		cmp->nsyms,
 		cmp->ctx);
+}
+
+void comp_copy_parse_state(
+	comp_t* dst, const comp_t* src)
+{
+	dst->pos = src->pos;
+	dst->line = src->line;
+	dst->prev = src->prev;
+	dst->cur = src->cur;
 }
 
 /* == codegen == */
@@ -3761,15 +3789,6 @@ void fun(comp_t* cmp) {
 	parse_func(cmp, NULL);
 }
 
-void comp_copy_parse_state(
-	comp_t* dst, const comp_t* src)
-{
-	dst->pos = src->pos;
-	dst->line = src->line;
-	dst->prev = src->prev;
-	dst->cur = src->cur;
-}
-
 void parse_func(
 	comp_t* cmp, string_t* name)
 {
@@ -4261,7 +4280,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 			cmp = cmp->child;
 		
 		sylt_eprintf("error in ");
-		string_eprint(cmp->func->name);
+		string_eprint(cmp->func->path);
 		sylt_eprintf(":%d: ", cmp->prev.line);
 		break;
 	}
@@ -4275,7 +4294,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		uint32_t line = func->lines[addr];
 		
 		sylt_eprintf("error in ");
-		string_eprint(func->name);
+		string_eprint(func->path);
 		sylt_eprintf(":%d: ", line);
 		break;
 	}

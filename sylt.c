@@ -41,7 +41,7 @@
 #define DBG_NO_GC 0
 
 /* makes the GC collect on every allocation */
-#define DBG_GC_EVERY_ALLOC 1
+#define DBG_GC_EVERY_ALLOC 0
 
 #define DBG_PRINT_SYLT_STATE 1
 #define DBG_PRINT_GC_STATE 0
@@ -49,7 +49,7 @@
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_AST 0
-#define DBG_PRINT_CODE 1
+#define DBG_PRINT_CODE 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_MEM_STATS 1
@@ -67,7 +67,7 @@
 #define MAX_STACK (UINT8_MAX + 1)
 #define MAX_LINES UINT32_MAX
 #define MAX_JUMP UINT16_MAX
-#define MAX_CFRAMES 1024
+#define MAX_CFRAMES 8192
 #define MAX_PARAMS UINT8_MAX
 #define MAX_UPVALUES UINT8_MAX
 #define MAX_MATCH_ARMS 512
@@ -143,8 +143,11 @@ typedef struct {
 	/* array of pointers to marked objects */
 	struct obj_s** marked;
 	size_t nmarked;
+	/* bytes needed to trigger a cycle */
+	size_t trigger;
 	/* number of succesful gc_collect calls */
 	size_t cycles;
+	/* keeps track of nested pauses */
 	size_t pause_depth;
 } gc_t;
 
@@ -217,9 +220,9 @@ void halt(sylt_t*, const char*, ...);
 	"expected %s but got %s", \
 	user_type_name(ex), \
 	user_type_name(got)
-#define E_UNDEFINED(name, len) \
+#define E_UNDEFINED(name) \
 	"undefined variable '%.*s'", \
-	(name), (len)
+	(name->len), (name->bytes)
 #define E_ESCAPESEQ(code) \
 	"unknown escape sequence '\\%c'", \
 	(code)
@@ -234,9 +237,6 @@ void halt(sylt_t*, const char*, ...);
 #define E_TOOMANYUPVALUES \
 	"too many upvalues; max is %d", \
 	(MAX_UPVALUES)
-
-/* == runtime errors == */
-
 #define E_DIVBYZERO \
 	"attempted to divide by zero"
 #define E_STACKOVERFLOW \
@@ -273,6 +273,14 @@ static unsigned nextpow2(unsigned n) {
 	return ++n;
 }
 
+/* number of bytes that need to be allocated
+ * before triggering the first GC cycle */
+#define GC_INIT_THRESHOLD (1024 * 1024)
+
+/* how much to multiply the GC threshold
+ * by after each collection cycle */
+#define GC_THRESHOLD_CLIMB 2
+
 /* the GC needs to allocate some memory
  * while working */
 #define gc_realloc realloc
@@ -306,6 +314,10 @@ void* ptr_resize(
 		
 		#if DBG_GC_EVERY_ALLOC
 		if (ns > os)
+			gc_collect(ctx, func_name, line);
+		#else
+		if (ns > os && ctx->mem.bytes >=
+			ctx->mem.gc.trigger)
 			gc_collect(ctx, func_name, line);
 		#endif
 	}
@@ -366,6 +378,7 @@ typedef enum {
 	OP_POP,
 	OP_POP_HEAP,
 	OP_DUP,
+	/* memory */
 	OP_LOAD,
 	OP_STORE,
 	OP_LOAD_LIST,
@@ -749,8 +762,6 @@ obj_t* obj_new_impl(
 	sylt_t* ctx)
 {
 	assert(isheaptype(tag));
-	//gc_collect(ctx, __func__, __LINE__);
-	
 	obj_t* obj = ptr_resize(
 		NULL, 0, size,
 		"<obj>", func_name, line,ctx);
@@ -1455,18 +1466,16 @@ void vm_free(vm_t* vm) {
 		vm->ctx);
 }
 
-/* virtual machine macros */
+/* VM macros */
 #define read() *vm->fp->ip++
 #define read16() \
 	(vm->fp->ip += 2, (uint16_t) \
 		((vm->fp->ip[-2] << 8) \
 			| vm->fp->ip[-1]))
-
 #define push(v) vm_push(vm, (v))
 #define pop() vm_pop(vm)
 #define peek(n) vm_peek(vm, (n))
 #define shrink(n) vm_shrink(vm, (n))
-
 #define func_stack() \
 	(vm->stack + vm->fp->offs)
 
@@ -1864,7 +1873,6 @@ void vm_exec(vm_t* vm) {
 			/* wrap it in a closure */
 			closure_t* cls =
 				closure_new(vm->ctx, func);
-				
 			push(wrapclosure(cls));
 			
 			arr_alloc(
@@ -1874,19 +1882,21 @@ void vm_exec(vm_t* vm) {
 				vm->ctx);
 			cls->nupvals = func->upvalues;
 			
+			/* read upvalues */
 			for (size_t i = 0;
 				i < cls->nupvals; i++)
 			{
-				uint8_t islocal = read();
+				uint8_t is_local = read();
 				uint8_t index = read();
-				
 				upvalue_t* upval = NULL;
-				if (islocal)
+				
+				if (is_local)
 					upval = vm_capupval(vm,
 						vm->fp->offs + index);
 				else
 					upval = vm->fp->
 						cls->upvals[index];
+				
 				cls->upvals[i] = upval;
 			}
 			
@@ -1908,6 +1918,7 @@ void vm_exec(vm_t* vm) {
 			push(val);
 			break;
 		}
+		/* == memory == */
 		case OP_LOAD: {
 			push(func_stack()[read()]);
 			break;
@@ -2032,8 +2043,7 @@ void vm_exec(vm_t* vm) {
 		}
 		case OP_CALL: {
 			uint8_t argc = read();
-			typecheck(
-				vm->ctx,
+			typecheck(vm->ctx,
 				peek(argc),
 				TYPE_CLOSURE);
 			
@@ -2190,12 +2200,10 @@ void vm_math(vm_t* vm, op_t opcode) {
 
 #undef read
 #undef read16
-
 #undef push
 #undef pop
 #undef peek
 #undef shrink
-
 #undef func_stack
 
 /* == standard library == */
@@ -2295,8 +2303,8 @@ value_t std_chars(sylt_t* ctx) {
 
 /* == math lib == */
 
-/* returns true if arg(0) is nearly equal
- * to arg(1), within a tolerance of arg(2) */
+/* returns true if a is nearly equal
+ * to b, within a tolerance of epsilon */
 value_t std_nearly(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -2333,9 +2341,9 @@ value_t std_abs(sylt_t* ctx) {
 	return wrapnum(result);
 }
 
-/* returns the exponent to which the base
- * arg(1) needs to be raised in order to 
- * produce the target value arg(0) */
+/* returns the exponent to which base
+ * needs to be raised in order to 
+ * produce x */
 value_t std_log(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -2365,20 +2373,19 @@ value_t std_log(sylt_t* ctx) {
 	return wrapnum(result);
 }
 
-/* returns arg(0) raised to the power of
- * arg(1) */
+/* returns base raised to the power of exp */
 value_t std_raise(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
-	sylt_num_t a = numarg(0);
-	sylt_num_t b = numarg(1);
+	sylt_num_t base = numarg(0);
+	sylt_num_t exp = numarg(1);
 	sylt_num_t result =
-		num_func(powf, pow)(a, b);
+		num_func(powf, pow)(base, exp);
 	return wrapnum(result);
 }
 
-/* returns the square root of arg(0) */
+/* returns the square root of x */
 value_t std_sqrt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
@@ -2435,7 +2442,7 @@ value_t std_ceil(sylt_t* ctx) {
 		num_func(ceilf, ceil)(numarg(0)));
 }
 
-/* returns the nearest value to arg(0), 
+/* returns the nearest integer value to x, 
  * rounding halfway cases away from zero */
 value_t std_round(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
@@ -2585,13 +2592,13 @@ typedef struct {
  * from lowest to highest */
 typedef enum {
 	PREC_NONE,
-	/* assignment '=' */
+	/* assignment '<-' */
 	PREC_ASSIGN,
 	/* boolean 'or' */
 	PREC_OR,
 	/* boolean 'and' */
 	PREC_AND,
-	/* equality: == != */
+	/* equality: = != */
 	PREC_EQ,
 	/* comparison: < <= > >= */
 	PREC_CMP,
@@ -2618,7 +2625,7 @@ typedef struct {
 } symbol_t;
 
 typedef struct {
-	bool islocal;
+	bool is_local;
 	uint8_t index;
 } cmp_upvalue_t;
 
@@ -2872,7 +2879,7 @@ int find_symbol(comp_t* cmp, string_t* name) {
 /* adds an upvalue to the upvalue array
  * and returns its index */
 int add_upvalue(
-	comp_t* cmp, uint8_t index, bool islocal)
+	comp_t* cmp, uint8_t index, bool is_local)
 {
 	size_t n = cmp->func->upvalues;
 	
@@ -2880,7 +2887,7 @@ int add_upvalue(
 	for (size_t i = 0; i < n; i++) {
 		cmp_upvalue_t upval = cmp->upvals[i];
 		if (upval.index == index
-			&& upval.islocal == islocal)
+			&& upval.is_local == is_local)
 			return i;
 		
 	}
@@ -2890,7 +2897,7 @@ int add_upvalue(
 		unreachable();
 	}
 	
-	cmp->upvals[n].islocal = islocal;
+	cmp->upvals[n].is_local = is_local;
 	cmp->upvals[n].index = index;
 	return cmp->func->upvalues++;
 }
@@ -3289,7 +3296,7 @@ void name(comp_t* cmp) {
 	
 	bool assign = false;
 	if (match(cmp, T_LESS_MINUS)) {
-		expr(cmp, ANY_PREC);
+		expr(cmp, PREC_ASSIGN);
 		assign = true;
 	}
 	
@@ -3316,9 +3323,7 @@ void name(comp_t* cmp) {
 		return;
 	}
 	
-	halt(cmp->ctx, E_UNDEFINED(
-		cmp->prev.lex->len,
-		cmp->prev.lex->bytes));
+	halt(cmp->ctx, E_UNDEFINED(name));
 }
 
 /* parses a list literal */
@@ -3574,7 +3579,7 @@ void index(comp_t* cmp) {
 	eat(cmp, T_RSQUARE, "expected ']'");
 	
 	if (match(cmp, T_LESS_MINUS)) {
-		expr(cmp, ANY_PREC);
+		expr(cmp, PREC_ASSIGN);
 		emit_nullary(cmp, OP_STORE_LIST);
 		return;
 	}
@@ -3582,7 +3587,7 @@ void index(comp_t* cmp) {
 	emit_nullary(cmp, OP_LOAD_LIST);
 }
 
-void parse_func(comp_t*, string_t*, bool);
+void parse_func(comp_t*, string_t*);
 
 /* parses a variable or function binding */
 void let(comp_t* cmp) {
@@ -3600,7 +3605,7 @@ void let(comp_t* cmp) {
 		 /* add symbol first in order
 	 	 * to support recursion */
 		 add_symbol(cmp, name);
-		 parse_func(cmp, name, false);
+		 parse_func(cmp, name);
 		
 	} else {
 		/* parse a variable declaration 
@@ -3626,13 +3631,10 @@ void fun(comp_t* cmp) {
 	
 	eat(cmp, T_LPAREN,
 		"expected '(' after 'fun' keyword");
-	
-	string_t* name =
-		string_lit("_", cmp->ctx);
-	parse_func(cmp, name, true);
+	parse_func(cmp, NULL);
 }
 
-void comp_copystate(
+void comp_copy_parse_state(
 	comp_t* dst, const comp_t* src)
 {
 	dst->pos = src->pos;
@@ -3642,9 +3644,15 @@ void comp_copystate(
 }
 
 void parse_func(
-	comp_t* cmp, string_t* name, bool lambda)
+	comp_t* cmp, string_t* name)
 {
 	dbg_printfname();
+	
+	bool is_lambda = false;
+	if (!name) {
+		name = string_lit("_", cmp->ctx);
+		is_lambda = true;
+	}
 		
 	sylt_pushstring(cmp->ctx, cmp->src);
 	sylt_pushstring(cmp->ctx, name);
@@ -3653,7 +3661,7 @@ void parse_func(
 	* in order to parse the function */
 	comp_t fcmp;
 	comp_init(&fcmp, cmp, NULL, cmp->ctx);
-	comp_copystate(&fcmp, cmp);
+	comp_copy_parse_state(&fcmp, cmp);
 	cmp->child = &fcmp;
 		
 	/* parse parameter list */
@@ -3677,7 +3685,7 @@ void parse_func(
 	eat(&fcmp, T_RPAREN,
 		"expected ')' or a parameter name");
 	
-	if (lambda)
+	if (is_lambda)
 		eat(&fcmp, T_MINUS_GREATER,
 			"expected '->' after ')'");
 	else
@@ -3686,11 +3694,9 @@ void parse_func(
 			
 	/* function body */
 	expr(&fcmp, ANY_PREC);
+	
 	emit_nullary(&fcmp, OP_RET);
-	
 	func_t* func = fcmp.func;
-	
-	/* push the function on the stack */
 	emit_value(cmp, wrapfunc(func));
 	
 	/* write arguments to OP_PUSHFUNC */
@@ -3701,7 +3707,7 @@ void parse_func(
 			&fcmp.upvals[i];
 			
 		func_write(cmp->func,
-			upval->islocal,
+			upval->is_local,
 			cmp->prev.line,
 			cmp->ctx);
 		func_write(cmp->func,
@@ -3710,7 +3716,7 @@ void parse_func(
 			cmp->ctx);
 	}
 	
-	comp_copystate(cmp, &fcmp);
+	comp_copy_parse_state(cmp, &fcmp);
 	comp_free(&fcmp);
 	cmp->child = NULL;
 }
@@ -3982,9 +3988,11 @@ void gc_collect(
 
 	gc_mark(ctx, func_name, line);
 	gc_sweep(ctx);
-	
-	ctx->mem.gc.cycles++;
 	gc_set_state(ctx, GC_STATE_IDLE);
+	
+	ctx->mem.gc.trigger = ctx->mem.bytes *
+		GC_THRESHOLD_CLIMB;
+	ctx->mem.gc.cycles++;
 }
 
 void gc_mark_vm_roots(sylt_t*);
@@ -4230,6 +4238,7 @@ sylt_t* sylt_new(void) {
 	/* init GC state */
 	ctx->mem.gc.marked = NULL;
 	ctx->mem.gc.nmarked = 0;
+	ctx->mem.gc.trigger = GC_INIT_THRESHOLD;
 	ctx->mem.gc.cycles = 0;
 	ctx->mem.gc.pause_depth = 0;
 	

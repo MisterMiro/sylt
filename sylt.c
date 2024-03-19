@@ -44,7 +44,7 @@
  * super slow but good for bug hunting */
 #define DBG_GC_EVERY_ALLOC 1
 
-#define DBG_PRINT_SYLT_STATE 1
+#define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
 #define DBG_PRINT_SOURCE 0
 #define DBG_PRINT_TOKENS 0
@@ -53,7 +53,7 @@
 #define DBG_PRINT_CODE 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
-#define DBG_PRINT_MEM_STATS 1
+#define DBG_PRINT_MEM_STATS 0
 #define DBG_PRINT_MEM_SIZES 0
 
 /* == optimizations == */
@@ -117,6 +117,7 @@ typedef enum {
 	SYLT_STATE_FREE,
 } sylt_state_t;
 
+#if DBG_PRINT_SYLT_STATE
 static const char* SYLT_STATE_NAME[] = {
 	"Alloc",
 	"Init",
@@ -127,6 +128,7 @@ static const char* SYLT_STATE_NAME[] = {
 	"Freeing",
 	"Free",
 };
+#endif
 
 typedef enum {
 	/* not busy */
@@ -186,6 +188,16 @@ typedef struct {
  * while allocating it */
 static jmp_buf err_jump;
 
+/* == API == */
+
+sylt_t* sylt_new(void);
+void sylt_free(sylt_t* ctx);
+
+bool sylt_dostring(sylt_t* ctx,
+	const char* src);
+bool sylt_dofile(sylt_t* ctx,
+	const char* path);
+
 static void sylt_set_state(
 	sylt_t* ctx, sylt_state_t state)
 {
@@ -216,9 +228,9 @@ void halt(sylt_t*, const char*, ...);
 #define E_IO(msg, path) \
 	"%s %s", (msg), (path)
 #define E_UNEXPECTEDCHAR(c) \
-	"unknown character '%c'", (c)
+	"unexpected character: %c", (c)
 #define E_TYPE(ex, got) \
-	"expected %s but got %s", \
+	"expected value of type %s, got %s", \
 	user_type_name(ex), \
 	user_type_name(got)
 #define E_UNDEFINED(name) \
@@ -248,6 +260,57 @@ void halt(sylt_t*, const char*, ...);
 #define E_WRONGARGC(need, got) \
 	"expected %d arguments but got %d", \
 	(need), (got)
+
+/* triggers one of each error */
+void test_errors(sylt_t* ctx) {
+	sylt_dprintf(
+		"Testing error messages, "
+		"please ignore:\n");
+	
+	const char* src;
+	
+	/* unexpected character */
+	src = "` ";
+	assert(!sylt_dostring(ctx, src));
+	
+	/* type error */
+	src = "1 + true ";
+	assert(!sylt_dostring(ctx, src));
+	
+	/* undefined variable */
+	src = "1 + milk";
+	assert(!sylt_dostring(ctx, src));
+	
+	/* unknown escape sequence */
+	src = "\" \\w \" ";
+	assert(!sylt_dostring(ctx, src));
+	
+	/* unterminated string literal */
+	src = "\" ";
+	assert(!sylt_dostring(ctx, src));
+	
+	/* division by zero */
+	src = "1 / 0";
+	assert(!sylt_dostring(ctx, src));
+	
+	/* stack overflow */
+	src =
+		"let rec(i, n) = "
+		"	if (i < n) "
+		"		rec(i + 1, n) "
+		"rec(0, 8193)";
+	assert(!sylt_dostring(ctx, src));
+	
+	/* index */
+	src =
+		"let list = []"
+		"list[0]";
+	assert(!sylt_dostring(ctx, src));
+	
+	/* wrong argument count */
+	src = "ensure(1, 2)";
+	assert(!sylt_dostring(ctx, src));
+}
 
 /* == memory == */
 
@@ -948,10 +1011,11 @@ value_t* list_get(
 		return &ls->items[mod];
 	}
 	
-	if (index > ls->len - 1) {
+	if (ls->len == 0 || index > ls->len - 1) {
 		halt(ctx, E_INDEX(ls->len, index));
 		unreachable();
 	}
+	
 	return &ls->items[index];
 }
 
@@ -1191,6 +1255,7 @@ void func_write(
 		unreachable();
 	}
 	
+	/* write byte */
 	size_t oldsz = nextpow2(func->ncode);
 	size_t newsz = nextpow2(func->ncode + 1);
 	if (newsz > oldsz) {
@@ -1200,7 +1265,7 @@ void func_write(
 	}
 	func->code[func->ncode++] = byte;
 	
-	/* map line number to byte */
+	/* write corresponding line number */
 	oldsz = nextpow2(func->nlines);
 	newsz = nextpow2(func->nlines + 1);
 	if (newsz > oldsz) {
@@ -1352,6 +1417,7 @@ static string_t* val_tostring(
 			ctx, "%g", getnum(val));
 	}
 	case TYPE_LIST: {
+		gc_pause(ctx);
 		string_t* str = string_lit("[", ctx);
 		sylt_pushstring(ctx, str); /* GC */
 		
@@ -1381,6 +1447,7 @@ static string_t* val_tostring(
 			ctx);
 		
 		sylt_pop(ctx); /* GC */
+		gc_resume(ctx);
 		return result;
 	}
 	case TYPE_STRING: {
@@ -1444,7 +1511,7 @@ void val_print(
 {
 	string_t* str = val_tostring_opts(
 		val, quotestr, maxlen, ctx);
-	printf("%.*s", (int)str->len, str->bytes);
+	string_print(str);
 }
 
 /* == virtual machine == */
@@ -2992,36 +3059,37 @@ void comp_close_scope(comp_t* cmp) {
 
 /* == lexer == */
 
+#define token(tag) \
+	(token_t){ \
+		tag, \
+		string_new( \
+			(uint8_t*)start, \
+			cmp->pos - start, \
+			false, \
+			cmp->ctx), \
+		cmp->line}
+#define step() cmp->pos++
+#define peek() (*cmp->pos)
+#define peek_next() \
+	(eof() ? '\0' : cmp->pos[1])
+#define is(c) (peek() == (c))
+#define next_is(c) (peek_next() == (c))
+#define eof() \
+	((uint8_t*)cmp->pos - cmp->src->bytes \
+		>= cmp->src->len)
+#define match(c) \
+	((!eof() && is(c)) ? \
+		step(), true : false)
+
 /* scans the source code for the next token */
 token_t scan(comp_t* cmp) {
-	#define token(tag) \
-		(token_t){ \
-			tag, \
-			string_new( \
-				(uint8_t*)start, \
-				cmp->pos - start, \
-				false, \
-				cmp->ctx), \
-			cmp->line}
-	#define step() cmp->pos++
-	#define peek() (*cmp->pos)
-	#define peek2() \
-		(eof() ? '\0' : cmp->pos[1])
-	#define is(c) (peek() == (c))
-	#define next_is(c) (peek2() == (c))
-	#define eof() is('\0')
-	#define match(c) \
-		((!eof() && is(c)) ? \
-			step(), true : false)
-	
-	/* skip any initial whitespace */
-	for (;;) {
+	/* skip over any whitespace */
+	while (!eof()) {
 		if (!isspace(peek())) {
 			/* single-line comment */
 			if (is('#') && next_is('#')) {
-				while (!is('\n') && !eof()) {
+				while (!is('\n') && !eof())
 					step();
-				}
 				
 			} else {
 				break;
@@ -3150,22 +3218,23 @@ token_t scan(comp_t* cmp) {
 	case '|': return token(T_PIPE);
 	case '?': return token(T_QUESTION);
 	case ',': return token(T_COMMA);
+	case '\0': return token(T_EOF);
 	}
 	
 	cmp->prev.line = cmp->line; /* hack */
 	halt(cmp->ctx,
 		E_UNEXPECTEDCHAR(cmp->pos[-1]));
 	return token(-1);
-	
-	#undef token
-	#undef step
-	#undef peek
-	#undef peek2
-	#undef is
-	#undef next_is
-	#undef eof
-	#undef match
 }
+
+#undef token
+#undef step
+#undef peek
+#undef peek_next
+#undef is
+#undef next_is
+#undef eof
+#undef match
 
 /* == parser == */
 
@@ -4330,6 +4399,7 @@ bool sylt_dostring(
 		return false;
 		
 	if (setjmp(err_jump)) {
+		gc_resume(ctx);
 		sylt_free(ctx);
 		ctx = sylt_new();
 		return false;
@@ -4355,6 +4425,7 @@ bool sylt_dofile(
 		return false;
 	
 	if (setjmp(err_jump)) {
+		gc_resume(ctx);
 		sylt_free(ctx);
 		ctx = sylt_new();
 		return false;
@@ -4373,13 +4444,19 @@ bool sylt_dofile(
 
 void sylt_test(sylt_t* ctx) {
 	/* empty input */
-	//sylt_dostring(ctx, "");
+	//assert(sylt_dostring(ctx, "  "));
 	
-	/* make sure ensure() works */
-	//assert(!sylt_dostring(
-	//	ctx, "ensure(false)"));
+	/* make sure errors don't
+	 * cause any problems */
+	test_errors(ctx);
 	
-	/* run lang tests */
+	/* make sure ensure(false) halts
+	 * (used all over in tests.sylt) */
+	assert(!sylt_dostring(
+		ctx, "ensure(false)"));
+	
+	/* run main tests */
+	sylt_dprintf("Running tests:\n");
 	sylt_dofile(ctx, "tests.sylt");
 }
 
@@ -4390,8 +4467,8 @@ int main(int argc, char *argv[]) {
 	}
 	
 	sylt_t* ctx = sylt_new();
-	//sylt_test(ctx);
-	sylt_dofile(ctx, argv[1]);
+	sylt_test(ctx);
+	//sylt_dofile(ctx, argv[1]);
 	sylt_free(ctx);
 	
 	return EXIT_SUCCESS;

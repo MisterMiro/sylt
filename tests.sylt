@@ -1,9 +1,9 @@
 
 ## implementations of some higher-order
 ## functions; these will be moved to
-## native code eventually
+## native code in the future
 
-let repn(n, f) = {
+let rep(n, f) = {
 	let loop(i) =
 		if (i < n) {
 			f(i)
@@ -13,21 +13,22 @@ let repn(n, f) = {
 	loop(0)
 }
 
-let foreach(ls, f) = {
+let foreach(list, f) = {
 	let loop(i) =
-		if (i < length(ls)) {
-			f(i, ls[i])
+		if (i < length(list)) {
+			f(i, list[i])
 			loop(i + 1)
 		}
 		
 	loop(0)
 }
 
-let map(ls, f) = {
-	let mapped = []
-	foreach(ls, fun(_, v) ->
-		push(mapped, f(v)))
-	mapped
+let map(list, f) = {
+	let result = []
+	foreach(list, fun(i, value) ->
+		push(result, f(value))
+	)
+	result
 }
 
 let concat(a, b) = {
@@ -37,45 +38,32 @@ let concat(a, b) = {
 	result
 }
 
-let concat_mut(a, b) = {
-	foreach(b, fun(_, v) -> push(a, v))
-	nil
-}
-
-let flatten(ls) = {
-	let flat = []
-	let loop(i) =
-		if (i < length(ls)) {
-			let item = ls[i]
-			
-			if (typeof(item) = "List") {
-				concat_mut(
-					flat,
-					flatten(item))
-				
-			} else push(flat, item)
-			
-			loop(i + 1)
-		}
+let flatten(list) = {
+	let result = []
+	foreach(list, fun(i, item) ->
+		if (typeof(item) = "List") {
+			result <-
+				concat(result, flatten(item))
+		} else push(result, item)
+	)
 		
-	loop(0)
-	flat
+	result
 }
 
-let any(ls, f) = {
+let any(list, f) = {
 	let loop(i) =
-		if (i < length(ls)) {
-			if (f(ls[i])) true
+		if (i < length(list)) {
+			if (f(list[i])) true
 			else loop(i + 1)
 		} else false
 		
 	loop(0)
 }
 
-let all(ls, f) = {
+let all(list, f) = {
 	let loop(i) =
-		if (i < length(ls)) {
-			if (!f(ls[i])) false
+		if (i < length(list)) {
+			if (!f(list[i])) false
 			else loop(i + 1)
 		} else true
 		
@@ -349,6 +337,13 @@ let variables() = {
 	}
 	let z = out()()
 	ensure(z = 900)
+	
+	## chaining assignments
+	let a = nil
+	let b = nil
+	let c = nil
+	a <- b <- c <- 32
+	ensure(a = 32 and b = 32 and c = 32)
 }
 
 let blocks() = {
@@ -440,6 +435,20 @@ let functions() = {
 	let list = [1, 2, 3]
 	clear(list)
 	ensure(length(list) = 0)
+}
+
+let gc_bomb() = {
+	let size = 128
+	let rec(old_list, i) = {
+		if (i < size) {
+			let new_list = []
+			rep(size / 32, fun(_) ->
+				push(new_list, old_list))
+			rec(new_list, i + 1)
+		}
+	}
+	
+	rec([1, 2, 3, 4, 5, 6, 7, 8], 0)
 }
 
 let if_else() = {
@@ -536,7 +545,7 @@ let list_lib() = {
 	ensure(length([1]) = 1)
 	ensure(length([1, 2]) = 2)
 	
-	## push...
+	## push
 	let x = []
 	
 	push(x, 3) ## = [3]
@@ -544,7 +553,7 @@ let list_lib() = {
 	push(x, 7) ## = [3, 7]
 	ensure(x = [3, 7] and length(x) = 2)
 	
-	## ...pop
+	## pop
 	pop(x) ## = [3]
 	ensure(x = [3] and length(x) = 1)
 	pop(x) ## = []
@@ -555,17 +564,52 @@ let list_lib() = {
 	let b = [3, 4]
 	let concatenated = concat(a, b)
 	ensure(concatenated = [1, 2, 3, 4])
-	
-	## concat_mut
-	let a = [1, 2]
-	let b = [3, 4]
-	ensure(concat_mut(a, b) = nil)
-	ensure(a = [1, 2, 3, 4])
 }
 
 let string_lib() = {
 	## chars
 	ensure(chars("Abc") = ["A", "b", "c"])
+}
+
+let iter_lib() = {
+	## rep
+	let nums = []
+	rep(3, fun(i) -> push(nums, (i + 1) * 3))
+	ensure(nums = [3, 6, 9])
+	
+	## foreach
+	let indices = [0, 1, 2]
+	let copy = []
+	foreach(indices, fun(index, value) -> {
+		ensure(index = indices[index])
+		push(copy, value)
+	})
+	ensure(copy = indices)
+	
+	## map
+	let list = map([4, 8], fun(x) -> x * 2)
+	ensure(list = [8, 16])
+
+	## flatten
+	let mess = [1, [2, [3, 4]], 5]
+	let clean = flatten(mess)
+	ensure(clean = [1, 2, 3, 4, 5])
+	
+	## any
+	let set = [true, true, false]
+	ensure(any(set, fun(v) -> v))
+	ensure(any(set, fun(v) -> !v))
+	pop(set) ## = [true, true]
+	ensure(any(set, fun(v) -> v))
+	ensure(!any(set, fun(v) -> !v))
+	
+	## all
+	let set = [5, 7]
+	ensure(all(set, fun(n) -> n >= 5))
+	ensure(all(set, fun(n) -> !(n < 5)))
+	push(set, 3) ## = [5, 7, 3]
+	ensure(!all(set, fun(n) -> n >= 5))
+	ensure(!all(set, fun(n) -> !(n < 5)))
 }
 
 let math_lib() = {
@@ -662,47 +706,6 @@ let math_lib() = {
 	ensure(nearly(tan(90), -1.9952, 0.001))
 }
 
-let iter_lib() = {
-	## repn
-	let nums = []
-	repn(3, fun(i) -> push(nums, (i + 1) * 3))
-	ensure(nums = [3, 6, 9])
-	
-	## foreach
-	let indices = [0, 1, 2]
-	let copy = []
-	foreach(indices, fun(index, value) -> {
-		ensure(index = indices[index])
-		push(copy, value)
-	})
-	ensure(copy = indices)
-	
-	## map
-	let list = map([4, 8], fun(x) -> x * 2)
-	ensure(list = [8, 16])
-
-	## flatten
-	let mess = [1, [2, [3, 4]], 5]
-	let clean = flatten(mess)
-	ensure(clean = [1, 2, 3, 4, 5])
-	
-	## any
-	let set = [true, true, false]
-	ensure(any(set, fun(v) -> v))
-	ensure(any(set, fun(v) -> !v))
-	pop(set) ## = [true, true]
-	ensure(any(set, fun(v) -> v))
-	ensure(!any(set, fun(v) -> !v))
-	
-	## all
-	let set = [5, 7]
-	ensure(all(set, fun(n) -> n >= 5))
-	ensure(all(set, fun(n) -> !(n < 5)))
-	push(set, 3) ## = [5, 7, 3]
-	ensure(!all(set, fun(n) -> n >= 5))
-	ensure(!all(set, fun(n) -> !(n < 5)))
-}
-
 ## tests to run
 
 let run = flatten([
@@ -737,6 +740,7 @@ let run = flatten([
 		blocks,
 		lists,
 		functions,
+		gc_bomb,
 	],
 	"Control flow",
 	[
@@ -748,8 +752,8 @@ let run = flatten([
 		prelude_lib,
 		list_lib,
 		string_lib,
-		math_lib,
 		iter_lib,
+		math_lib,
 	],
 ])
 
@@ -773,12 +777,12 @@ foreach(run, fun(_, val) ->
 		## align
 		let width = 20
 		let len = length(chars(name))
-		repn(width - len, fun(_) -> put("."))
+		rep(width - len, fun(_) -> put("."))
 		
 		## run it
-		repn(iterations, fun(_) -> val())
+		rep(iterations, fun(_) -> val())
 		
-		putln("OK")
+		putln("ok")
 	}
 )
 

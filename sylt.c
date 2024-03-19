@@ -40,8 +40,9 @@
  * (sylt_free) to prevent memory leaks */
 #define DBG_NO_GC 0
 
-/* makes the GC collect on every allocation */
-#define DBG_GC_EVERY_ALLOC 0
+/* triggers the GC on every allocation,
+ * super slow but good for bug hunting */
+#define DBG_GC_EVERY_ALLOC 1
 
 #define DBG_PRINT_SYLT_STATE 1
 #define DBG_PRINT_GC_STATE 0
@@ -203,13 +204,13 @@ void halt(sylt_t*, const char*, ...);
 #define E_OUTOFMEM \
 	"out of memory"
 #define E_CODELIMIT \
-	"bytecode limit (%d) reached", MAX_CODE
+	"bytecode limit of %d reached", MAX_CODE
 #define E_DATALIMIT \
-	"data limit (%d) reached", MAX_DATA
+	"data limit of %d reached", MAX_DATA
 #define E_STACKLIMIT \
-	"stack limit (%d) reached", MAX_STACK
+	"stack limit of %d reached", MAX_STACK
 #define E_LINELIMIT \
-	"line limit (%d) reached", MAX_LINES
+	"line limit of %d reached", MAX_LINES
 #define E_JUMPLIMIT \
 	"jump distance too far (>%d)", MAX_JUMP
 #define E_IO(msg, path) \
@@ -316,8 +317,11 @@ void* ptr_resize(
 		if (ns > os)
 			gc_collect(ctx, func_name, line);
 		#else
-		if (ns > os && ctx->mem.bytes >=
-			ctx->mem.gc.trigger)
+		bool trigger_gc = ns > os &&
+			ctx->mem.bytes >
+			ctx->mem.gc.trigger;
+		
+		if (trigger_gc)
 			gc_collect(ctx, func_name, line);
 		#endif
 	}
@@ -385,8 +389,8 @@ typedef enum {
 	OP_STORE_LIST,
 	OP_LOAD_UPVAL,
 	OP_STORE_UPVAL,
-	OP_HIDE_RET,
-	OP_SHOW_RET,
+	OP_LOAD_RET,
+	OP_STORE_RET,
 	/* arithmetic */
 	OP_ADD,
 	OP_SUB,
@@ -440,8 +444,8 @@ static opinfo_t OPINFO[] = {
 	[OP_STORE_LIST] = {"store_list", 0, 0},
 	[OP_LOAD_UPVAL] = {"load_upval", 1, +1},
 	[OP_STORE_UPVAL] = {"store_upval", 1, 0},
-	[OP_HIDE_RET] = {"hide_ret", 0, -1},
-	[OP_SHOW_RET] = {"show_ret", 0, +1},
+	[OP_LOAD_RET] = {"load_ret", 0, +1},
+	[OP_STORE_RET] = {"store_ret", 0, -1},
 	[OP_ADD] = {"add", 0, -1},
 	[OP_SUB] = {"sub", 0, -1},
 	[OP_MUL] = {"mul", 0, -1},
@@ -1056,16 +1060,15 @@ string_t* string_fmt(
 	va_start(args, fmt);
 	size_t len = vsnprintf(
 		NULL, 0, fmt, args);
-		
-	char* bytes = NULL;
-	arr_alloc(bytes, char, len, ctx);
 	
-	/* TODO: isn't this UB? */
-	vsnprintf(bytes, len + 1, fmt, args);
+	string_t* str = string_new(
+		NULL, len, false, ctx);
+	
+	vsnprintf((char*)str->bytes,
+		len + 1, fmt, args);
 	va_end(args);
 	
-	return string_new(
-		(uint8_t*)bytes, len, true, ctx);
+	return str;
 }
 
 /* returns true if a == b */
@@ -1180,7 +1183,12 @@ void func_write(
 {
 	if (func->ncode >= MAX_CODE) {
 		halt(ctx, E_CODELIMIT);
-		return;
+		unreachable();
+	}
+	
+	if (func->nlines >= MAX_LINES) {
+		halt(ctx, E_LINELIMIT);
+		unreachable();
 	}
 	
 	size_t oldsz = nextpow2(func->ncode);
@@ -1585,12 +1593,10 @@ void dbg_print_instruction(
 			(vm->fp->ip - 1 - func->code);
 	sylt_dprintf("  %05ld", addr);
 	
-	/* TODO: max line limit */
 	const uint32_t* lines =
 		vm->fp->func->lines;
 	uint32_t line = lines[addr];
 	
-	/* TODO: fix */
 	if (addr == 0 || line > lines[addr - 1])
 		sylt_dprintf(" %-4d ", line);
 	else
@@ -1969,12 +1975,12 @@ void vm_exec(vm_t* vm) {
 				peek(0));
 			break;
 		}
-		case OP_HIDE_RET: {
-			vm->hidden = pop();
+		case OP_LOAD_RET: {
+			push(vm->hidden);
 			break;
 		}
-		case OP_SHOW_RET: {
-			push(vm->hidden);
+		case OP_STORE_RET: {
+			vm->hidden = pop();
 			break;
 		}
 		/* == arithmetic == */
@@ -2932,6 +2938,58 @@ int find_upvalue(
 	return -1;
 }
 
+void comp_open_scope(comp_t* cmp) {
+	cmp->depth++;
+}
+
+void comp_close_scope(comp_t* cmp) {
+	assert(cmp->depth > 0);
+	cmp->depth--;
+	 
+	/* count the number of local variables */
+	int locals = 0;
+	int index = cmp->nsyms - 1;
+	while (index >= 0 &&
+		cmp->syms[index].depth > cmp->depth)
+	{
+		locals++;
+		index--;
+	}
+	
+	if (locals == 0)
+		return;
+		
+	/* the return value is on top of the
+	 * stack so we need to hide it */
+	emit_nullary(cmp, OP_STORE_RET);
+	
+	/* pop the locals */
+	while (cmp->nsyms > 0 &&
+		cmp->syms[cmp->nsyms - 1].depth
+			> cmp->depth)
+	{
+		symbol_t* name =
+			&cmp->syms[cmp->nsyms - 1];
+		cmp->nsyms--;
+		
+		if (name->capped)
+			emit_nullary(cmp, OP_POP_HEAP);
+		else
+			emit_nullary(cmp, OP_POP);
+	}
+	
+	/* shrink symbol table */
+	cmp->syms = arr_resize(
+		cmp->syms,
+		symbol_t,
+		cmp->nsyms + locals,
+		cmp->nsyms,
+		cmp->ctx);
+		
+	/* restore the return value */
+	emit_nullary(cmp, OP_LOAD_RET);
+}
+
 /* == lexer == */
 
 /* scans the source code for the next token */
@@ -3835,13 +3893,12 @@ void match_with(comp_t* cmp) {
  * to a single value */
 void block(comp_t* cmp) {
 	dbg_printfname();
-	cmp->depth++;
+	comp_open_scope(cmp);
 	
-	/* a block must return a value even
-	 * when it contains zero expressions */
+	/* empty block yields nil */
 	if (match(cmp, T_RCURLY)) {
 		emit_value(cmp, wrapnil());
-		cmp->depth--;
+		comp_close_scope(cmp);
 		return;
 	}
 	
@@ -3857,52 +3914,9 @@ void block(comp_t* cmp) {
 		if (!check(cmp, T_RCURLY))
 			emit_nullary(cmp, OP_POP);
 	}
+	
 	eat(cmp, T_RCURLY, "expected '}'");
-	
-	cmp->depth--;
-	 
-	/* count the number of local variables */
-	int locals = 0;
-	int index = cmp->nsyms - 1;
-	while (index >= 0 &&
-		cmp->syms[index].depth > cmp->depth)
-	{
-		locals++;
-		index--;
-	}
-	
-	if (locals == 0)
-		return;
-		
-	/* the return value is on top of the
-	 * stack so we need to hide it */
-	emit_nullary(cmp, OP_HIDE_RET);
-	
-	/* pop the locals */
-	while (cmp->nsyms > 0 &&
-		cmp->syms[cmp->nsyms - 1].depth
-			> cmp->depth)
-	{
-		symbol_t* name =
-			&cmp->syms[cmp->nsyms - 1];
-		cmp->nsyms--;
-		
-		if (name->capped)
-			emit_nullary(cmp, OP_POP_HEAP);
-		else
-			emit_nullary(cmp, OP_POP);
-	}
-	
-	/* restore the return value */
-	emit_nullary(cmp, OP_SHOW_RET);
-	
-	/* shrink symbol table */
-	cmp->syms = arr_resize(
-		cmp->syms,
-		symbol_t,
-		cmp->nsyms + locals,
-		cmp->nsyms,
-		cmp->ctx);
+	comp_close_scope(cmp);
 }
 
 void std_add(
@@ -3978,11 +3992,6 @@ void gc_collect(
 	
 	if (ctx->mem.gc.state == GC_STATE_PAUSED)
 		return;
-	
-	/* TODO: temporary */
-	if (ctx->state == SYLT_STATE_COMPILING) 
-		return;
-	
 	assert(ctx->mem.gc.state
 		== GC_STATE_IDLE);
 
@@ -3995,8 +4004,8 @@ void gc_collect(
 	ctx->mem.gc.cycles++;
 }
 
-void gc_mark_vm_roots(sylt_t*);
-void gc_mark_compiler_roots(sylt_t*);
+void gc_mark_vm(sylt_t*);
+void gc_mark_compiler(sylt_t*);
 void gc_trace_refs(sylt_t*);
 
 /* marks all root objects */
@@ -4014,10 +4023,8 @@ void gc_mark(
 	gc_set_state(ctx, GC_STATE_MARK);
 	
 	/* mark root objects */
-	gc_mark_vm_roots(ctx);
-	gc_mark_compiler_roots(ctx);
-	
-	/* mark objects reachable from roots */
+	gc_mark_vm(ctx);
+	gc_mark_compiler(ctx);
 	gc_trace_refs(ctx);
 	
 	gc_free(ctx->mem.gc.marked);
@@ -4025,9 +4032,9 @@ void gc_mark(
 	ctx->mem.gc.nmarked = 0;
 }
 
-/* marks all roots reachable from
+/* marks all root objects reachable from
  * the VM */
-void gc_mark_vm_roots(sylt_t* ctx) {
+void gc_mark_vm(sylt_t* ctx) {
 	vm_t* vm = ctx->vm;
 	if (!vm)
 		return;
@@ -4051,12 +4058,11 @@ void gc_mark_vm_roots(sylt_t* ctx) {
 	val_mark(vm->hidden, ctx);
 }
 
-/* marks all roots that can be reached from
+/* marks all roots reachable from
  * the compiler */
-void gc_mark_compiler_roots(sylt_t* ctx) {
-	if (ctx->state < SYLT_STATE_COMPILING)
+void gc_mark_compiler(sylt_t* ctx) {
+	if (ctx->state != SYLT_STATE_COMPILING)
 		return;
-	assert(ctx->cmp);
 	
 	/* compiler stack */
 	comp_t* cmp = ctx->cmp;
@@ -4176,8 +4182,6 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	vsnprintf(msg, MAX_ERRMSGLEN, fmt, args);
 	va_end(args);
 	
-	sylt_eprintf("\n");
-	
 	/* print message prefix */
 	int state = (ctx) ? ctx->state : -1;
 	switch (state) {
@@ -4269,6 +4273,8 @@ void sylt_free(sylt_t* ctx) {
 		ctx->cmp = NULL;
 	}
 	
+	dbg_print_mem_stats(ctx);
+	dbg_print_mem_sizes();
 	assert(ctx->mem.gc.pause_depth == 0);
 	
 	/* ensure that no memory was leaked */
@@ -4279,14 +4285,13 @@ void sylt_free(sylt_t* ctx) {
 			bytesleft);
 	assert(!bytesleft);
 	
-	dbg_print_mem_stats(ctx);
-	dbg_print_mem_sizes();
-	
 	sylt_set_state(ctx, SYLT_STATE_FREE);
 	ptr_free(ctx, sylt_t, ctx);
 }
 
 void compile(sylt_t* ctx) {
+	gc_pause(ctx);
+	
 	/* init a fresh compiler */
 	comp_init(ctx->cmp, NULL, NULL, ctx);
 	
@@ -4312,6 +4317,8 @@ void compile(sylt_t* ctx) {
 	emit_nullary(ctx->cmp, OP_RET);
 	sylt_pushfunc(ctx, ctx->cmp->func);
 	sylt_set_state(ctx, SYLT_STATE_COMPILED);
+	
+	gc_resume(ctx);
 }
 
 /* compiles and runs a sylt program from

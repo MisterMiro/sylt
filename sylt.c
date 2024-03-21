@@ -188,16 +188,6 @@ typedef struct {
  * while allocating it */
 static jmp_buf err_jump;
 
-/* == API == */
-
-sylt_t* sylt_new(void);
-void sylt_free(sylt_t* ctx);
-
-bool sylt_dostring(sylt_t* ctx,
-	const char* src);
-bool sylt_dofile(sylt_t* ctx,
-	const char* path);
-
 static void sylt_set_state(
 	sylt_t* ctx, sylt_state_t state)
 {
@@ -209,6 +199,16 @@ static void sylt_set_state(
 	#endif
 }
 
+/* == API == */
+
+sylt_t* sylt_new(void);
+void sylt_free(sylt_t* ctx);
+
+bool sylt_dostring(sylt_t* ctx,
+	const char* src);
+bool sylt_dofile(sylt_t* ctx,
+	const char* path);
+	
 /* == error messages == */
 
 void halt(sylt_t*, const char*, ...);
@@ -774,19 +774,26 @@ typedef struct vm_s {
 /* these are useful even outside of the VM,
  * for making objects visible to the GC */
 
-static inline void vm_push(vm_t*, value_t);
-static inline value_t vm_pop(vm_t*);
+static inline void vm_push(
+	struct vm_s*, struct value_s);
+static inline value_t vm_pop(
+	struct vm_s*);
 static inline value_t vm_peek(
-	const vm_t* vm, int n);
-static inline void vm_shrink(vm_t*, int);
+	const struct vm_s*, int);
+static inline void vm_shrink(
+	struct vm_s*, int);
 
 /* for pushing values on the stack */
 #define sylt_push(ctx, v) \
 	vm_push(ctx->vm, v)
+#define sylt_pushnum(ctx, v) \
+	sylt_push(ctx, wrapnum(v))
 #define sylt_pushstring(ctx, v) \
 	sylt_push(ctx, wrapstring(v))
 #define sylt_pushfunc(ctx, v) \
 	sylt_push(ctx, wrapfunc(v))
+#define sylt_pushclosure(ctx, v) \
+	sylt_push(ctx, wrapclosure(v))
 
 /* for popping values off the stack */
 #define sylt_pop(ctx) \
@@ -803,6 +810,8 @@ static inline void vm_shrink(vm_t*, int);
 	getstring(sylt_peek(ctx, n))
 #define sylt_peekfunc(ctx, n) \
 	getfunc(sylt_peek(ctx, n))
+#define sylt_peekclosure(ctx, n) \
+	getclosure(sylt_peek(ctx, n))
 
 /* shrinks the stack by n values */
 #define sylt_shrink(ctx, n) \
@@ -1004,7 +1013,7 @@ list_t* list_new(sylt_t* ctx) {
 value_t* list_get(
 	const list_t* ls, int index, sylt_t* ctx)
 {
-	/* allow negative indices */
+	/* allow negative indexing */
 	if (index < 0) {
 		int mod = ls->len + index;
 		if (mod > ls->len - 1) {
@@ -1086,11 +1095,11 @@ string_t* string_new(
 		/* hide from GC */
 		sylt_pushstring(ctx, str);
 		
-		/* allocate our own buffer... */
+		/* allocate our own buffer */
 		arr_alloc(str->bytes,
 			uint8_t, len, ctx);
 		
-		/* ... and copy the provided string */
+		/* and copy the provided string */
 		if (bytes)
 			memcpy(str->bytes, bytes, len);
 		
@@ -1520,7 +1529,7 @@ void val_print(
 
 /* == virtual machine == */
 
-void vm_ensurestack(vm_t*, int);
+void vm_ensure_stack(vm_t*, int);
 
 void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->stack = NULL;
@@ -1535,7 +1544,7 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->ctx = ctx;
 	
 	/* initialize some stack space */
-	vm_ensurestack(vm, SYLT_INIT_STACK);
+	vm_ensure_stack(vm, SYLT_INIT_STACK);
 }
 
 void vm_free(vm_t* vm) {
@@ -1546,7 +1555,7 @@ void vm_free(vm_t* vm) {
 }
 
 /* VM macros */
-#define read() *vm->fp->ip++
+#define read8() *vm->fp->ip++
 #define read16() \
 	(vm->fp->ip += 2, (uint16_t) \
 		((vm->fp->ip[-2] << 8) \
@@ -1667,10 +1676,10 @@ void dbg_print_instruction(
 			(vm->fp->ip - 1 - func->code);
 	sylt_dprintf("  %05ld", addr);
 	
+	/* line number */
 	const uint32_t* lines =
 		vm->fp->func->lines;
 	uint32_t line = lines[addr];
-	
 	if (addr == 0 || line > lines[addr - 1])
 		sylt_dprintf(" %-4d ", line);
 	else
@@ -1753,51 +1762,12 @@ static inline value_t vm_peek(
 	const vm_t* vm, int n)
 {
 	value_t* ptr = vm->sp + (-1 - n);
-	
-	#if DBG_ASSERTIONS
-	bool out_of_bounds = ptr < vm->stack
-		|| ptr > vm->sp;
-	
-	if (out_of_bounds) {
-		sylt_dprintf(
-			"access: %p\n"
-			"base: %p\n"
-			"top: %p\n",
-			ptr,
-			vm->stack,
-			vm->sp);
-		dbgerr("value stack overflowed");
-	}
-	#endif
-	
+	assert(ptr >= vm->stack);
+	assert(ptr <= vm->sp - 1);
 	return *ptr;
 }
 
 void vm_math(vm_t* vm, op_t opcode);
-
-/* some extra stack space for hiding stuff
- * from the GC */
-#define EXTRA_STACK 32
-
-/* grows the stack if necessary */
-void vm_ensurestack(vm_t* vm, int needed) {
-	needed += EXTRA_STACK;
-	if (vm->maxstack >= needed)
-		return;
-	
-	gc_pause(vm->ctx);
-	size_t offset = vm->sp - vm->stack;
-	
-	vm->stack = arr_resize(
-		vm->stack,
-		value_t,
-		vm->maxstack,
-		needed,
-		vm->ctx);	
-	vm->maxstack = needed;
-	gc_resume(vm->ctx);
-	vm->sp = vm->stack + offset;
-}
 
 /* returns the value referenced by
  * an upvalue */
@@ -1809,6 +1779,7 @@ value_t vm_load_upval(
 	return vm->stack[upval->index];
 }
 
+/* sets the value referenced by an upvalue */
 void vm_store_upval(
 	vm_t* vm, upvalue_t* upval, value_t val)
 {
@@ -1822,7 +1793,7 @@ void vm_store_upval(
 
 /* captures a stack variable into an
  * upvalue */
-upvalue_t* vm_capupval(
+upvalue_t* vm_cap_upval(
 	vm_t* vm, size_t index)
 {
 	/* check if there already exists an
@@ -1852,7 +1823,7 @@ upvalue_t* vm_capupval(
 	return fresh;
 }
 
-void vm_closeupvals(
+void vm_close_upvals(
 	vm_t* vm, size_t last)
 {
 	if (!vm->openups ||
@@ -1865,39 +1836,51 @@ void vm_closeupvals(
 	vm->openups = upval->next;
 }
 
-void vm_exec(vm_t* vm) {
-	sylt_set_state(vm->ctx, SYLT_STATE_EXEC);
+/* some extra stack space for hiding stuff
+ * from the GC */
+#define EXTRA_STACK 32
+
+/* grows the stack if necessary */
+void vm_ensure_stack(vm_t* vm, int needed) {
+	needed += EXTRA_STACK;
+	if (vm->maxstack >= needed)
+		return;
 	
+	gc_pause(vm->ctx);
+	size_t offset = vm->sp - vm->stack;
+	
+	vm->stack = arr_resize(
+		vm->stack,
+		value_t,
+		vm->maxstack,
+		needed,
+		vm->ctx);	
+	vm->maxstack = needed;
+	gc_resume(vm->ctx);
+	vm->sp = vm->stack + offset;
+}
+
+void sylt_call(sylt_t*, int);
+
+void vm_load(vm_t* vm) {
 	assert(peek(0).tag == TYPE_FUNCTION);
 	const func_t* entry = getfunc(peek(0));
 	assert(entry);
 	
-	/* make sure there's enough stack space */
-	vm_ensurestack(vm, entry->slots);
-	
-	/* setup first call frame */
-	cframe_t frame;
-	frame.func = entry;
-	frame.cls = closure_new(vm->ctx, entry);
-	frame.ip = entry->code;
-	frame.offs = 0;
-	vm->frames[vm->nframes++] = frame;
-	vm->fp = &vm->frames[vm->nframes - 1];
-	
-	/* the function is now reachable from
-	 * the callstack and doesn't need to
-	 * be on the stack */
-	pop();
-	
-	/* ensure an empty stack */
-	vm->sp = vm->stack;
+	sylt_pushclosure(vm->ctx,
+		closure_new(vm->ctx, entry));
+	sylt_call(vm->ctx, 0);
+}
+
+void vm_exec(vm_t* vm, bool stdlib_call) {
+	sylt_set_state(vm->ctx, SYLT_STATE_EXEC);
 	
 	#if DBG_PRINT_CODE
 	dbg_print_header(vm, vm->fp->cls);
 	#endif
 	
 	for (;;) {
-		uint8_t op = read();
+		uint8_t op = read8();
 		
 		#if DBG_PRINT_STACK
 		dbg_print_stack(vm,
@@ -1913,7 +1896,7 @@ void vm_exec(vm_t* vm) {
 		/* == stack == */
 		case OP_PUSH: {
 			value_t val = vm->fp->func->
-				data[read()];
+				data[read8()];
 			push(val);
 			break;
 		}
@@ -1930,7 +1913,7 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_PUSH_LIST: {
-			uint8_t len = read();
+			uint8_t len = read8();
 			list_t* ls = list_new(vm->ctx);
 			
 			push(wraplist(ls)); /* GC */
@@ -1946,9 +1929,8 @@ void vm_exec(vm_t* vm) {
 		case OP_PUSH_FUNC: {
 			gc_pause(vm->ctx);
 			
-			func_t* func = 
-				getfunc(vm->fp->func->
-					data[read()]);
+			func_t* func = getfunc(
+				vm->fp->func->data[read8()]);
 			
 			/* wrap it in a closure */
 			closure_t* cls =
@@ -1966,12 +1948,12 @@ void vm_exec(vm_t* vm) {
 			for (size_t i = 0;
 				i < cls->nupvals; i++)
 			{
-				uint8_t is_local = read();
-				uint8_t index = read();
+				uint8_t is_local = read8();
+				uint8_t index = read8();
 				upvalue_t* upval = NULL;
 				
 				if (is_local)
-					upval = vm_capupval(vm,
+					upval = vm_cap_upval(vm,
 						vm->fp->offs + index);
 				else
 					upval = vm->fp->
@@ -1988,7 +1970,7 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_POP_HEAP: {
-			vm_closeupvals(vm,
+			vm_close_upvals(vm,
 				vm->sp - vm->stack - 1);
 			pop();
 			break;
@@ -2000,20 +1982,20 @@ void vm_exec(vm_t* vm) {
 		}
 		/* == memory == */
 		case OP_LOAD: {
-			push(func_stack()[read()]);
+			push(func_stack()[read8()]);
 			break;
 		}
 		case OP_STORE: {
-			func_stack()[read()] = peek(0);
+			func_stack()[read8()] = peek(0);
 			break;
 		}
 		case OP_LOAD_LIST: {
 			typecheck(
 				vm->ctx, peek(0), TYPE_NUM);
-			sylt_num_t index = getnum(pop());
-			
 			typecheck(
-				vm->ctx, peek(0), TYPE_LIST);
+				vm->ctx, peek(1), TYPE_LIST);
+				
+			sylt_num_t index = getnum(pop());
 			list_t* ls = getlist(pop());
 			
 			push(*list_get(
@@ -2025,27 +2007,26 @@ void vm_exec(vm_t* vm) {
 			
 			typecheck(
 				vm->ctx, peek(0), TYPE_NUM);
-			sylt_num_t index = getnum(pop());
-				
 			typecheck(
-				vm->ctx, peek(0), TYPE_LIST);
+				vm->ctx, peek(1), TYPE_LIST);
+				
+			sylt_num_t index = getnum(pop());
 			list_t* ls = getlist(pop());
 			
-			*list_get(
-				ls, index, vm->ctx) = val;
-			
+			*list_get(ls, index, vm->ctx)
+				= val;
 			push(val);
 			break;
 		}
 		case OP_LOAD_UPVAL: {
 			value_t val = vm_load_upval(vm,
-				vm->fp->cls->upvals[read()]);
+				vm->fp->cls->upvals[read8()]);
 			push(val);
 			break;
 		}
 		case OP_STORE_UPVAL: {
 			vm_store_upval(vm,
-				vm->fp->cls->upvals[read()],
+				vm->fp->cls->upvals[read8()],
 				peek(0));
 			break;
 		}
@@ -2122,78 +2103,14 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_CALL: {
-			uint8_t argc = read();
-			typecheck(vm->ctx,
-				peek(argc),
-				TYPE_CLOSURE);
-			
-			closure_t* cls =
-				getclosure(peek(argc));
-			const func_t* func = cls->func;
-				
-			if (func->params != argc) {
-				halt(vm->ctx, E_WRONGARGC(
-					func->params, argc));
-				unreachable();
-			}
-			
-			if (func->cfunc) {
-				gc_pause(vm->ctx);
-				
-				/* calling a C function
-				 * does not involve the
-				 * sylt callstack */
-				value_t result =
-					func->cfunc(vm->ctx);
-				shrink(argc + 1);
-				push(result);
-				
-				#if DBG_PRINT_CODE
-				sylt_dprintf("\n");
-				#endif
-				
-				gc_resume(vm->ctx);
-				break;
-			}
-			
-			if (vm->nframes == MAX_CFRAMES) {
-				halt(vm->ctx,
-					E_STACKOVERFLOW,
-					MAX_CFRAMES);
-				unreachable();
-			}
-			
-			/* see if we have enough 
-			 * stack space and grow if not */
-			size_t used = vm->sp - vm->stack;
-			size_t needed = used
-				+ func->slots;
-			vm_ensurestack(vm, needed);
-			
-			/* push a new call frame */
-			cframe_t frame;
-			frame.func = func;
-			frame.cls = cls;
-			frame.ip = func->code;
-			frame.offs = used - argc;
-			vm->frames[vm->nframes++] = frame;
-			vm->fp = &vm->frames[
-				vm->nframes - 1];
-				
-			#if DBG_PRINT_CODE
-			dbg_print_header(vm,
-				vm->fp->cls);
-			#endif
-			
+			sylt_call(vm->ctx, read8());
 			break;
 		}
 		case OP_RET: {
 			value_t retval = pop();
-			
-			/* move any values referenced by
-			 * upvalues that are about to
-			 * go off the stack to the heap */
-			vm_closeupvals(vm, vm->fp->offs);
+			vm_close_upvals(vm, vm->fp->offs);
+			vm->sp = func_stack() - 1;
+			push(retval);
 			
 			vm->nframes--;
 			if (vm->nframes == 0) {
@@ -2201,14 +2118,13 @@ void vm_exec(vm_t* vm) {
 					SYLT_STATE_DONE);
 				return;
 			}
-			
-			/* shrink stack to get rid of
-			 * function and arguments */
-			vm->sp = func_stack() - 1;
-			push(retval);
-			
+	
 			vm->fp =
 				&vm->frames[vm->nframes - 1];
+				
+			if (stdlib_call) {
+				return;
+			}
 			
 			#if DBG_PRINT_CODE
 			dbg_print_header(
@@ -2223,9 +2139,8 @@ void vm_exec(vm_t* vm) {
 
 void vm_math(vm_t* vm, op_t opcode) {
 	typecheck(vm->ctx, peek(0), TYPE_NUM);
+	typecheck(vm->ctx, peek(1), TYPE_NUM);
 	sylt_num_t b = getnum(pop());
-	
-	typecheck(vm->ctx, peek(0), TYPE_NUM);
 	sylt_num_t a = getnum(pop());
 	
 	switch (opcode) {
@@ -2278,7 +2193,66 @@ void vm_math(vm_t* vm, op_t opcode) {
 	}
 }
 
-#undef read
+void sylt_call(sylt_t* ctx, int argc) {
+	vm_t* vm = ctx->vm;
+	
+	typecheck(
+		vm->ctx, peek(argc), TYPE_CLOSURE);
+	closure_t* cls = getclosure(peek(argc));
+	const func_t* func = cls->func;
+				
+	if (func->params != argc) {
+		halt(vm->ctx, E_WRONGARGC(
+			func->params, argc));
+			unreachable();
+	}
+			
+	if (func->cfunc) {
+		gc_pause(vm->ctx);
+				
+		/* calling a C function
+		 * does not involve the
+		 * sylt callstack */
+		value_t result = func->cfunc(vm->ctx);
+		shrink(argc + 1);
+		push(result);
+				
+		#if DBG_PRINT_CODE
+		sylt_dprintf("\n");
+		#endif
+				
+		gc_resume(vm->ctx);
+		return;
+	}
+			
+	if (vm->nframes == MAX_CFRAMES) {
+		halt(vm->ctx,
+			E_STACKOVERFLOW,
+			MAX_CFRAMES);
+		unreachable();
+	}
+			
+	/* see if we have enough 
+	 * stack space and grow if not */
+	size_t used = vm->sp - vm->stack;
+	size_t needed = used + func->slots;
+	vm_ensure_stack(vm, needed);
+			
+	/* push a new call frame */
+	cframe_t frame;
+	frame.func = func;
+	frame.cls = cls;
+	frame.ip = func->code;
+	frame.offs = used - argc;
+	vm->frames[vm->nframes++] = frame;
+	vm->fp = &vm->frames[vm->nframes - 1];
+				
+	#if DBG_PRINT_CODE
+	dbg_print_header(vm, vm->fp->cls);
+	#endif
+}
+
+#undef read8
 #undef read16
 #undef push
 #undef pop
@@ -2296,6 +2270,7 @@ void vm_math(vm_t* vm, op_t opcode) {
 #define numarg(n) getnum(arg(n))
 #define listarg(n) getlist(arg(n))
 #define stringarg(n) getstring(arg(n))
+#define closurearg(n) getclosure(arg(n))
 
 /* == prelude lib == */
 
@@ -2339,6 +2314,24 @@ value_t std_ensure(sylt_t* ctx) {
 	}
 	
 	return arg(0);
+}
+
+/* calls f n times with n as argument */
+value_t std_rep(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_CLOSURE);
+	
+	int n = numarg(0);
+	closure_t* f = closurearg(1);
+	
+	for (int i = 0; i < n; i++) {
+		sylt_pushclosure(ctx, f);
+		sylt_pushnum(ctx, i);
+		sylt_call(ctx, 1);
+		vm_exec(ctx->vm, true);
+	}
+	
+	return wrapnil();
 }
 
 /* == list lib == */
@@ -2532,14 +2525,14 @@ value_t std_round(sylt_t* ctx) {
 
 /* returns x converted from degrees to
  * radians */
-value_t std_rads(sylt_t* ctx) {
+value_t std_rad(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * M_PI / 180.0);
 }
 
 /* returns x converted from radians to
  * degrees */
-value_t std_degs(sylt_t* ctx) {
+value_t std_deg(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * 180.0 / M_PI);
 }
@@ -2583,6 +2576,7 @@ void load_stdlib(sylt_t* ctx) {
 		std_tostring, 1);
 	std_addf(ctx, "typeof", std_typeof, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
+	std_addf(ctx, "rep", std_rep, 2);
 	
 	/* list */
 	std_addf(ctx, "length", std_length, 1);
@@ -2607,8 +2601,8 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "floor", std_floor, 1);
 	std_addf(ctx, "ceil", std_ceil, 1);
 	std_addf(ctx, "round", std_round, 1);
-	std_addf(ctx, "rads", std_rads, 1);
-	std_addf(ctx, "degs", std_degs, 1);
+	std_addf(ctx, "rad", std_rad, 1);
+	std_addf(ctx, "deg", std_deg, 1);
 	std_addf(ctx, "sin", std_sin, 1);
 	std_addf(ctx, "cos", std_cos, 1);
 	std_addf(ctx, "tan", std_tan, 1);
@@ -2745,38 +2739,18 @@ void comp_init(
 	comp_t* child,
 	sylt_t* ctx)
 {
-	string_t* name = sylt_peekstring(ctx, 0);
-	string_t* src = sylt_peekstring(ctx, 1);
-	
 	cmp->parent = parent;
 	cmp->child = child;
-	cmp->func = func_new(ctx, name);
-	if (parent) {
-		sylt_pushstring(ctx,
-			parent->func->path);
-		sylt_pushstring(ctx,
-			string_lit("/", ctx));
-		sylt_concat(ctx);
-		
-		sylt_pushstring(ctx, name);
-		sylt_concat(ctx);
-		
-		cmp->func->path = sylt_popstring(ctx);
-	}
+	cmp->func = NULL;
 	cmp->curslots = 0;
 	
-	cmp->src = src;
-	cmp->pos = (char*)cmp->src->bytes;
-	cmp->line = 1;
+	cmp->src = NULL;
+	cmp->pos = NULL;
+	cmp->line = 0;
 	cmp->syms = NULL;
 	cmp->nsyms = 0;
 	cmp->depth = 0;
 	cmp->ctx = ctx;
-	
-	/* the source code and name are now
-	 * reachable from the compiler and
-	 * can be safely taken off the stack */
-	sylt_shrink(ctx, 2);
 }
 
 void comp_free(comp_t* cmp) {
@@ -2785,6 +2759,37 @@ void comp_free(comp_t* cmp) {
 		symbol_t,
 		cmp->nsyms,
 		cmp->ctx);
+}
+
+void comp_load(comp_t* cmp) {
+	string_t* name =
+		sylt_peekstring(cmp->ctx, 0);
+	string_t* src =
+		sylt_peekstring(cmp->ctx, 1);
+	
+	cmp->func = func_new(cmp->ctx, name);
+	if (cmp->parent) {
+		/* parent_name/ */
+		sylt_pushstring(cmp->ctx,
+			cmp->parent->func->path);
+		sylt_pushstring(cmp->ctx,
+			string_lit("/", cmp->ctx));
+		sylt_concat(cmp->ctx);
+		
+		/* parent_name/child_name */
+		sylt_pushstring(cmp->ctx, name);
+		sylt_concat(cmp->ctx);
+		
+		cmp->func->path =
+			sylt_popstring(cmp->ctx);
+	}
+	
+	cmp->src = src;
+	cmp->pos = (char*)cmp->src->bytes;
+	cmp->line = 1;
+	
+	/* src and name */
+	sylt_shrink(cmp->ctx, 2);
 }
 
 void comp_copy_parse_state(
@@ -3807,6 +3812,7 @@ void parse_func(
 	* in order to parse the function */
 	comp_t fcmp;
 	comp_init(&fcmp, cmp, NULL, cmp->ctx);
+	comp_load(&fcmp);
 	comp_copy_parse_state(&fcmp, cmp);
 	cmp->child = &fcmp;
 		
@@ -4317,6 +4323,7 @@ sylt_t* sylt_new(void) {
 	vm_init(ctx->vm, ctx);
 	
 	ptr_alloc(ctx->cmp, comp_t, ctx);
+	comp_init(ctx->cmp, NULL, NULL, ctx);
 	
 	/* init memory */
 	ctx->mem.objs = NULL;
@@ -4356,7 +4363,13 @@ void sylt_free(sylt_t* ctx) {
 	
 	/* free compiler */
 	if (ctx->cmp) {
-		comp_free(ctx->cmp);
+		comp_t* cmp = ctx->cmp;
+		do {
+			comp_t* next = cmp->child;
+			comp_free(cmp);
+			cmp = next;
+		} while (cmp);
+		
 		ptr_free(ctx->cmp, comp_t, ctx);
 		ctx->cmp = NULL;
 	}
@@ -4380,8 +4393,7 @@ void sylt_free(sylt_t* ctx) {
 void compile(sylt_t* ctx) {
 	gc_pause(ctx);
 	
-	/* init a fresh compiler */
-	comp_init(ctx->cmp, NULL, NULL, ctx);
+	comp_load(ctx->cmp);
 	
 	#if DBG_PRINT_SOURCE
 	puts((char*)ctx->cmp->src->bytes);
@@ -4431,7 +4443,8 @@ bool sylt_dostring(
 		string_lit("input", ctx));
 	
 	compile(ctx);
-	vm_exec(ctx->vm);
+	vm_load(ctx->vm);
+	vm_exec(ctx->vm, false);
 	return true;
 }
 
@@ -4457,13 +4470,24 @@ bool sylt_dofile(
 		string_lit(path, ctx));
 	
 	compile(ctx);
-	vm_exec(ctx->vm);
+	vm_load(ctx->vm);
+	vm_exec(ctx->vm, false);
 	return true;
+}
+
+void sylt_interact(sylt_t* ctx) {
+	puts(SYLT_VERSION_STR);
+	while (true) {
+		printf(">> ");
+		char buffer[4096];
+		fgets(buffer, 4096, stdin);
+		sylt_dostring(ctx, buffer);
+	}
 }
 
 void sylt_test(sylt_t* ctx) {
 	/* empty input */
-	//assert(sylt_dostring(ctx, "  "));
+	assert(sylt_dostring(ctx, ""));
 	
 	/* make sure errors don't
 	 * cause any problems */
@@ -4480,14 +4504,19 @@ void sylt_test(sylt_t* ctx) {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc == 1) {
+	/*if (argc == 1) {
 		sylt_printf("Usage: sylt [file]\n");
 		return EXIT_SUCCESS;
-	}
+	}*/
 	
 	sylt_t* ctx = sylt_new();
 	sylt_test(ctx);
-	//sylt_dofile(ctx, argv[1]);
+	
+	if (argc == 1)
+		sylt_interact(ctx);
+	else
+		sylt_dofile(ctx, argv[1]);
+	
 	sylt_free(ctx);
 	
 	return EXIT_SUCCESS;

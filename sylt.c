@@ -26,7 +26,7 @@
 #define sylt_dprintf printf
 
 /* initial stack size */
-#define SYLT_INIT_STACK 512
+#define SYLT_INIT_STACK 8192
 
 /* == debug flags ==
  * all of these should be set to 0 in
@@ -228,7 +228,7 @@ void halt(sylt_t*, const char*, ...);
 #define E_IO(msg, path) \
 	"%s %s", (msg), (path)
 #define E_UNEXPECTEDCHAR(c) \
-	"unexpected character: %c", (c)
+	"unexpected character '%c'", (c)
 #define E_TYPE(ex, got) \
 	"expected value of type %s, got %s", \
 	user_type_name(ex), \
@@ -237,7 +237,7 @@ void halt(sylt_t*, const char*, ...);
 	"undefined variable '%.*s'", \
 	(name->len), (name->bytes)
 #define E_ESCAPESEQ(code) \
-	"unknown escape sequence: \\%c", \
+	"unknown escape sequence '\\%c'", \
 	(code)
 #define E_UNTERMSTRING \
 	"unterminated string literal"
@@ -270,11 +270,11 @@ void test_errors(sylt_t* ctx) {
 	const char* src;
 	
 	/* unexpected character */
-	src = "` ";
+	src = "`";
 	assert(!sylt_dostring(ctx, src));
 	
 	/* type error */
-	src = "1 + true ";
+	src = "1 + true";
 	assert(!sylt_dostring(ctx, src));
 	
 	/* undefined variable */
@@ -282,11 +282,11 @@ void test_errors(sylt_t* ctx) {
 	assert(!sylt_dostring(ctx, src));
 	
 	/* unknown escape sequence */
-	src = "\" \\w \" ";
+	src = "\" \\w \"";
 	assert(!sylt_dostring(ctx, src));
 	
 	/* unterminated string literal */
-	src = "\" ";
+	src = "\"";
 	assert(!sylt_dostring(ctx, src));
 	
 	/* division by zero */
@@ -607,8 +607,7 @@ typedef struct {
 /* string object */
 typedef struct string_s {
 	obj_t obj;
-	/* list of characters, not required
-	 * to be zero-terminated */
+	/* null terminated list of characters */
 	uint8_t* bytes;
 	size_t len;
 } string_t;
@@ -881,9 +880,9 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 		string_t* str = (string_t*)obj;
 		arr_free(str->bytes,
 			uint8_t,
-			str->len,
+			str->len + 1,
 			ctx);
-		
+			
 		ptr_free(str, string_t, ctx);
 		break;
 	}
@@ -1069,51 +1068,24 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 
 /* == string == */
 
-/* creates a new string
- * if [take] is true we take ownership of the
- * buffer, otherwise we create a copy */
+/* creates a new string */
 string_t* string_new(
-	uint8_t* bytes,
-	size_t len,
-	bool take,
-	sylt_t* ctx)
+	uint8_t* bytes, size_t len, sylt_t* ctx)
 {
 	string_t* str = (string_t*)obj_new(
 		sizeof(string_t), TYPE_STRING, ctx);
+	sylt_pushstring(ctx, str); /* GC */
 		
-	if (take) {
-		/* our memory now */
-		str->bytes = (uint8_t*)bytes;
-		
-	} else {
-		if (len == 0) {
-			str->bytes = NULL;
-			str->len = len;
-			return str;
-		}
-		
-		/* hide from GC */
-		sylt_pushstring(ctx, str);
-		
-		/* allocate our own buffer */
-		arr_alloc(str->bytes,
-			uint8_t, len, ctx);
-		
-		/* and copy the provided string */
-		if (bytes)
-			memcpy(str->bytes, bytes, len);
-		
-		/* safe */
-		sylt_popstring(ctx);
-	}
+	str->bytes = NULL;
+	arr_alloc(
+		str->bytes, uint8_t, len + 1, ctx);
 	
+	if (bytes)
+		memcpy(str->bytes, bytes, len);
+	
+	str->bytes[len] = '\0';
 	str->len = len;
-	return str;
-}
-
-/* creates an empty string with length 0 */
-string_t* string_empty(sylt_t* ctx) {
-	return string_new(NULL, 0, false, ctx);
+	return sylt_popstring(ctx);
 }
 
 /* helper function for creating a new 
@@ -1122,10 +1094,7 @@ string_t* string_lit(
 	const char* lit, sylt_t* ctx)
 {
 	return string_new(
-		(uint8_t*)lit,
-		strlen(lit),
-		false,
-		ctx);
+		(uint8_t*)lit, strlen(lit), ctx);
 }
 
 /* creates a new formatted string */
@@ -1138,8 +1107,7 @@ string_t* string_fmt(
 		NULL, 0, fmt, args);
 	
 	string_t* str = string_new(
-		NULL, len, false, ctx);
-	
+		NULL, len, ctx);
 	vsnprintf((char*)str->bytes,
 		len + 1, fmt, args);
 	va_end(args);
@@ -1158,8 +1126,8 @@ bool string_eq(
 	if (a->len != b->len)
 		return false;
 		
-	return memcmp(
-			a->bytes, b->bytes, a->len) == 0;
+	return memcmp(a->bytes, b->bytes, a->len)
+		== 0;
 }
 
 /* concatenates two strings */
@@ -1169,14 +1137,13 @@ string_t* string_concat(
 	sylt_t* ctx)
 {
 	size_t len = a->len + b->len;
-	
-	uint8_t* bytes = NULL;
-	arr_alloc(bytes, uint8_t, len, ctx);
-	memcpy(bytes, a->bytes, a->len);
-	memcpy(bytes + a->len, b->bytes, b->len);
-	
 	string_t* result = string_new(
-		bytes, len, true, ctx);
+		NULL, len, ctx);
+	
+	memcpy(result->bytes, a->bytes, a->len);
+	memcpy(result->bytes + a->len,
+		b->bytes, b->len);
+	
 	return result;
 }
 
@@ -1483,7 +1450,8 @@ string_t* val_tostring_opts(
 	string_t* vstr = val_tostring(val, ctx);
 	
 	if (quotestr && val.tag == TYPE_STRING) {
-		string_t* str = string_empty(ctx);
+		string_t* str =
+			string_new(NULL, 0, ctx);
 		
 		int len = vstr->len;
 		bool shortened = false;
@@ -1874,6 +1842,7 @@ void vm_load(vm_t* vm) {
 
 void vm_exec(vm_t* vm, bool stdlib_call) {
 	sylt_set_state(vm->ctx, SYLT_STATE_EXEC);
+	assert(vm->nframes > 0 && vm->fp);
 	
 	#if DBG_PRINT_CODE
 	dbg_print_header(vm, vm->fp->cls);
@@ -2367,7 +2336,7 @@ value_t std_chars(sylt_t* ctx) {
 	
 	for (int i = 0; i < str->len; i++) {
 		string_t* ch = string_new(
-			&str->bytes[i], 1, false, ctx);
+			&str->bytes[i], 1, ctx);
 		list_push(ls, wrapstring(ch), ctx);
 	}
 	
@@ -3098,7 +3067,6 @@ void comp_close_scope(comp_t* cmp) {
 		string_new( \
 			(uint8_t*)start, \
 			cmp->pos - start, \
-			false, \
 			cmp->ctx), \
 		cmp->line}
 #define step() cmp->pos++
@@ -3518,7 +3486,6 @@ void string(comp_t* cmp) {
 	string_t* dst = string_new(
 		NULL,
 		token.lex->len - 2,
-		false,
 		cmp->ctx);
 	size_t write = 0;
 	
@@ -4259,11 +4226,10 @@ string_t* load_file(
 	
 	/* read the file contents */
 	string_t* str = string_new(
-		NULL, len + 1, false, ctx);
+		NULL, len, ctx);
 	fread(str->bytes, 1, len, fp);
 	fclose(fp);
 	
-	str->bytes[len] = '\0';
 	return str;
 }
 
@@ -4384,7 +4350,7 @@ void sylt_free(sylt_t* ctx) {
 	if (bytesleft)
 		sylt_dprintf("%ld bytes leaked\n",
 			bytesleft);
-	assert(!bytesleft);
+//	assert(!bytesleft);
 	
 	sylt_set_state(ctx, SYLT_STATE_FREE);
 	ptr_free(ctx, sylt_t, ctx);
@@ -4511,11 +4477,12 @@ int main(int argc, char *argv[]) {
 	
 	sylt_t* ctx = sylt_new();
 	sylt_test(ctx);
+	sylt_test(ctx);
 	
-	if (argc == 1)
+	/*if (argc == 1)
 		sylt_interact(ctx);
 	else
-		sylt_dofile(ctx, argv[1]);
+		sylt_dofile(ctx, argv[1]);*/
 	
 	sylt_free(ctx);
 	

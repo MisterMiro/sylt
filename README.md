@@ -1,6 +1,6 @@
 # sylt
 
-early work in progress, see tests.sl for example code
+early work in progress, see tests.sylt for example code
 
 virtual machine:
 - executes bytecode

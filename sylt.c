@@ -4466,7 +4466,7 @@ void sylt_test(sylt_t* ctx) {
 	
 	/* run main tests */
 	sylt_dprintf("Running tests:\n");
-	sylt_dofile(ctx, "tests.sylt");
+	sylt_dofile(ctx, "tests.sl");
 }
 
 int main(int argc, char *argv[]) {

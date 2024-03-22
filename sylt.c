@@ -54,7 +54,29 @@
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_MEM_STATS 0
-#define DBG_PRINT_MEM_SIZES 0
+
+static void dbg_print_flags(void) {
+	#define pflag(flag) \
+		if (flag) \
+			sylt_dprintf( \
+				"note: %s is set\n", #flag)
+			
+	pflag(DBG_ASSERTIONS);
+	pflag(DBG_NO_GC);
+	pflag(DBG_GC_EVERY_ALLOC);
+	pflag(DBG_PRINT_SYLT_STATE);
+	pflag(DBG_PRINT_GC_STATE);
+	pflag(DBG_PRINT_SOURCE);
+	pflag(DBG_PRINT_TOKENS);
+	pflag(DBG_PRINT_NAMES);
+	pflag(DBG_PRINT_AST);
+	pflag(DBG_PRINT_CODE);
+	pflag(DBG_PRINT_DATA);
+	pflag(DBG_PRINT_STACK);
+	pflag(DBG_PRINT_MEM_STATS);
+			
+	#undef pflag
+}
 
 /* == optimizations == */
 
@@ -1538,7 +1560,7 @@ void vm_free(vm_t* vm) {
 void dbg_print_mem_stats(sylt_t* ctx) {
 	#if DBG_PRINT_MEM_STATS
 	sylt_dprintf(
-		"[memory info]\n"
+		"[memory]\n"
 		"- leaked: %ld bytes\n"
 		"- highest usage: %ld bytes\n"
 		"- allocations: %ld\n"
@@ -1549,33 +1571,6 @@ void dbg_print_mem_stats(sylt_t* ctx) {
 		ctx->mem.count,
 		ctx->mem.objcount,
 		ctx->mem.gc.cycles);
-	#endif
-}
-
-void dbg_print_mem_sizes(void) {
-	#if DBG_PRINT_MEM_SIZES
-	#define print_size(t) \
-		sylt_dprintf(" %s = %ld\n", \
-			#t, sizeof(t))
-	
-	sylt_dprintf("- platform:\n");
-	print_size(int);
-	print_size(short);
-	print_size(long);
-	print_size(size_t);
-	print_size(ptrdiff_t);
-	print_size(float);
-	print_size(double);
-	
-	sylt_dprintf("- sylt:\n");
-	print_size(value_t);
-	print_size(list_t);
-	print_size(string_t);
-	print_size(func_t);
-	print_size(closure_t);
-	print_size(upvalue_t);
-	print_size(sylt_t);
-	#undef print_size
 	#endif
 }
 
@@ -1611,7 +1606,7 @@ void dbg_print_header(
 		cls->nupvals);
 	
 	#if DBG_PRINT_DATA
-	sylt_dprintf("  constants:");
+	sylt_dprintf("  data:\n");
 	for (size_t i = 0; i < func->ndata; i++)
 	{
 		string_t* str = val_tostring_opts(
@@ -4152,26 +4147,32 @@ void gc_trace_refs(sylt_t* ctx) {
 	}
 }
 
-/* frees all unreachable objects */
-void gc_sweep(sylt_t* ctx) {
-	gc_set_state(ctx, GC_STATE_SWEEP);
-	obj_t* prev = NULL;
-	obj_t* obj = ctx->mem.objs;
-	
-	#if DBG_PRINT_GC_STATE
+size_t dbg_count_unreachable(sylt_t* ctx) {
 	size_t n = 0;
-	obj_t* o = obj;
-	while (o) {
-		if (o->marked) {
-			o = o->next;
+	obj_t* obj = ctx->mem.objs;
+	while (obj) {
+		if (obj->marked) {
+			obj = obj->next;
 			continue;
 		}
 		
-		o = o->next;
+		obj = obj->next;
 		n++;
 	}
-	sylt_dprintf("Freeing %ld\n", n);
+	return n;
+}
+
+/* frees the set of unreachable objects */
+void gc_sweep(sylt_t* ctx) {
+	gc_set_state(ctx, GC_STATE_SWEEP);
+	
+	#if DBG_PRINT_GC_STATE
+	sylt_dprintf("Freeing %ld\n",
+		dbg_count_unreachable());
 	#endif
+	
+	obj_t* prev = NULL;
+	obj_t* obj = ctx->mem.objs;
 	
 	while (obj) {
 		if (obj->marked) {
@@ -4341,7 +4342,6 @@ void sylt_free(sylt_t* ctx) {
 	}
 	
 	dbg_print_mem_stats(ctx);
-	dbg_print_mem_sizes();
 	assert(ctx->mem.gc.pause_depth == 0);
 	
 	/* ensure that no memory was leaked */
@@ -4350,7 +4350,7 @@ void sylt_free(sylt_t* ctx) {
 	if (bytesleft)
 		sylt_dprintf("%ld bytes leaked\n",
 			bytesleft);
-//	assert(!bytesleft);
+	assert(!bytesleft);
 	
 	sylt_set_state(ctx, SYLT_STATE_FREE);
 	ptr_free(ctx, sylt_t, ctx);
@@ -4470,13 +4470,9 @@ void sylt_test(sylt_t* ctx) {
 }
 
 int main(int argc, char *argv[]) {
-	/*if (argc == 1) {
-		sylt_printf("Usage: sylt [file]\n");
-		return EXIT_SUCCESS;
-	}*/
+	dbg_print_flags();
 	
 	sylt_t* ctx = sylt_new();
-	sylt_test(ctx);
 	sylt_test(ctx);
 	
 	/*if (argc == 1)

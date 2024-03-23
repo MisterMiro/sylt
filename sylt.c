@@ -26,7 +26,7 @@
 #define sylt_dprintf printf
 
 /* initial stack size */
-#define SYLT_INIT_STACK 8192
+#define SYLT_INIT_STACK 1024
 
 /* == debug flags ==
  * all of these should be set to 0 in
@@ -44,12 +44,12 @@
  * super slow but good for bug hunting */
 #define DBG_GC_EVERY_ALLOC 1
 
-#define DBG_PRINT_SYLT_STATE 1
-#define DBG_PRINT_GC_STATE 1
+#define DBG_PRINT_SYLT_STATE 0
+#define DBG_PRINT_GC_STATE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_AST 0
-#define DBG_PRINT_CODE 1
+#define DBG_PRINT_CODE 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
 #define DBG_PRINT_MEM_STATS 0
@@ -1024,10 +1024,12 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	}
 	case TYPE_DICT: {
 		dict_t* dc = (dict_t*)obj;
-		for (size_t i = 0; i < dc->len; i++) {
-			obj_mark((obj_t*)dc->items[i].key,
-				ctx);
-			val_mark(dc->items[i].val, ctx);
+		for (size_t i = 0; i < dc->cap; i++) {
+			item_t* item = &dc->items[i];
+			if (!item->key)
+				continue;
+			obj_mark((obj_t*)item->key, ctx);
+			val_mark(item->val, ctx);
 		}
 		
 		break;
@@ -4778,8 +4780,8 @@ int main(int argc, char *argv[]) {
 	dbg_print_platform_info();
 	
 	sylt_t* ctx = sylt_new();
-	//sylt_test(ctx);
-	sylt_xfile(ctx, "tests.sylt");
+	sylt_test(ctx);
+	//sylt_xfile(ctx, "tests.sylt");
 	/*if (argc == 1)
 		sylt_interact(ctx);
 	else

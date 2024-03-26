@@ -51,7 +51,6 @@
 #define DBG_PRINT_GC_STATE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
-#define DBG_PRINT_AST 0
 #define DBG_PRINT_CODE 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
@@ -73,7 +72,6 @@ static void dbg_print_flags(void) {
 	pflag(DBG_PRINT_GC_STATE);
 	pflag(DBG_PRINT_TOKENS);
 	pflag(DBG_PRINT_NAMES);
-	pflag(DBG_PRINT_AST);
 	pflag(DBG_PRINT_CODE);
 	pflag(DBG_PRINT_DATA);
 	pflag(DBG_PRINT_STACK);
@@ -481,10 +479,10 @@ typedef enum {
 	OP_STORE,
 	OP_LOAD_NAME,
 	OP_STORE_NAME,
-	OP_LOAD_LIST,
-	OP_STORE_LIST,
 	OP_LOAD_UPVAL,
 	OP_STORE_UPVAL,
+	OP_LOAD_LIST,
+	OP_STORE_LIST,
 	OP_LOAD_RET,
 	OP_STORE_RET,
 	/* arithmetic */
@@ -538,10 +536,10 @@ static opinfo_t OPINFO[] = {
 	[OP_STORE] = {"store", 1, 0},
 	[OP_LOAD_NAME] = {"load_name", 1, +1},
 	[OP_STORE_NAME] = {"store_name", 1, 0},
-	[OP_LOAD_LIST] = {"load_list", 0, -1},
-	[OP_STORE_LIST] = {"store_list", 0, 0},
 	[OP_LOAD_UPVAL] = {"load_upval", 1, +1},
 	[OP_STORE_UPVAL] = {"store_upval", 1, 0},
+	[OP_LOAD_LIST] = {"load_list", 0, -1},
+	[OP_STORE_LIST] = {"store_list", 0, 0},
 	[OP_LOAD_RET] = {"load_ret", 0, +1},
 	[OP_STORE_RET] = {"store_ret", 0, -1},
 	[OP_ADD] = {"add", 0, -1},
@@ -2146,17 +2144,21 @@ upvalue_t* vm_cap_upval(
 	return fresh;
 }
 
+/* closes any upvalues pointing at or above
+ * the provided stack index */
 void vm_close_upvals(
 	vm_t* vm, size_t last)
 {
-	if (!vm->openups ||
-		vm->openups->index < last)
-		return;
+	while (vm->openups &&
+		vm->openups->index >= last)
+	{
 	
-	upvalue_t* upval = vm->openups;
-	upval->closed = vm->stack[upval->index];
-	upval->index = -1;
-	vm->openups = upval->next;
+		upvalue_t* upval = vm->openups;
+		upval->closed = vm->stack[
+			upval->index];
+		upval->index = -1;
+		vm->openups = upval->next;
+	}
 }
 
 /* some extra stack space for hiding stuff
@@ -2304,9 +2306,9 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			string_t* name = getstring(
 				readval());
 				
-			value_t get;
+			value_t load;
 			bool found = dict_get(
-				vm->gdict, name, &get);
+				vm->gdict, name, &load);
 				
 			if (!found) {
 				halt(vm->ctx,
@@ -2314,7 +2316,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				unreachable();
 			}
 			
-			push(get);
+			push(load);
 			break;
 		}
 		case OP_STORE_NAME: {
@@ -2332,6 +2334,18 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				unreachable();
 			}
 				
+			break;
+		}
+		case OP_LOAD_UPVAL: {
+			value_t val = vm_load_upval(vm,
+				vm->fp->cls->upvals[read8()]);
+			push(val);
+			break;
+		}
+		case OP_STORE_UPVAL: {
+			vm_store_upval(vm,
+				vm->fp->cls->upvals[read8()],
+				peek(0));
 			break;
 		}
 		case OP_LOAD_LIST: {
@@ -2360,18 +2374,6 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			
 			list_set(ls, index, val, vm->ctx);
 			push(val);
-			break;
-		}
-		case OP_LOAD_UPVAL: {
-			value_t val = vm_load_upval(vm,
-				vm->fp->cls->upvals[read8()]);
-			push(val);
-			break;
-		}
-		case OP_STORE_UPVAL: {
-			vm_store_upval(vm,
-				vm->fp->cls->upvals[read8()],
-				peek(0));
 			break;
 		}
 		case OP_LOAD_RET: {
@@ -3708,23 +3710,6 @@ void block(comp_t*);
 
 typedef void (*parsefn_t)(comp_t*);
 
-void printfname(
-	const char* name, sylt_t* ctx)
-{
-	#if DBG_PRINT_AST
-	comp_t* cmp = ctx->cmp;
-	while (cmp) {
-		sylt_dprintf("  ");
-		cmp = cmp->child;
-	}
-	
-	sylt_dprintf("  %s\n", name);
-	#endif
-}
-
-#define dbg_printfname() \
-	printfname(__func__, cmp->ctx)
-
 /* all tokens match a parse rule */
 typedef struct {
 	parsefn_t prefix;
@@ -3807,8 +3792,6 @@ void expr(comp_t* cmp, prec_t prec) {
 
 /* parses a keyword literal */
 void literal(comp_t* cmp) {
-	dbg_printfname();
-	
 	switch (cmp->prev.tag) {
 	case T_NIL:
 		emit_value(cmp, wrapnil());
@@ -3825,7 +3808,6 @@ void literal(comp_t* cmp) {
 
 /* parses a symbol name */
 void name(comp_t* cmp) {
-	dbg_printfname();
 	string_t* name = cmp->prev.lex;
 	
 	bool assign = false;
@@ -3868,8 +3850,6 @@ void name(comp_t* cmp) {
 
 /* parses a list literal */
 void list(comp_t* cmp) {
-	dbg_printfname();
-	
 	int len = 0;
 	while (!check(cmp, T_RSQUARE)
 		&& !check(cmp, T_EOF))
@@ -3888,8 +3868,6 @@ void list(comp_t* cmp) {
 
 /* parses a string literal */
 void string(comp_t* cmp) {
-	dbg_printfname();
-	
 	token_t token = cmp->prev;
 	assert(token.lex->len >= 2); /* "" */
 	
@@ -3990,8 +3968,6 @@ void string(comp_t* cmp) {
 
 /* parses a numeric literal */
 void number(comp_t* cmp) {
-	dbg_printfname();
-	
 	sylt_num_t num = num_func(strtof, strtod)
 		((char*)cmp->prev.lex->bytes, NULL);
 	
@@ -4000,8 +3976,6 @@ void number(comp_t* cmp) {
 
 /* parses a parenthesized expression */
 void grouping(comp_t* cmp) {
-	dbg_printfname();
-	
 	expr(cmp, ANY_PREC);
 	eat(cmp, T_RPAREN,
 		"expected closing ')'");
@@ -4009,8 +3983,6 @@ void grouping(comp_t* cmp) {
 
 /* parses a unary expression */
 void unary(comp_t* cmp) {
-	dbg_printfname();
-	
 	/* save the operator token */
 	token_type_t token = cmp->prev.tag;
 	
@@ -4029,7 +4001,6 @@ void unary(comp_t* cmp) {
 
 /* parses a binary expression */
 void binary(comp_t* cmp) {
-	dbg_printfname();
 	/* left hand expression has already been
 	 * compiled */
 	
@@ -4069,6 +4040,9 @@ void binary(comp_t* cmp) {
 		return; /* early return */
 	}
 	case T_OR: {
+		/* if the left-hand side expression
+		 * is true we jump past the 
+		 * right-hand side expression */
 		int jump = emit_jump(cmp, OP_JMPIF);
 		
 		emit_nullary(cmp, OP_POP);
@@ -4086,8 +4060,6 @@ void binary(comp_t* cmp) {
 
 /* parses a function call operator */
 void call(comp_t* cmp) {
-	dbg_printfname();
-	
 	int argc = 0;
 	
 	/* parse argument list */
@@ -4113,8 +4085,6 @@ void call(comp_t* cmp) {
 
 /* parses a subscript operator */
 void index(comp_t* cmp) {
-	dbg_printfname();
-	
 	expr(cmp, PREC_OR);
 	eat(cmp, T_RSQUARE, "expected ']'");
 	
@@ -4131,8 +4101,6 @@ void parse_func(comp_t*, string_t*);
 
 /* parses a variable or function binding */
 void let(comp_t* cmp) {
-	dbg_printfname();
-	
 	eat(cmp, T_NAME,
 		"expected variable name after 'let'");
 	string_t* name = cmp->prev.lex;
@@ -4167,8 +4135,6 @@ void let(comp_t* cmp) {
 
 /* parses an anonymous function */
 void fun(comp_t* cmp) {
-	dbg_printfname();
-	
 	eat(cmp, T_LPAREN,
 		"expected '(' after 'fun' keyword");
 	parse_func(cmp, NULL);
@@ -4177,8 +4143,6 @@ void fun(comp_t* cmp) {
 void parse_func(
 	comp_t* cmp, string_t* name)
 {
-	dbg_printfname();
-	
 	bool is_lambda = false;
 	if (!name) {
 		name = string_lit("_", cmp->ctx);
@@ -4255,8 +4219,6 @@ void parse_func(
 
 /* parses an if/else expression */
 void if_else(comp_t* cmp) {
-	dbg_printfname();
-	
 	/* (condition) */
 	eat(cmp, T_LPAREN,
 		"expected '(' after 'if'");
@@ -4292,8 +4254,6 @@ void if_else(comp_t* cmp) {
 
 /* parses a match expression */
 void match_with(comp_t* cmp) {
-	dbg_printfname();
-	
 	/* match target */
 	expr(cmp, ANY_PREC);
 	
@@ -4366,7 +4326,6 @@ void match_with(comp_t* cmp) {
  * expressions ultimately reduced down
  * to a single value */
 void block(comp_t* cmp) {
-	dbg_printfname();
 	comp_open_scope(cmp);
 	
 	/* empty block yields nil */

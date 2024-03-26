@@ -164,6 +164,7 @@ typedef enum {
 	GC_STATE_PAUSED,
 } gc_state_t;
 
+/* garbage collector */
 typedef struct {
 	gc_state_t state;
 	/* array of pointers to marked objects */
@@ -177,6 +178,7 @@ typedef struct {
 	size_t pause_depth;
 } gc_t;
 
+/* memory */
 typedef struct {
 	/* linked list of all objects */
 	struct obj_s* objs;
@@ -195,8 +197,11 @@ typedef struct {
 /* sylt API struct */
 typedef struct {
 	sylt_state_t state;
+	/* virtual machine */
 	struct vm_s* vm;
+	/* compiler */
 	struct comp_s* cmp;
+	/* memory */
 	mem_t mem;
 } sylt_t;
 
@@ -243,14 +248,15 @@ void halt(sylt_t*, const char*, ...);
 	"line limit of %d reached", MAX_LINES
 #define E_JUMPLIMIT \
 	"jump distance too far (>%d)", MAX_JUMP
-#define E_IO(msg, path) \
-	"%s %s", (msg), (path)
+#define E_EMPTYPATH \
+	"no file path specified"
+#define E_OPENFAILED(path) \
+	"failed to open '%s'", (path)
 #define E_UNEXPECTEDCHAR(c) \
 	"unexpected character '%c'", (c)
 #define E_TYPE(ex, got) \
 	"expected value of type %s, got %s", \
-	user_type_name(ex), \
-	user_type_name(got)
+	user_type_name(ex), user_type_name(got)
 #define E_ESCAPESEQ(code) \
 	"unknown escape sequence '\\%c'", \
 	(code)
@@ -269,7 +275,7 @@ void halt(sylt_t*, const char*, ...);
 	"undefined variable '%.*s'", \
 	(name->len), (name->bytes)
 #define E_DIVBYZERO \
-	"attempted to divide by zero"
+	"attempted division by zero"
 #define E_STACKOVERFLOW \
 	"call stack overflow"
 #define E_INDEX(len, index) \
@@ -1077,13 +1083,22 @@ list_t* list_new(sylt_t* ctx) {
 	return ls;
 }
 
-/* returns the item at the given index */
-value_t* list_get(
+/* returns a pointer to the item
+ * at the given index */
+value_t* list_item(
 	const list_t* ls, int index, sylt_t* ctx)
 {
+	/* empty list can not be indexed */
+	if (ls->len == 0) {
+		halt(ctx, E_INDEX(ls->len, index));
+		unreachable();
+	}
+	
 	/* negative indexing is allowed */
 	if (index < 0) {
 		int mod = ls->len + index;
+		
+		/* bounds check */
 		if (mod > ls->len - 1) {
 			halt(ctx, E_INDEX(ls->len, mod));
 			unreachable();
@@ -1092,12 +1107,30 @@ value_t* list_get(
 		return &ls->items[mod];
 	}
 	
-	if (ls->len == 0 || index > ls->len - 1) {
+	/* bounds check */
+	if (index > ls->len - 1) {
 		halt(ctx, E_INDEX(ls->len, index));
 		unreachable();
 	}
 	
 	return &ls->items[index];
+}
+
+void list_set(
+	list_t* ls,
+	int index,
+	value_t val,
+	sylt_t* ctx)
+{
+	*list_item(ls, index, ctx) = val;
+}
+
+value_t list_get(
+	const list_t* ls,
+	int index,
+	sylt_t* ctx)
+{
+	return *list_item(ls, index, ctx);
 }
 
 /* appends an item to the end of the list */
@@ -1119,9 +1152,7 @@ void list_push(
 /* returns and then removes the last item
  * from the list */
 value_t list_pop(list_t* ls, sylt_t* ctx) {
-	if (ls->len == 0)
-		return wrapnil();
-	value_t last = *list_get(ls, -1, ctx);
+	value_t last = list_get(ls, -1, ctx);
 	
 	/* shrink allocation */
 	size_t oldsz = nextpow2(ls->len);
@@ -1134,6 +1165,13 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 	
 	ls->len--;
 	return last;
+}
+
+/* TODO: more test cases */
+void test_list(sylt_t* ctx) {
+	/* empty list */
+	list_t* empty = list_new(ctx);
+	assert(empty->len == 0);
 }
 
 /* == dict == */
@@ -1254,7 +1292,6 @@ bool dict_get(
 	
 	if (val)
 		*val = item->val;
-	
 	return true;
 }
 
@@ -1326,6 +1363,16 @@ void dbg_print_dict(dict_t* dc, sylt_t* ctx) {
 
 /* == string == */
 
+/* must be called whenever the contents
+ * of a string changes. a better solution
+ * might be creating a generic byte buffer
+ * struct that can be used to initialize
+ * a string */
+void string_rehash(string_t* str) {
+	assert(str->bytes[str->len] == '\0');
+	str->hash = dict_gethash(str);
+}
+
 /* creates a new string */
 string_t* string_new(
 	uint8_t* bytes, size_t len, sylt_t* ctx)
@@ -1343,7 +1390,7 @@ string_t* string_new(
 	
 	str->bytes[len] = '\0';
 	str->len = len;
-	str->hash = dict_gethash(str);
+	string_rehash(str);
 	return sylt_popstring(ctx);
 }
 
@@ -1369,8 +1416,9 @@ string_t* string_fmt(
 		NULL, len, ctx);
 	vsnprintf((char*)str->bytes,
 		len + 1, fmt, args);
-	va_end(args);
+	string_rehash(str);
 	
+	va_end(args);
 	return str;
 }
 
@@ -1407,6 +1455,7 @@ string_t* string_concat(
 	memcpy(result->bytes + a->len,
 		b->bytes, b->len);
 	
+	string_rehash(result);
 	return result;
 }
 
@@ -1416,7 +1465,7 @@ void sylt_concat(sylt_t* ctx) {
 	assert(sylt_peek(ctx, 1).tag
 		== TYPE_STRING);
 	
-	string_t* res = string_concat(
+	string_t* result = string_concat(
 		sylt_peekstring(ctx, 1),
 		sylt_peekstring(ctx, 0),
 		ctx);
@@ -1424,7 +1473,7 @@ void sylt_concat(sylt_t* ctx) {
 	/* pop strings */
 	sylt_shrink(ctx, 2);
 	
-	sylt_pushstring(ctx, res);
+	sylt_pushstring(ctx, result);
 }
 
 /* appends src to dst */
@@ -1469,6 +1518,14 @@ void string_dprint(string_t* str) {
 	
 	sylt_dprintf("%.*s",
 		(int)str->len, str->bytes);
+}
+
+/* TODO: more test cases */
+void test_string(sylt_t* ctx) {
+	/* empty string */
+	string_t* empty = string_new(
+		NULL, 0, ctx);
+	assert(empty->len == 0);
 }
 
 /* == function == */
@@ -1752,6 +1809,7 @@ string_t* val_tostring_opts(
 					str->len - maxlen),
 				ctx);
 		
+		string_rehash(str);
 		return str;
 	}
 	
@@ -2259,7 +2317,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			sylt_num_t index = getnum(pop());
 			list_t* ls = getlist(pop());
 			
-			push(*list_get(
+			push(list_get(
 				ls, index, vm->ctx));
 			break;
 		}
@@ -2274,8 +2332,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			sylt_num_t index = getnum(pop());
 			list_t* ls = getlist(pop());
 			
-			*list_get(ls, index, vm->ctx)
-				= val;
+			list_set(ls, index, val, vm->ctx);
 			push(val);
 			break;
 		}
@@ -3901,6 +3958,7 @@ void string(comp_t* cmp) {
 		dst->len = write;
 	}
 	
+	string_rehash(dst);
 	emit_value(cmp, wrapstring(dst));
 }
 
@@ -4420,7 +4478,7 @@ void gc_mark_vm(sylt_t* ctx) {
 /* marks all roots reachable from
  * the compiler */
 void gc_mark_compiler(sylt_t* ctx) {
-	if (ctx->state != SYLT_STATE_COMPILING)
+	if (!ctx->cmp)
 		return;
 	
 	/* compiler stack */
@@ -4521,11 +4579,15 @@ void gc_free_all(sylt_t* ctx) {
 string_t* load_file(
 	const char* path, sylt_t* ctx)
 {
+	if (!path) {
+		halt(ctx, E_EMPTYPATH);
+		unreachable();
+	}
+	
 	FILE* fp = fopen(path, "rb");
 	if (!fp) {
-		halt(ctx, E_IO(
-			"failed to open", path));
-		return NULL;
+		halt(ctx, E_OPENFAILED(path));
+		unreachable();
 	}
 	
 	/* seek EOF to find the file size */
@@ -4533,12 +4595,15 @@ string_t* load_file(
 	size_t len = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 	
-	/* read the file contents */
 	string_t* str = string_new(
 		NULL, len, ctx);
+	
+	/* read the file contents */
 	fread(str->bytes, 1, len, fp);
 	fclose(fp);
 	
+	str->bytes[len] = '\0';
+	string_rehash(str);
 	return str;
 }
 
@@ -4566,12 +4631,11 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		break;
 	}
 	case SYLT_STATE_EXEC: {
-		const func_t* func =
-			ctx->vm->fp->func;
+		const vm_t* vm = ctx->vm;
+		const func_t* func = vm->fp->func;
 		
-		size_t addr =
-			(size_t)(ctx->vm->fp->ip -
-				func->code - 1);
+		size_t addr = (size_t)(
+			vm->fp->ip - func->code - 1);
 		uint32_t line = func->lines[addr];
 		
 		sylt_eprintf("error in ");
@@ -4664,10 +4728,9 @@ void sylt_free(sylt_t* ctx) {
 }
 
 void compile_and_run(sylt_t* ctx) {
-	gc_pause(ctx);
 	comp_load(ctx->cmp);
-	
 	sylt_set_state(ctx, SYLT_STATE_COMPILING);
+	gc_pause(ctx);
 	
 	/* scan initial token for lookahead */
 	ctx->cmp->cur = scan(ctx->cmp);
@@ -4679,6 +4742,8 @@ void compile_and_run(sylt_t* ctx) {
 	}
 	
 	emit_nullary(ctx->cmp, OP_RET);
+	gc_resume(ctx);
+	
 	sylt_set_state(ctx, SYLT_STATE_COMPILED);
 	
 	/* load standard library */
@@ -4687,16 +4752,14 @@ void compile_and_run(sylt_t* ctx) {
 	/* load program */
 	sylt_pushclosure(ctx,
 		closure_new(ctx, ctx->cmp->func));
-	gc_resume(ctx);
-	
 	sylt_call(ctx, 0);
 	
 	/* run program */
 	vm_exec(ctx->vm, false);
 }
 
-/* compiles and runs a sylt program from
- * a string, returning true if successful */
+/* executes a sylt program from a
+ * string, returning true if successful */
 bool sylt_xstring(
 	sylt_t* ctx, const char* src)
 {
@@ -4720,12 +4783,12 @@ bool sylt_xstring(
 	return true;
 }
 
-/* compiles and runs a sylt program from
+/* executes a sylt program read from a
  * file, returning true if successful */
 bool sylt_xfile(
 	sylt_t* ctx, const char* path)
 {
-	if (!ctx || !path)
+	if (!ctx)
 		return false;
 	
 	if (setjmp(err_jump)) {
@@ -4756,7 +4819,10 @@ void sylt_interact(sylt_t* ctx) {
 }
 
 void sylt_test(sylt_t* ctx) {
+	/* test data structures */
+	test_list(ctx);
 	test_dict(ctx);
+	test_string(ctx);
 	
 	/* empty input */
 	assert(sylt_xstring(ctx, ""));

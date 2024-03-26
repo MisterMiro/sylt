@@ -389,6 +389,9 @@ void* ptr_resize(
 	int line,
 	sylt_t* ctx)
 {
+	if (ns == os)
+		return p;
+	
 	/* keep track of heap size.
 	 * the null check is for when we
 	 * allocate the ctx struct itself */
@@ -825,6 +828,8 @@ typedef struct vm_s {
 	typecheck(ctx, a, t); \
 	typecheck(ctx, b, t)
 	
+bool val_eq(value_t, value_t);
+	
 /* == public stack API == */
 /* these are useful even outside of the VM,
  * for making objects visible to the GC */
@@ -843,6 +848,8 @@ static inline void vm_shrink(
 	vm_push(ctx->vm, v)
 #define sylt_pushnum(ctx, v) \
 	sylt_push(ctx, wrapnum(v))
+#define sylt_pushlist(ctx, v) \
+	sylt_push(ctx, wraplist(v))
 #define sylt_pushdict(ctx, v) \
 	sylt_push(ctx, wrapdict(v))
 #define sylt_pushstring(ctx, v) \
@@ -855,6 +862,10 @@ static inline void vm_shrink(
 /* for popping values off the stack */
 #define sylt_pop(ctx) \
 	vm_pop(ctx->vm)
+#define sylt_popnum(ctx, v) \
+	getnum(sylt_pop(ctx))
+#define sylt_poplist(ctx) \
+	getlist(sylt_pop(ctx))
 #define sylt_popdict(ctx) \
 	getdict(sylt_pop(ctx))
 #define sylt_popstring(ctx) \
@@ -1097,25 +1108,21 @@ value_t* list_item(
 	/* negative indexing is allowed */
 	if (index < 0) {
 		int mod = ls->len + index;
-		
-		/* bounds check */
 		if (mod > ls->len - 1) {
 			halt(ctx, E_INDEX(ls->len, mod));
 			unreachable();
 		}
-		
 		return &ls->items[mod];
 	}
 	
-	/* bounds check */
 	if (index > ls->len - 1) {
 		halt(ctx, E_INDEX(ls->len, index));
 		unreachable();
 	}
-	
 	return &ls->items[index];
 }
 
+/* sets the value at the given index */
 void list_set(
 	list_t* ls,
 	int index,
@@ -1125,6 +1132,7 @@ void list_set(
 	*list_item(ls, index, ctx) = val;
 }
 
+/* returns the value at the given index */
 value_t list_get(
 	const list_t* ls,
 	int index,
@@ -1138,14 +1146,12 @@ void list_push(
 	list_t* ls, value_t val, sylt_t* ctx)
 {
 	/* grow allocation */
-	size_t oldsz = nextpow2(ls->len);
-	size_t newsz = nextpow2(ls->len + 1);
-	if (newsz > oldsz) {
-		ls->items = arr_resize(
-			ls->items, value_t,
-			oldsz, newsz, ctx);
-	}
-	
+	ls->items = arr_resize(
+		ls->items,
+		value_t,
+		nextpow2(ls->len),
+		nextpow2(ls->len + 1),
+		ctx);
 	ls->items[ls->len++] = val;
 }
 
@@ -1155,23 +1161,45 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 	value_t last = list_get(ls, -1, ctx);
 	
 	/* shrink allocation */
-	size_t oldsz = nextpow2(ls->len);
-	size_t newsz = nextpow2(ls->len - 1);
-	if (newsz < oldsz) {
-		ls->items = arr_resize(
-			ls->items, value_t,
-			oldsz, newsz, ctx);
-	}
-	
+	ls->items = arr_resize(
+		ls->items,
+		value_t,
+		nextpow2(ls->len),
+		nextpow2(ls->len - 1),
+		ctx);
 	ls->len--;
+	
 	return last;
 }
 
-/* TODO: more test cases */
-void test_list(sylt_t* ctx) {
+void list_test(sylt_t* ctx) {
 	/* empty list */
 	list_t* empty = list_new(ctx);
 	assert(empty->len == 0);
+	
+	int n = 512;
+	list_t* list = list_new(ctx);
+	sylt_pushlist(ctx, list); /* GC */
+	
+	/* build a list using list_push() */
+	for (int i = 0; i < n; i++)
+		list_push(list, wrapnum(i + 1), ctx);
+	assert(list->len == n);
+	
+	/* test list_get() */
+	for (int i = 0; i < n; i++)
+		assert(val_eq(
+			list_get(list, i, ctx),
+			wrapnum(i + 1)));
+	
+	/* test list_pop() */
+	for (int i = n - 1; i >= 0; i--)
+		assert(val_eq(
+			list_pop(list, ctx),
+			wrapnum(i + 1)));
+	assert(list->len == 0);
+	
+	sylt_poplist(ctx); /* GC */
 }
 
 /* == dict == */
@@ -1307,11 +1335,10 @@ uint32_t dict_gethash(const string_t* str) {
 
 string_t* string_lit(
 	const char*, sylt_t*);
-bool val_eq(value_t, value_t);
 void val_print(
 	value_t, bool, int, sylt_t*);
 
-void test_dict(sylt_t* ctx) {
+void dict_test(sylt_t* ctx) {
 	gc_pause(ctx);
 	dict_t* dc = dict_new(ctx);
 	
@@ -1521,7 +1548,7 @@ void string_dprint(string_t* str) {
 }
 
 /* TODO: more test cases */
-void test_string(sylt_t* ctx) {
+void string_test(sylt_t* ctx) {
 	/* empty string */
 	string_t* empty = string_new(
 		NULL, 0, ctx);
@@ -1573,23 +1600,21 @@ void func_write(
 	}
 	
 	/* write byte */
-	size_t oldsz = nextpow2(func->ncode);
-	size_t newsz = nextpow2(func->ncode + 1);
-	if (newsz > oldsz) {
-		func->code = arr_resize(
-			func->code, uint8_t,
-			oldsz, newsz, ctx);
-	}
+	func->code = arr_resize(
+		func->code,
+		uint8_t,
+		nextpow2(func->ncode),
+		nextpow2(func->ncode + 1),
+		ctx);
 	func->code[func->ncode++] = byte;
 	
 	/* write corresponding line number */
-	oldsz = nextpow2(func->nlines);
-	newsz = nextpow2(func->nlines + 1);
-	if (newsz > oldsz) {
-		func->lines = arr_resize(
-			func->lines, uint32_t,
-			oldsz, newsz, ctx);
-	}
+	func->lines = arr_resize(
+		func->lines,
+		uint32_t,
+		nextpow2(func->nlines),
+		nextpow2(func->nlines + 1),
+		ctx);
 	func->lines[func->nlines++] = line;
 }
 
@@ -1615,18 +1640,12 @@ size_t func_write_data(
 	}
 	
 	vm_push(ctx->vm, val); /* GC */
-	
-	size_t oldsz = nextpow2(func->ndata);
-	size_t newsz = nextpow2(func->ndata + 1);
-	if (newsz > oldsz) {
-		func->data = arr_resize(
-			func->data,
-			value_t,
-			oldsz,
-			newsz,
-			ctx);
-	}
-	
+	func->data = arr_resize(
+		func->data,
+		value_t,
+		nextpow2(func->ndata),
+		nextpow2(func->ndata + 1),
+		ctx);
 	vm_pop(ctx->vm); /* GC */
 		
 	func->data[func->ndata++] = val;
@@ -4820,9 +4839,9 @@ void sylt_interact(sylt_t* ctx) {
 
 void sylt_test(sylt_t* ctx) {
 	/* test data structures */
-	test_list(ctx);
-	test_dict(ctx);
-	test_string(ctx);
+	list_test(ctx);
+	dict_test(ctx);
+	string_test(ctx);
 	
 	/* empty input */
 	assert(sylt_xstring(ctx, ""));

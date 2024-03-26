@@ -35,6 +35,9 @@
 /* enables assertions */
 #define DBG_ASSERTIONS 1
 
+/* runs the test suite */
+#define DBG_RUN_TESTS 1
+
 /* disables garbage collection, though
  * memory will still be freed at shutdown
  * (sylt_free) to prevent memory leaks */
@@ -63,6 +66,7 @@ static void dbg_print_flags(void) {
 				"note: %s is set\n", #flag)
 			
 	pflag(DBG_ASSERTIONS);
+	pflag(DBG_RUN_TESTS);
 	pflag(DBG_NO_GC);
 	pflag(DBG_GC_EVERY_ALLOC);
 	pflag(DBG_PRINT_SYLT_STATE);
@@ -583,7 +587,7 @@ static const char* TYPE_NAMES[] = {
 	"List",
 	"Dict",
 	"String",
-	"Function",
+	"Func",
 	"Closure",
 	"Upvalue",
 };
@@ -591,13 +595,16 @@ static const char* TYPE_NAMES[] = {
 static const char* user_type_name(
 	type_t tag)
 {
-	return TYPE_NAMES[tag];
-	/*switch (tag) {
-	case TYPE_CLOSURE: return "Function";
+	//return TYPE_NAMES[tag];
+	switch (tag) {
+	case TYPE_CLOSURE:
+		return TYPE_NAMES[TYPE_FUNCTION];
 	case TYPE_FUNCTION:
-	case TYPE_UPVALUE: unreachable();
-	default: return TYPE_NAMES[tag];
-	}*/
+	case TYPE_UPVALUE:
+		unreachable();
+	default:
+		return TYPE_NAMES[tag];
+	}
 }
 
 #define isheaptype(t) \
@@ -1731,7 +1738,7 @@ bool val_eq(value_t a, value_t b) {
 	}
 }
 
-/* converts a value to a displayable string */
+/* converts a value to a printable string */
 static string_t* val_tostring(
 	value_t val, sylt_t* ctx)
 {
@@ -1756,11 +1763,11 @@ static string_t* val_tostring(
 		break;
 	}
 	case TYPE_LIST: {
-		str = string_lit("<list>", ctx);
+		str = string_lit("<List>", ctx);
 		break;
 	}
 	case TYPE_DICT: {
-		str = string_lit("<dict>", ctx);
+		str = string_lit("<Dict>", ctx);
 		break;
 	}
 	case TYPE_STRING: {
@@ -1782,7 +1789,7 @@ static string_t* val_tostring(
 		break;
 	}
 	case TYPE_UPVALUE: {
-		str = string_lit("<upval>", ctx);
+		str = string_lit("<Upval>", ctx);
 		break;
 	}
 	default: unreachable();
@@ -4865,8 +4872,11 @@ int main(int argc, char *argv[]) {
 	dbg_print_platform_info();
 	
 	sylt_t* ctx = sylt_new();
+	
+	#if DBG_RUN_TESTS
 	sylt_test(ctx);
-	//sylt_xfile(ctx, "tests.sylt");
+	#endif
+	
 	/*if (argc == 1)
 		sylt_interact(ctx);
 	else

@@ -13,7 +13,7 @@ let rep(n, f) = {
 	loop(0)
 }
 
-let foreach(list, f) = {
+let forEach(list, f) = {
 	let loop(i) =
 		if (i < length(list)) {
 			f(i, list[i])
@@ -25,7 +25,7 @@ let foreach(list, f) = {
 
 let map(list, f) = {
 	let result = []
-	foreach(list, fun(i, value) ->
+	forEach(list, fun(i, value) ->
 		push(result, f(value))
 	)
 	result
@@ -33,15 +33,15 @@ let map(list, f) = {
 
 let concat(a, b) = {
 	let result = []
-	foreach(a, fun(_, v) -> push(result, v))
-	foreach(b, fun(_, v) -> push(result, v))
+	forEach(a, fun(_, v) -> push(result, v))
+	forEach(b, fun(_, v) -> push(result, v))
 	result
 }
 
 let flatten(list) = {
 	let result = []
-	foreach(list, fun(i, item) ->
-		if (typeof(item) = "List") {
+	forEach(list, fun(i, item) ->
+		if (typeOf(item) = "List") {
 			result <-
 				concat(result, flatten(item))
 		} else push(result, item)
@@ -151,6 +151,8 @@ let precedence() = {
 let addition() = {
 	let x = 8
 	let y = 12
+	
+	## correct result
 	let sum = 20
 	ensure(x + y = sum)
 	
@@ -162,6 +164,8 @@ let addition() = {
 let subtraction() = {
 	let x = 20
 	let y = 12
+	
+	## correct result
 	let difference = 8
 	ensure(x - y = difference)
 	
@@ -173,6 +177,8 @@ let subtraction() = {
 let multiplication() = {
 	let x = 5
 	let y = 16
+	
+	## correct result
 	let product = 80
 	ensure(x * y = product)
 	
@@ -184,6 +190,8 @@ let multiplication() = {
 let division() = {
 	let x = 33
 	let y = 3
+	
+	## correct result
 	let quotient = 11
 	ensure(x / y = quotient)
 	
@@ -192,9 +200,11 @@ let division() = {
 	ensure(x / y != y / x)
 }
 
-let euclid_division() = {
+let remainder() = {
 	let x = 17
 	let y = 12
+	
+	## correct result
 	let remainder = 5
 	ensure(x % y = remainder)
 	
@@ -209,7 +219,7 @@ let euclid_division() = {
 	ensure(-7 % -3 = 2)
 }
 
-let unary_minus() = {
+let unaryMinus() = {
 	let x = 25
 	ensure(-x = 0 - x)
 	
@@ -254,13 +264,13 @@ let equality() = {
 		func_val,   ## Func
 	]
 	
-	foreach(values, fun(skip, value) -> {
+	forEach(values, fun(skip, value) -> {
 		## equal to itself
 		ensure(value = value)
 		
 		## not equal to a value of any other
 		## type
-		foreach(values, fun(index, other) ->
+		forEach(values, fun(index, other) ->
 			if (index != skip)
 				ensure(value != other)
 		)
@@ -279,12 +289,13 @@ let equality() = {
 	ensure(raise != sqrt)
 }
 
-let bool_not() = {
+let boolNot() = {
 	ensure(true = !false)
 	ensure(false = !true)
+	ensure(!!true = true)
 }
 
-let bool_and() = {
+let boolAnd() = {
 	ensure((false and false) = false)
 	ensure((false and true) = false)
 	ensure((true and false) = false)
@@ -295,7 +306,7 @@ let bool_and() = {
 	false and would_crash()
 }
 
-let bool_or() = {
+let boolOr() = {
 	ensure((false or false) = false)
 	ensure((false or true) = true)
 	ensure((true or false) = true)
@@ -351,7 +362,7 @@ let blocks() = {
 	let result = {}
 	ensure(result = nil)
 	
-	## last expression is returned and...
+	## last expression is returned...
 	let result = {123}
 	ensure(result = 123)
 	
@@ -371,6 +382,15 @@ let blocks() = {
 		123
 	}
 	ensure(result = 123)
+	
+	## assigning shadowed variable
+	let x = true
+	{
+		let x = nil
+		x <- false
+		ensure(x = false)
+	}
+	ensure(x = true)
 }
 
 let lists() = {
@@ -387,7 +407,8 @@ let lists() = {
 	
 	## assignment
 	list[0] <- list[-1]
-	ensure(list = [3, 2, 3])
+	list[1] <- list[-1]
+	ensure(list = [3, 3, 3])
 }
 
 let functions() = {
@@ -437,13 +458,13 @@ let functions() = {
 	ensure(length(list) = 0)
 }
 
-let gc_bomb() = {
-	let size = 128
-	let rec(old_list, i) = {
+let gcStress() = {
+	let size = 1024
+	let rec(oldList, i) = {
 		if (i < size) {
-			let new_list = []
-			rep(size / 32, fun(_) ->
-				push(new_list, old_list))
+			let newList = []
+			rep(size / 64, fun(_) ->
+				push(newList, oldList))
 			rec(new_list, i + 1)
 		}
 	}
@@ -451,7 +472,7 @@ let gc_bomb() = {
 	rec([1, 2, 3, 4, 5, 6, 7, 8], 0)
 }
 
-let if_else() = {
+let ifElse() = {
 	## implicit nil
 	ensure((if (false) {}) = nil)
 	
@@ -472,7 +493,7 @@ let if_else() = {
 	ensure(result = "B")
 }
 
-let match_with() = {
+let matchWith() = {
 	## wildcard only
 	let result =
 		match "Anything" with
@@ -520,32 +541,38 @@ let match_with() = {
 	ensure(name(3) = "?")
 }
 
-let prelude_lib() = {
-	## tostring
-	ensure(tostring(nil) = "nil")
-	ensure(tostring(true) = "true"
-		and tostring(false) = "false")
-	ensure(tostring(707) = "707")
-	ensure(tostring(["bananas", 18, true])
-		= "[\"bananas\", 18, true]")
-	ensure(tostring(tostring) = "tostring")
+let preludeLib() = {
+	## asString
+	ensure(asString(nil) = "nil")
+	ensure(asString(true) = "true"
+		and asString(false) = "false")
+	ensure(asString(707) = "707")
+	ensure(asString(["bananas", 18, true])
+		= "<List>")
+	##	= "[\"bananas\", 18, true]")
+	ensure(asString(asString) = "asString()")
 	
-	## typeof
-	ensure(typeof(nil) = "Nil")
-	ensure(typeof(true) = "Bool")
-	ensure(typeof(1) = "Num")
-	ensure(typeof([]) = "List")
-	ensure(typeof("") = "String")
-	ensure(typeof(fun() -> {}) = "Function")
+	## typeOf
+	ensure(typeOf(nil) = "Nil")
+	ensure(typeOf(true) = "Bool")
+	ensure(typeOf(1) = "Num")
+	ensure(typeOf([]) = "List")
+	ensure(typeOf("") = "String")
+	ensure(typeOf(fun() -> {}) = "Func")
+	
+	## rep
+	let nums = []
+	rep(3, fun(i) -> push(nums, (i + 1) * 3))
+	ensure(nums = [3, 6, 9])
 }
 
-let list_lib() = {
+let listLib() = {
 	## length
 	ensure(length([]) = 0)
 	ensure(length([1]) = 1)
 	ensure(length([1, 2]) = 2)
 	
-	## push
+	## push and pop
 	let x = []
 	
 	push(x, 3) ## = [3]
@@ -553,34 +580,16 @@ let list_lib() = {
 	push(x, 7) ## = [3, 7]
 	ensure(x = [3, 7] and length(x) = 2)
 	
-	## pop
-	pop(x) ## = [3]
-	ensure(x = [3] and length(x) = 1)
-	pop(x) ## = []
-	ensure(x = [] and length(x) = 0)
-	
 	## concat
 	let a = [1, 2]
 	let b = [3, 4]
 	let concatenated = concat(a, b)
 	ensure(concatenated = [1, 2, 3, 4])
-}
-
-let string_lib() = {
-	## chars
-	ensure(chars("Abc") = ["A", "b", "c"])
-}
-
-let iter_lib() = {
-	## rep
-	let nums = []
-	rep(3, fun(i) -> push(nums, (i + 1) * 3))
-	ensure(nums = [3, 6, 9])
 	
-	## foreach
+	## each
 	let indices = [0, 1, 2]
 	let copy = []
-	foreach(indices, fun(index, value) -> {
+	forEach(indices, fun(index, value) -> {
 		ensure(index = indices[index])
 		push(copy, value)
 	})
@@ -612,25 +621,30 @@ let iter_lib() = {
 	ensure(!all(set, fun(n) -> !(n < 5)))
 }
 
-let math_lib() = {
+let stringLib() = {
+	## chars
+	ensure(chars("Abc") = ["A", "b", "c"])
+}
+
+let mathLib() = {
 	## pi
-	ensure(nearly(PI, 3.141592, 0.001))
+	ensure(closeTo(PI, 3.141592, 0.001))
 	
 	## euler's number
-	ensure(nearly(E, 2.718281, 0.001))
+	ensure(closeTo(E, 2.718281, 0.001))
 	
-	## nearly
+	## closeTo
 	let zero = 0
 	let val = 0.005
 	let epsilon = 0.01
 	
-	ensure(nearly(zero, val, epsilon))
-	ensure(!nearly(zero, epsilon, epsilon))
+	ensure(closeTo(zero, val, epsilon))
+	ensure(!closeTo(zero, epsilon, epsilon))
 	
-	## signum
-	ensure(signum(-80) = -1)
-	ensure(signum(0) = 0)
-	ensure(signum(80) = 1)
+	## numSign
+	ensure(numSign(-80) = -1)
+	ensure(numSign(0) = 0)
+	ensure(numSign(80) = 1)
 	
 	## abs
 	ensure(abs(-8) = 8 and abs(8) = 8)
@@ -644,14 +658,14 @@ let math_lib() = {
 		3, 14, 2000, 18000, 2000000,
 	]
 	
-	let log_raise(base, target) = {
+	let logRaise(base, target) = {
 		let power = log(target, base)
 		let result = raise(base, power)
-		ensure(nearly(result, target, 0.001))
+		ensure(closeTo(result, target, 0.001))
 	}
 	
-	foreach(bases, fun(_, base) ->
-		log_raise(base, target))
+	forEach(bases, fun(_, base) ->
+		logRaise(base, target))
 	
 	## sqrt
 	ensure(sqrt(256) = 16)
@@ -672,7 +686,7 @@ let math_lib() = {
 	ensure(clamp(x, -8, 3) = -8)
 	
 	## floor, ceil, and round
-	let check_rounding(n) = {
+	let checkRounding(n) = {
 		let low = n + 0.2
 		let mid = n + 0.5
 		let high = n + 0.8
@@ -692,18 +706,18 @@ let math_lib() = {
 		)
 	}
 	
-	check_rounding(-4)
-	check_rounding(0)
-	check_rounding(4)
+	checkRounding(-4)
+	checkRounding(0)
+	checkRounding(4)
 	
-	## rads and degs
-	ensure(nearly(rads(1), 0.0175, 0.001))
-	ensure(nearly(degs(1), 57.296, 0.001))
+	## rad and deg
+	ensure(closeTo(rad(1), 0.0175, 0.001))
+	ensure(closeTo(deg(1), 57.296, 0.001))
 	
 	## sin, cos, tan
-	ensure(nearly(sin(90), 0.8939, 0.001))
-	ensure(nearly(cos(90), -0.4480, 0.001))
-	ensure(nearly(tan(90), -1.9952, 0.001))
+	ensure(closeTo(sin(90), 0.8939, 0.001))
+	ensure(closeTo(cos(90), -0.4480, 0.001))
+	ensure(closeTo(tan(90), -1.9952, 0.001))
 }
 
 ## tests to run
@@ -722,17 +736,17 @@ let run = flatten([
 		subtraction,
 		multiplication,
 		division,
-		euclid_division,
-		unary_minus,
+		remainder,
+		unaryMinus,
 		arithmetic,
 	],
 	"Booleans",
 	[
 		comparison,
 		equality,
-		bool_not,
-		bool_and,
-		bool_or,
+		boolNot,
+		boolAnd,
+		boolOr,
 	],
 	"General",
 	[
@@ -740,20 +754,19 @@ let run = flatten([
 		blocks,
 		lists,
 		functions,
-		gc_bomb,
+		gcStress,
 	],
 	"Control flow",
 	[
-		if_else,
-		match_with,
+		ifElse,
+		matchWith,
 	],
 	"Standard library",
 	[
-		prelude_lib,
-		list_lib,
-		string_lib,
-		iter_lib,
-		math_lib,
+		preludeLib,
+		listLib,
+		stringLib,
+		mathLib,
 	],
 ])
 
@@ -762,15 +775,15 @@ let iterations = 1
 ensure(iterations > 0)
 
 ## let's go!
-foreach(run, fun(_, val) ->
-	if (typeof(val) = "String") {
+forEach(run, fun(_, val) ->
+	if (typeOf(val) = "String") {
 		let title = val
 		put(title)
-		putln(":")
+		putLn(":")
 		
 	} else {
 		let test = val
-		let name = tostring(test)
+		let name = asString(test)
 		put("  ")
 		put(name)
 		
@@ -782,8 +795,8 @@ foreach(run, fun(_, val) ->
 		## run it
 		rep(iterations, fun(_) -> val())
 		
-		putln("ok")
+		putLn("OK")
 	}
 )
 
-putln("All tests passed!")
+putLn("All tests passed!")

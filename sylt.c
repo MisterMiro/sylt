@@ -213,7 +213,7 @@ typedef struct {
  * while allocating it */
 static jmp_buf err_jump;
 
-static void sylt_set_state(
+static void set_state(
 	sylt_t* ctx, sylt_state_t state)
 {
 	ctx->state = state;
@@ -479,6 +479,7 @@ typedef enum {
 	OP_STORE,
 	OP_LOAD_NAME,
 	OP_STORE_NAME,
+	OP_ADD_NAME,
 	OP_LOAD_UPVAL,
 	OP_STORE_UPVAL,
 	OP_LOAD_LIST,
@@ -536,10 +537,11 @@ static opinfo_t OPINFO[] = {
 	[OP_STORE] = {"store", 1, 0},
 	[OP_LOAD_NAME] = {"load_name", 1, +1},
 	[OP_STORE_NAME] = {"store_name", 1, 0},
+	[OP_ADD_NAME] = {"add_name", 1, -1},
 	[OP_LOAD_UPVAL] = {"load_upval", 1, +1},
 	[OP_STORE_UPVAL] = {"store_upval", 1, 0},
 	[OP_LOAD_LIST] = {"load_list", 0, -1},
-	[OP_STORE_LIST] = {"store_list", 0, 0},
+	[OP_STORE_LIST] = {"store_list", 0, -1},
 	[OP_LOAD_RET] = {"load_ret", 0, +1},
 	[OP_STORE_RET] = {"store_ret", 0, -1},
 	[OP_ADD] = {"add", 0, -1},
@@ -1935,6 +1937,7 @@ void dbg_print_mem_stats(sylt_t* ctx) {
 void dbg_print_header(
 	const vm_t* vm, const closure_t* cls)
 {
+	#if DBG_PRINT_CODE
 	const func_t* func = cls->func;
 	
 	sylt_dprintf("\n-> ");
@@ -1986,11 +1989,13 @@ void dbg_print_header(
 	for (int i = 0; i < 40; i++)
 		sylt_dprintf("-");
 	sylt_dprintf("\n");
+	#endif
 }
 
 void dbg_print_instruction(
 	const vm_t* vm, const func_t* func)
 {
+	#if DBG_PRINT_CODE
 	op_t op = vm->fp->ip[-1];
 	size_t addr =
 		(size_t)
@@ -2017,17 +2022,20 @@ void dbg_print_instruction(
 	}
 		
 	sylt_dprintf("\n");
+	#endif
 }
 
 void dbg_print_stack(
 	const vm_t* vm, const func_t* func)
 {
+	#if DBG_PRINT_STACK
 	const int maxvals = 5;
 	
 	/* don't print first iteration */
 	if (vm->fp->ip - 1 == func->code)
 		return;
 	
+	gc_pause(vm->ctx);
 	value_t* start = func_stack();
 	
 	/* only display the last N values */
@@ -2050,6 +2058,8 @@ void dbg_print_stack(
 	}
 	
 	sylt_dprintf(" ]\n");
+	gc_resume(vm->ctx);
+	#endif
 }
 
 /* pushes a value on the stack */
@@ -2189,25 +2199,16 @@ void vm_ensure_stack(vm_t* vm, int needed) {
 void sylt_call(sylt_t*, int);
 
 void vm_exec(vm_t* vm, bool stdlib_call) {
-	sylt_set_state(vm->ctx, SYLT_STATE_EXEC);
+	set_state(vm->ctx, SYLT_STATE_EXEC);
 	assert(vm->nframes > 0 && vm->fp);
-	
-	#if DBG_PRINT_CODE
-	dbg_print_header(vm, vm->fp->cls);
-	#endif
 	
 	for (;;) {
 		uint8_t op = read8();
 		
-		#if DBG_PRINT_STACK
 		dbg_print_stack(vm,
 			vm->fp->func);
-		#endif
-		
-		#if DBG_PRINT_CODE
 		dbg_print_instruction(vm,
 			vm->fp->func);
-		#endif
 		
 		switch (op) {
 		/* == stack == */
@@ -2336,6 +2337,16 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				
 			break;
 		}
+		case OP_ADD_NAME: {
+			string_t* name = getstring(
+				readval());
+			
+			dict_set(vm->gdict,
+				name,
+				peek(0),
+				vm->ctx);
+			break;
+		}
 		case OP_LOAD_UPVAL: {
 			value_t val = vm_load_upval(vm,
 				vm->fp->cls->upvals[read8()]);
@@ -2460,7 +2471,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			
 			vm->nframes--;
 			if (vm->nframes == 0) {
-				sylt_set_state(vm->ctx,
+				set_state(vm->ctx,
 					SYLT_STATE_DONE);
 				return;
 			}
@@ -2472,10 +2483,8 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				return;
 			}
 			
-			#if DBG_PRINT_CODE
 			dbg_print_header(
 				vm, vm->fp->cls);
-			#endif
 			break;
 		}
 		default: unreachable();
@@ -2568,13 +2577,12 @@ void sylt_call(sylt_t* ctx, int argc) {
 		#endif
 				
 		gc_resume(vm->ctx);
-		return;
+		return; /* early return */
 	}
 			
 	if (vm->nframes == MAX_CFRAMES) {
 		halt(vm->ctx,
-			E_STACKOVERFLOW,
-			MAX_CFRAMES);
+			E_STACKOVERFLOW, MAX_CFRAMES);
 		unreachable();
 	}
 			
@@ -2593,9 +2601,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 	vm->frames[vm->nframes++] = frame;
 	vm->fp = &vm->frames[vm->nframes - 1];
 				
-	#if DBG_PRINT_CODE
 	dbg_print_header(vm, vm->fp->cls);
-	#endif
 }
 
 #undef read8
@@ -2639,7 +2645,7 @@ value_t std_putln(sylt_t* ctx) {
 }
 
 /* returns arg(0) converted to a string */
-value_t std_tostring(sylt_t* ctx) {
+value_t std_asstring(sylt_t* ctx) {
 	string_t* str =
 		val_tostring(arg(0), ctx);
 	return wrapstring(str);
@@ -2725,7 +2731,7 @@ value_t std_chars(sylt_t* ctx) {
 
 /* returns true if a is nearly equal
  * to b, within a tolerance of epsilon */
-value_t std_nearly(sylt_t* ctx) {
+value_t std_closeto(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
@@ -2743,7 +2749,7 @@ value_t std_nearly(sylt_t* ctx) {
 
 /* returns -1 if x is negative, 0 if it's
  * zero, and 1 if positive */
-value_t std_signum(sylt_t* ctx) {
+value_t std_numsign(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t x = numarg(0);
 	if (x < 0)
@@ -2946,10 +2952,10 @@ void load_stdlib(sylt_t* ctx) {
 	
 	/* prelude */
 	std_addf(ctx, "put", std_put, 1);
-	std_addf(ctx, "putln", std_putln, 1);
-	std_addf(ctx, "tostring",
-		std_tostring, 1);
-	std_addf(ctx, "typeof", std_typeof, 1);
+	std_addf(ctx, "putLn", std_putln, 1);
+	std_addf(ctx, "asString",
+		std_asstring, 1);
+	std_addf(ctx, "typeOf", std_typeof, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "rep", std_rep, 2);
 	
@@ -2964,8 +2970,8 @@ void load_stdlib(sylt_t* ctx) {
 	/* math */
 	std_add(ctx, "PI", wrapnum(M_PI));
 	std_add(ctx, "E", wrapnum(M_E));
-	std_addf(ctx, "nearly", std_nearly, 3);
-	std_addf(ctx, "signum", std_signum, 1);
+	std_addf(ctx, "closeTo", std_closeto, 3);
+	std_addf(ctx, "numSign", std_numsign, 1);
 	std_addf(ctx, "abs", std_abs, 1);
 	std_addf(ctx, "log", std_log, 2);
 	std_addf(ctx, "raise", std_raise, 2);
@@ -4642,7 +4648,7 @@ sylt_t* sylt_new(void) {
 	sylt_t* ctx = NULL;
 	ptr_alloc(ctx, sylt_t, NULL);
 	
-	sylt_set_state(ctx, SYLT_STATE_ALLOC);
+	set_state(ctx, SYLT_STATE_ALLOC);
 	ptr_alloc(ctx->vm, vm_t, ctx);
 	ptr_alloc(ctx->cmp, comp_t, ctx);
 	
@@ -4664,7 +4670,7 @@ sylt_t* sylt_new(void) {
 	
 	vm_init(ctx->vm, ctx);
 	comp_init(ctx->cmp, NULL, NULL, ctx);
-	sylt_set_state(ctx, SYLT_STATE_INIT);
+	set_state(ctx, SYLT_STATE_INIT);
 	return ctx;
 }
 
@@ -4672,7 +4678,7 @@ void sylt_free(sylt_t* ctx) {
 	if (!ctx)
 		return;
 	
-	sylt_set_state(ctx, SYLT_STATE_FREEING);
+	set_state(ctx, SYLT_STATE_FREEING);
 	
 	/* free all unreleased objects */
 	gc_free_all(ctx);
@@ -4708,13 +4714,13 @@ void sylt_free(sylt_t* ctx) {
 			bytesleft);
 	assert(!bytesleft);
 	
-	sylt_set_state(ctx, SYLT_STATE_FREE);
+	set_state(ctx, SYLT_STATE_FREE);
 	ptr_free(ctx, sylt_t, ctx);
 }
 
 void compile_and_run(sylt_t* ctx) {
 	comp_load(ctx->cmp);
-	sylt_set_state(ctx, SYLT_STATE_COMPILING);
+	set_state(ctx, SYLT_STATE_COMPILING);
 	gc_pause(ctx);
 	
 	/* scan initial token for lookahead */
@@ -4729,7 +4735,7 @@ void compile_and_run(sylt_t* ctx) {
 	emit_nullary(ctx->cmp, OP_RET);
 	gc_resume(ctx);
 	
-	sylt_set_state(ctx, SYLT_STATE_COMPILED);
+	set_state(ctx, SYLT_STATE_COMPILED);
 	
 	/* load standard library */
 	load_stdlib(ctx);
@@ -4836,10 +4842,10 @@ int main(int argc, char *argv[]) {
 	sylt_test(ctx);
 	#endif
 	
-	/*if (argc == 1)
+	if (argc == 1)
 		sylt_interact(ctx);
 	else
-		sylt_xfile(ctx, argv[1]);*/
+		sylt_xfile(ctx, argv[1]);
 	
 	sylt_free(ctx);
 	

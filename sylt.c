@@ -283,8 +283,9 @@ void halt(sylt_t*, const char*, ...);
 #define E_INDEX(len, index) \
 	"index out of range, len: %d, i=%d", \
 	(len), (index)
-#define E_WRONGARGC(need, got) \
-	"expected %d argument%s, got %d", \
+#define E_WRONGARGC(name, need, got) \
+	"%.*s expected %d argument%s, got %d", \
+	(int)name->len, name->bytes, \
 	(need), ((need) == 1 ? "" : "s"), (got)
 
 /* triggers one of each error */
@@ -2046,10 +2047,10 @@ void dbg_print_stack(
 	value_t* v = start;
 	
 	if (diff > maxvals)
-		sylt_dprintf("  [ <+%ld, ",
+		sylt_dprintf("             [ <+%ld, ",
 			diff - maxvals);
 	else
-		sylt_dprintf("  [ ");
+		sylt_dprintf("             [ ");
 	
 	for (; v != vm->sp; v++) {
 		val_print(*v, true, 12, vm->ctx);
@@ -2340,11 +2341,8 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 		case OP_ADD_NAME: {
 			string_t* name = getstring(
 				readval());
-			
 			dict_set(vm->gdict,
-				name,
-				peek(0),
-				vm->ctx);
+				name, pop(), vm->ctx);
 			break;
 		}
 		case OP_LOAD_UPVAL: {
@@ -2558,7 +2556,9 @@ void sylt_call(sylt_t* ctx, int argc) {
 				
 	if (func->params != argc) {
 		halt(vm->ctx, E_WRONGARGC(
-			func->params, argc));
+			func->name,
+			func->params,
+			argc));
 			unreachable();
 	}
 			
@@ -4111,16 +4111,27 @@ void let(comp_t* cmp) {
 		"expected variable name after 'let'");
 	string_t* name = cmp->prev.lex;
 	
+	bool is_local = cmp->depth > 0;
 	if (match(cmp, T_LPAREN)) {
-		 /* parse a function declaration
- 		 * in the form of
- 		 * let name(p1, p2, ..) = body */
+		/* parse a function declaration
+ 		* in the form of
+ 		* let name(p1, p2, ..) = body */
  
-		 /* add symbol first in order
-	 	 * to support recursion */
-		 add_symbol(cmp, name);
-		 parse_func(cmp, name);
+		/* add symbol first in order
+	 	* to support recursion */
+		if (is_local)
+			add_symbol(cmp, name);
+		 
+		parse_func(cmp, name);
 		
+		if (!is_local) {
+			int index = func_write_data(
+				cmp->func,
+				wrapstring(name),
+				cmp->ctx);
+			emit_unary(
+				cmp, OP_ADD_NAME, index);
+		}
 	} else {
 		/* parse a variable declaration 
 		 * in the form of 
@@ -4132,7 +4143,19 @@ void let(comp_t* cmp) {
 		/* compile the right hand side
 	 	* of the expression */
 		expr(cmp, ANY_PREC);
-		add_symbol(cmp, name);
+		
+		
+		
+		if (is_local)
+			add_symbol(cmp, name);
+		else {
+			int index = func_write_data(
+				cmp->func,
+				wrapstring(name),
+				cmp->ctx);
+			emit_unary(
+				cmp, OP_ADD_NAME, index);
+		}
 	}
 	
 	/* expression yields a 'nil' */
@@ -4164,7 +4187,10 @@ void parse_func(
 	comp_init(&fcmp, cmp, NULL, cmp->ctx);
 	comp_load(&fcmp);
 	comp_copy_parse_state(&fcmp, cmp);
+	fcmp.depth = cmp->depth;
 	cmp->child = &fcmp;
+	
+	//comp_open_scope(cmp);
 		
 	/* parse parameter list */
 	while (!check(&fcmp, T_RPAREN)
@@ -4218,6 +4244,7 @@ void parse_func(
 			cmp->ctx);
 	}
 	
+	//comp_close_scope(&fcmp);
 	comp_copy_parse_state(cmp, &fcmp);
 	comp_free(&fcmp);
 	cmp->child = NULL;

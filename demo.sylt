@@ -1,0 +1,97 @@
+## '##' makes the rest of the line a comment
+
+## declare a variable using 'let'
+let x = 5
+	
+## reassign it using '<-'
+x <- 10
+
+## use it in an arithmetic expression
+x + 5 / 2 
+	
+## declare a function. the code after
+## the = sign is the function body and is
+## not executed until the function is called
+	
+let addNumbers(a, b) = a + b
+
+## call a function
+	
+let result = addNumbers(5, 3)
+ensure(result = 8) ## errors if not true
+
+## use a block if you need multiple lines.
+## the last expression in a block
+## is returned implicitly
+
+let multiplyBySomething(x) = {
+	let factor = 8
+	x * 8
+}
+	
+## anonymous functions (lambdas) can be
+## created using the 'fun' keyword.
+## they work exactly like regular
+## functions but are easier to declare inside
+## of another expression
+
+let rep(n, f) = {
+	let loop(i) =
+		if (i < n) {
+			f(i)
+			loop(i + 1)
+		}
+	
+	loop(0)
+}
+	
+rep(3, fun(n) -> putLn((n + 1) * 2.5))
+	
+## prints:
+## 2.5
+## 5
+## 7.5
+	
+## branch using 'if/else'
+
+let greaterThanHalf(n) =
+	if (n > 0.5) "big"
+	else "small"
+	
+## loop using recursion (a function that
+## calls itself)
+	
+let countTo(max, i) =
+	if (i < max) {
+		putLn(i)
+		countTo(max, i + 1)
+	}
+			
+## countTo(5, 0) prints:
+## 0
+## 1
+## 2
+## 3
+## 4
+
+## here are some examples of functions:
+
+let addOne(n) = n + 1
+
+## geometry
+	
+let rectIsSquare(w, h) = w = h	
+let rectArea(w, h) = w * h
+let circleIsRound() = true	
+let circleArea(radius) = PI * raise(radius, 2)
+	
+## Ohm's law (Ω)
+
+let calcVoltage(current, resistance) =
+	current * resistance
+		
+let calcCurrent(voltage, resistance) =
+	voltage / resistance
+		
+let calcResistance(voltage, current) =
+	voltage / current

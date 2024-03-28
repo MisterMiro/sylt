@@ -1,17 +1,27 @@
-## '##' makes the rest of the line a comment
+## here's a comment
 
 ## declare a variable using 'let'
 let x = 5
 	
-## reassign it using '<-'
+## modify its value using '<-'
 x <- 10
 
-## use it in an arithmetic expression
+## use it in an expression
 x + 5 / 2 
+
+## arithmetic operators:
+## +     addition
+## -     subtraction
+## *     multiplication
+## /     division
+## %     remainder
 	
-## declare a function. the code after
-## the = sign is the function body and is
-## not executed until the function is called
+## declare a function by adding a set of
+## parentheses, optionally containing a comma-
+## separated parameter list, after the name.
+## the expression after the equal sign
+## is the function body, it will not be
+## executed until the function is called
 	
 let addNumbers(a, b) = a + b
 
@@ -20,30 +30,30 @@ let addNumbers(a, b) = a + b
 let result = addNumbers(5, 3)
 ensure(result = 8) ## errors if not true
 
-## use a block if you need multiple lines.
-## the last expression in a block
+## use a block expression for multiple lines
+## of code. the last expression in a block
 ## is returned implicitly
 
 let multiplyBySomething(x) = {
 	let factor = 8
 	x * 8
 }
+
+## an empty block returns 'nil'
+
+let empty = {}
+
+## nil is the value that represents nothing
+## it is mainly used when there is no
+## meaningful value for an expression to
+## return
+
+let nilVal = nil
 	
 ## anonymous functions (lambdas) can be
 ## created using the 'fun' keyword.
-## they work exactly like regular
-## functions but are easier to declare inside
-## of another expression
-
-let rep(n, f) = {
-	let loop(i) =
-		if (i < n) {
-			f(i)
-			loop(i + 1)
-		}
-	
-	loop(0)
-}
+## functionally they're identical to regular
+## functions
 	
 rep(3, fun(n) -> putLn((n + 1) * 2.5))
 	
@@ -51,32 +61,59 @@ rep(3, fun(n) -> putLn((n + 1) * 2.5))
 ## 2.5
 ## 5
 ## 7.5
+
+## booleans
+
+## a boolean is either true or false.
+## the comparison and equality operators
+## return booleans
+
+## comparison operators:
+## <     less than
+## <=    less than or equal to
+## >     greater
+## >=    greater than or equal to
+
+## equality operators:
+## =     is equal to
+## !=    is not equal to
 	
 ## branch using 'if/else'
 
 let greaterThanHalf(n) =
-	if (n > 0.5) "big"
-	else "small"
+	if (n > 0.5) "hi"
+	else "lo"
 	
-## loop using recursion (a function that
-## calls itself)
+## an if without a matching else will return
+## nil if the condition evaluates to false
+
+let result = if (1 > 2) "hi"
+
+## is the same as:
+
+let result = if (1 > 2) "hi" else nil
 	
-let countTo(max, i) =
-	if (i < max) {
+## example of a loop using recursion
+	
+let countTo(n, i) =
+	if (i < n) {
 		putLn(i)
-		countTo(max, i + 1)
+		countTo(n, i + 1)
 	}
+	
+countTo(5, 0)
 			
-## countTo(5, 0) prints:
+## prints:
 ## 0
 ## 1
 ## 2
 ## 3
 ## 4
 
-## here are some examples of functions:
+## some example functions:
 
 let addOne(n) = n + 1
+let timesTwo(n) = n * 2
 
 ## geometry
 	
@@ -85,7 +122,7 @@ let rectArea(w, h) = w * h
 let circleIsRound() = true	
 let circleArea(radius) = PI * raise(radius, 2)
 	
-## Ohm's law (Ω)
+## Ohm's law
 
 let calcVoltage(current, resistance) =
 	current * resistance
@@ -95,3 +132,29 @@ let calcCurrent(voltage, resistance) =
 		
 let calcResistance(voltage, current) =
 	voltage / current
+
+## strings
+
+## a string literal consists of any series of
+## characters enclosed within two quotes
+
+let str = "Some text here"
+
+## strings may contain escape sequences,
+## which are special combinations of
+## characters that translate to a byte
+
+## all escape sequences begin with a
+## backslash
+
+## they are:
+## \xff   hexadecimal byte
+## \\     backslash
+## \"     quote
+## \t     tab
+## \n     newline
+## \r     carriage return
+## \0     null terminator
+
+## example:
+let newline = "two\nlines"

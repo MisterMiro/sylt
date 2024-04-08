@@ -197,10 +197,10 @@ let equality() = {
 		
 		## not equal to a value of any other
 		## type
-		List.forEach(values, fun(index, other)
-			->
-			if (index != skip)
-				ensure(value != other)
+		List.forEach(values,
+			fun(index, other) ->
+				if (index != skip)
+					ensure(value != other)
 		)
 	})
 	
@@ -283,7 +283,7 @@ let variables() = {
 	let b = nil
 	let c = nil
 	a <- b <- c <- 32
-	##ensure(a = 32 and b = 32 and c = 32)
+	ensure(a = 32 and b = 32 and c = 32)
 }
 
 let blocks() = {
@@ -471,6 +471,12 @@ let listLib() = {
 	let x = [1, 2, 3]
 	List.del(x, 1)
 	ensure(x = [1, 3])
+	
+	List.del(x, 0)
+	ensure(x = [3])
+	
+	List.del(x, 0)
+	ensure(x = [])
 	
 	## push and pop
 	let x = []
@@ -714,7 +720,7 @@ List.forEach(run, fun(_, val) ->
 		put(name)
 		
 		## align
-		let width = 20
+		let width = 32
 		let len = List.length(
 			String.chars(name))
 		rep(width - len, fun(_) -> put("."))

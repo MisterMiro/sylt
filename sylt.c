@@ -26,7 +26,11 @@
 #define sylt_dprintf printf
 
 /* initial stack size */
-#define SYLT_INIT_STACK 1024
+#define SYLT_INIT_STACK 512
+
+/* some extra stack space for hiding stuff
+ * from the GC */
+#define EXTRA_STACK 16
 
 /* == debug flags ==
  * all of these should be set to 0 in
@@ -283,16 +287,12 @@ void halt(sylt_t*, const char*, ...);
 	"index out of range, len: %d, i=%d", \
 	(len), (index)
 #define E_WRONGARGC(name, need, got) \
-	"%.*s() expected %d argument%s, got %d", \
+	"%.*s takes %d argument%s but got %d", \
 	(int)name->len, name->bytes, \
 	(need), ((need) == 1 ? "" : "s"), (got)
 
 /* triggers one of each error */
 void test_errors(sylt_t* ctx) {
-	sylt_dprintf(
-		"Testing error messages, "
-		"please ignore:\n");
-		
 	#define testsrc() \
 		sylt_dprintf("(expected) "); \
 		assert(!sylt_xstring(ctx, src));
@@ -533,25 +533,25 @@ typedef struct {
 /* can be indexed by an opcode byte */
 static opinfo_t OPINFO[] = {
 	[OP_PUSH] = {"push", 1, +1},
-	[OP_PUSH_NIL] = {"push_nil", 0, +1},
-	[OP_PUSH_TRUE] = {"push_true", 0, +1},
-	[OP_PUSH_FALSE] = {"push_false", 0, +1},
-	[OP_PUSH_LIST] = {"push_list", 1, +1},
-	[OP_PUSH_FUNC] = {"push_func", 1, +1},
+	[OP_PUSH_NIL] = {"pushNil", 0, +1},
+	[OP_PUSH_TRUE] = {"pushTrue", 0, +1},
+	[OP_PUSH_FALSE] = {"pushFalse", 0, +1},
+	[OP_PUSH_LIST] = {"pushList", 1, +1},
+	[OP_PUSH_FUNC] = {"pushFunc", 1, +1},
 	[OP_POP] = {"pop", 0, -1},
-	[OP_POP_HEAP] = {"pop_heap", 0, -1},
+	[OP_POP_HEAP] = {"popHeap", 0, -1},
 	[OP_DUP] = {"dup", 0, +1},
 	[OP_LOAD] = {"load", 1, +1},
 	[OP_STORE] = {"store", 1, 0},
-	[OP_LOAD_NAME] = {"load_name", 1, +1},
-	[OP_STORE_NAME] = {"store_name", 1, 0},
-	[OP_ADD_NAME] = {"add_name", 1, -1},
-	[OP_LOAD_UPVAL] = {"load_upval", 1, +1},
-	[OP_STORE_UPVAL] = {"store_upval", 1, 0},
-	[OP_LOAD_LIST] = {"load_list", 0, -1},
-	[OP_STORE_LIST] = {"store_list", 0, -1},
-	[OP_LOAD_RET] = {"load_ret", 0, +1},
-	[OP_STORE_RET] = {"store_ret", 0, -1},
+	[OP_LOAD_NAME] = {"loadName", 1, +1},
+	[OP_STORE_NAME] = {"storeName", 1, 0},
+	[OP_ADD_NAME] = {"addName", 1, -1},
+	[OP_LOAD_UPVAL] = {"loadUpval", 1, +1},
+	[OP_STORE_UPVAL] = {"storeUpval", 1, 0},
+	[OP_LOAD_LIST] = {"loadList", 0, -1},
+	[OP_STORE_LIST] = {"storeList", 0, -1},
+	[OP_LOAD_RET] = {"loadRet", 0, +1},
+	[OP_STORE_RET] = {"storeRet", 0, -1},
 	[OP_ADD] = {"add", 0, -1},
 	[OP_SUB] = {"sub", 0, -1},
 	[OP_MUL] = {"mul", 0, -1},
@@ -566,8 +566,8 @@ static opinfo_t OPINFO[] = {
 	[OP_NEQ] = {"neq", 0, -1},
 	[OP_NOT] = {"not", 0, 0},
 	[OP_JMP] = {"jmp", 2, 0},
-	[OP_JMPIF] = {"jmpif", 2, 0},
-	[OP_JMPIFN] = {"jmpifn", 2, 0},
+	[OP_JMPIF] = {"jmpIf", 2, 0},
+	[OP_JMPIFN] = {"jmpIfn", 2, 0},
 	[OP_CALL] = {"call", 1, 0},
 	[OP_RET] = {"ret", 0, 0},
 };
@@ -1375,7 +1375,7 @@ uint32_t dict_gethash(const string_t* str) {
 string_t* string_lit(
 	const char*, sylt_t*);
 void val_print(
-	value_t, bool, int, sylt_t*);
+	value_t, bool, sylt_t*);
 
 void dict_test(sylt_t* ctx) {
 	gc_pause(ctx);
@@ -1420,7 +1420,7 @@ void dbg_print_dict(dict_t* dc, sylt_t* ctx) {
 		sylt_dprintf("    ");
 		string_dprint(item->key);
 		sylt_dprintf(" = ");
-		val_print(item->val, 20, 20, ctx);
+		val_print(item->val, true, ctx);
 		sylt_dprintf("\n");
 	}
 	
@@ -1437,7 +1437,6 @@ void dbg_print_dict(dict_t* dc, sylt_t* ctx) {
 void string_rehash(string_t* str) {
 	if (str->bytes[str->len] != '\0')
 		str->bytes[str->len] = '\0';
-	//assert(str->bytes[str->len] == '\0');
 	str->hash = dict_gethash(str);
 }
 
@@ -1836,55 +1835,27 @@ static string_t* val_tostring(
 string_t* val_tostring_opts(
 	value_t val,
 	bool quotestr,
-	int maxlen,
 	sylt_t* ctx)
 {
-	string_t* vstr = val_tostring(val, ctx);
-	
+	string_t* str = val_tostring(val, ctx);
 	if (quotestr && val.tag == TYPE_STRING) {
-		string_t* str =
-			string_new(NULL, 0, ctx);
-		
-		int len = vstr->len;
-		bool shortened = false;
-		
-		if (maxlen > 0 && len > maxlen) {
-			len = maxlen;
-			shortened = true;
-		}
-		
-		string_append(
-			&str,
-			string_fmt(
-				ctx,
-				"\"%.*s\"", len, vstr->bytes),
-			ctx);
-		
-		if (shortened)
-			string_append(
-				&str,
-				string_fmt(
-					ctx,
-					"(..+%ld)",
-					str->len - maxlen),
-				ctx);
-		
-		string_rehash(str);
-		return str;
+		return string_fmt(
+			ctx,
+			"\"%.*s\"",
+			str->len, str->bytes);
 	}
 	
-	return vstr;
+	return str;
 }
 
 /* prints a value to stdout */
 void val_print(
 	value_t val,
 	bool quotestr,
-	int maxlen,
 	sylt_t* ctx)
 {
 	string_t* str = val_tostring_opts(
-		val, quotestr, maxlen, ctx);
+		val, quotestr, ctx);
 	string_print(str);
 }
 
@@ -2204,10 +2175,6 @@ void vm_close_upvals(
 		vm->openups = upval->next;
 	}
 }
-
-/* some extra stack space for hiding stuff
- * from the GC */
-#define EXTRA_STACK 32
 
 /* grows the stack if necessary */
 void vm_ensure_stack(vm_t* vm, int needed) {
@@ -2665,7 +2632,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 /* prints arg(0) to the standard output
  * and flushes the stream  */
 value_t std_put(sylt_t* ctx) {
-	val_print(arg(0), false, 0, ctx);
+	val_print(arg(0), false, ctx);
 	fflush(stdout);
 	return wrapnil();
 }
@@ -2674,7 +2641,7 @@ value_t std_put(sylt_t* ctx) {
  * followed by a newline (\n) character
  * (which flushes the stream automatically) */
 value_t std_putln(sylt_t* ctx) {
-	val_print(arg(0), false, 0, ctx);
+	val_print(arg(0), false, ctx);
 	sylt_printf("\n");
 	return wrapnil();
 }
@@ -2853,7 +2820,6 @@ value_t stdstring_startswith(sylt_t* ctx) {
 		check->len) == 0);
 }
 
-
 /* returns true if the string ends with 
  * another string */
 value_t stdstring_endswith(sylt_t* ctx) {
@@ -2873,6 +2839,54 @@ value_t stdstring_endswith(sylt_t* ctx) {
 		check->len) == 0);
 }
 
+/* strips leading whitespace */
+value_t stdstring_trimstart(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	
+	string_t* src = stringarg(0);
+	string_t* dst = string_new(
+		src->bytes, src->len, ctx);
+	
+	size_t len = 0;
+	for (size_t i = 0; i < dst->len; i++) {
+		if (isspace(src->bytes[i]))
+			continue;
+		dst->bytes[len++] = src->bytes[i];
+	}
+	
+	dst->bytes = arr_resize(
+		dst->bytes, uint8_t,
+		dst->len, len, ctx);
+	dst->len = len;
+	
+	string_rehash(dst);
+	return wrapstring(dst);
+}
+
+/* strips trailing whitespace */
+value_t stdstring_trimend(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	
+	string_t* src = stringarg(0);
+	string_t* dst = string_new(
+		src->bytes, src->len, ctx);
+	
+	size_t len = 0;
+	for (int i = dst->len - 1; i >= 0; i--) {
+		if (isspace(src->bytes[i]))
+			continue;
+		dst->bytes[dst->len - (++len)]
+			= src->bytes[i];
+	}
+	
+	dst->bytes = arr_resize(
+		dst->bytes, uint8_t,
+		dst->len, len, ctx);
+	dst->len = len;
+	
+	string_rehash(dst);
+	return wrapstring(dst);
+}
 
 /* == math lib == */
 
@@ -3173,6 +3187,10 @@ void load_stdlib(sylt_t* ctx) {
 		stdstring_startswith, 2);
 	std_addf(ctx, "endsWith",
 		stdstring_endswith, 2);
+	std_addf(ctx, "trimStart",
+		stdstring_trimstart, 1);
+	std_addf(ctx, "trimEnd",
+		stdstring_trimend, 1);
 	
 	/* math */
 	std_setlib(ctx, "Math");

@@ -548,6 +548,18 @@ let stringLib() = {
 	let str = "MiXeD!"
 	ensure(String.lower(str) = "mixed!")
 	ensure(String.upper(str) = "MIXED!")
+	
+	## startsWith
+	ensure(String.startsWith(
+		String.alpha, "abc"))
+	ensure(!String.startsWith(
+		String.alpha, "xyz"))
+		
+	## endsWith
+	ensure(String.endsWith(
+		String.alpha, "xyz"))
+	ensure(!String.endsWith(
+		String.alpha, "abc"))
 }
 
 let mathLib() = {

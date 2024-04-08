@@ -560,6 +560,14 @@ let stringLib() = {
 		String.alpha, "xyz"))
 	ensure(!String.endsWith(
 		String.alpha, "abc"))
+		
+	## trimStart
+	ensure(String.trimStart(" \n\thi") = "hi")
+	ensure(String.trimStart("hi") = "hi")
+	
+	## trimEnd
+	ensure(String.trimEnd("hi \n\t") = "hi")
+	ensure(String.trimEnd("hi") = "hi")
 }
 
 let mathLib() = {

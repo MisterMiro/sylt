@@ -95,20 +95,19 @@ let result = if (1 > 2) "hi" else nil
 	
 ## example of a loop using recursion
 	
-let countTo(n, i) =
-	if (i < n) {
+let countdown(i) =
+	if (i > 0) {
 		putLn(i)
-		countTo(n, i + 1)
+		countdown(i - 1)
 	}
 	
-countTo(5, 0)
+countdown(3)
 			
 ## prints:
-## 0
-## 1
-## 2
 ## 3
-## 4
+## 2
+## 1
+## 0
 
 ## some example functions:
 
@@ -117,7 +116,7 @@ let timesTwo(n) = n * 2
 
 ## geometry
 	
-let rectIsSquare(w, h) = w = h	
+let rectIsSquare(w, h) = (w = h)	
 let rectArea(w, h) = w * h
 let circleIsRound() = true	
 let circleArea(radius) = PI * raise(radius, 2)
@@ -136,7 +135,7 @@ let calcResistance(voltage, current) =
 ## strings
 
 ## a string literal consists of any series of
-## characters enclosed within two quotes
+## characters inside two doublequotes
 
 let str = "Some text here"
 
@@ -158,3 +157,15 @@ let str = "Some text here"
 
 ## example:
 let newline = "two\nlines"
+
+## to create a list:
+let list = [1, 2, 3]
+
+## getting value at index
+list[0]
+
+## storing value at index
+list[0] <- 10
+
+## negative index counts from the end
+ensure(list[-1] = list[List.length(list) - 1])

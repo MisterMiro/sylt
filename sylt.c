@@ -1330,6 +1330,23 @@ bool dict_get(
 	return true;
 }
 
+void dict_copy(
+	dict_t* dst,
+	const dict_t* src,
+	sylt_t* ctx)
+{
+	for (size_t i = 0; i < src->cap; i++) {
+		item_t* src_item = &src->items[i];
+		if (!src_item->key)
+			continue;
+		
+		dict_set(dst,
+			src_item->key,
+			src_item->val,
+			ctx);
+	}
+}
+
 /* FNV-1a */
 uint32_t dict_gethash(const string_t* str) {
 	uint32_t hash = 2166136261u;
@@ -2987,49 +3004,50 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "cos", std_cos, 1);
 	std_addf(ctx, "tan", std_tan, 1);
 	
+	/* parts of the stdlib are implemented 
+	 * in sylt */
+	sylt_xfile(ctx, "stdlib.sylt");
+	
 	gc_resume(ctx);
 }
 
 /* == compiler == */
 
 typedef enum {
-	T_SOF, /* start of file */
-	T_NAME,
-	T_NIL,
-	T_TRUE,
-	T_FALSE,
-	T_LET,
-	T_FUN,
-	T_IF,
-	T_ELSE,
-	T_AND,
-	T_OR,
-	T_STRING,
-	T_NUMBER,
-	T_PLUS,
-	T_MINUS,
-	T_MINUS_GREATER,
-	T_STAR,
-	T_SLASH,
-	T_PERCENT,
-	T_LESS,
-	T_LESS_EQ,
-	T_LESS_MINUS,
-	T_GREATER,
-	T_GREATER_EQ,
-	T_EQ,
-	T_BANG,
-	T_BANG_EQ,
-	T_LPAREN,
-	T_RPAREN,
-	T_LCURLY,
-	T_RCURLY,
-	T_LSQUARE,
-	T_RSQUARE,
-	T_PIPE,
-	T_QUESTION,
-	T_COMMA,
-	T_EOF,
+	T_NAME, /* A-Z a-z 0-9 _ */
+	T_NIL, /* nil */
+	T_TRUE, /* true */
+	T_FALSE, /* false */
+	T_LET, /* let */
+	T_FUN, /* fun */
+	T_IF, /* if */
+	T_ELSE, /* else */
+	T_AND, /* and */
+	T_OR, /* or */
+	T_STRING, /* " * " */
+	T_NUMBER, /* 0-9* */
+	T_PLUS, /* + */
+	T_MINUS, /* - */
+	T_MINUS_GREATER, /* -> */
+	T_STAR, /* * */
+	T_SLASH, /* / */
+	T_PERCENT, /* % */
+	T_LESS, /* < */
+	T_LESS_EQ, /* <= */
+	T_LESS_MINUS, /* <- */
+	T_GREATER, /* > */
+	T_GREATER_EQ, /* >= */
+	T_EQ, /* = */
+	T_BANG, /* ! */
+	T_BANG_EQ, /* != */
+	T_LPAREN, /* ( */
+	T_RPAREN, /* ) */
+	T_LCURLY, /* { */
+	T_RCURLY, /* } */
+	T_LSQUARE, /* [ */
+	T_RSQUARE, /* [ */
+	T_COMMA, /* , */
+	T_EOF, /* end of file */
 } token_type_t;
 
 /* the source code is scanned into a series of
@@ -3127,11 +3145,7 @@ void comp_init(
 	
 	cmp->src = NULL;
 	cmp->pos = NULL;
-	cmp->line = 0;
-	cmp->prev = (token_t){
-		T_SOF,
-		string_lit("<sof>", ctx),
-		1},
+	cmp->line = 1;
 	cmp->syms = NULL;
 	cmp->nsyms = 0;
 	cmp->depth = 0;
@@ -3628,16 +3642,13 @@ token_t scan(comp_t* cmp) {
 	case '}': return token(T_RCURLY);
 	case '[': return token(T_LSQUARE);
 	case ']': return token(T_RSQUARE);
-	case '|': return token(T_PIPE);
-	case '?': return token(T_QUESTION);
 	case ',': return token(T_COMMA);
 	case '\0': return token(T_EOF);
+	default: halt(cmp->ctx,
+		E_UNEXPECTEDCHAR(cmp->pos[-1]));
 	}
 	
-	cmp->prev.line = cmp->line; /* hack */
-	halt(cmp->ctx,
-		E_UNEXPECTEDCHAR(cmp->pos[-1]));
-	return token(-1);
+	unreachable();
 }
 
 #undef token
@@ -3722,7 +3733,6 @@ typedef struct {
 
 /* maps tokens to parsers */
 static parserule_t RULES[] = {
-	[T_SOF] = {NULL, NULL, PREC_NONE},
 	[T_NAME] = {name, NULL, PREC_NONE},
 	[T_NIL] = {literal, NULL, PREC_NONE},
 	[T_TRUE] = {literal, NULL, PREC_NONE},
@@ -3756,8 +3766,6 @@ static parserule_t RULES[] = {
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
 	[T_LSQUARE] = {list, index, PREC_UPOST},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
-	[T_PIPE] = {NULL, NULL, PREC_NONE},
-	[T_QUESTION] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -4630,6 +4638,9 @@ sylt_t* sylt_new(void) {
 	vm_init(ctx->vm, ctx);
 	comp_init(ctx->cmp, NULL, NULL, ctx);
 	set_state(ctx, SYLT_STATE_INIT);
+	
+	/* load the standard library */
+	load_stdlib(ctx);
 	return ctx;
 }
 
@@ -4683,6 +4694,7 @@ void compile_and_run(sylt_t* ctx) {
 	gc_pause(ctx);
 	
 	/* scan initial token for lookahead */
+	ctx->cmp->prev.line = 1;
 	ctx->cmp->cur = scan(ctx->cmp);
 	
 	/* parse the entire source */
@@ -4693,11 +4705,7 @@ void compile_and_run(sylt_t* ctx) {
 	
 	emit_nullary(ctx->cmp, OP_RET);
 	gc_resume(ctx);
-	
 	set_state(ctx, SYLT_STATE_COMPILED);
-	
-	/* load standard library */
-	load_stdlib(ctx);
 	
 	/* load program */
 	sylt_pushclosure(ctx,

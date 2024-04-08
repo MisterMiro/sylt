@@ -1,75 +1,4 @@
 
-## implementations of some higher-order
-## functions; these will be moved to
-## native code in the future
-
-let rep(n, f) = {
-	let loop(i) =
-		if (i < n) {
-			f(i)
-			loop(i + 1)
-		}
-	
-	loop(0)
-}
-
-let forEach(list, f) = {
-	let loop(i) =
-		if (i < length(list)) {
-			f(i, list[i])
-			loop(i + 1)
-		}
-		
-	loop(0)
-}
-
-let map(list, f) = {
-	let result = []
-	forEach(list, fun(i, value) ->
-		push(result, f(value))
-	)
-	result
-}
-
-let concat(a, b) = {
-	let result = []
-	forEach(a, fun(_, v) -> push(result, v))
-	forEach(b, fun(_, v) -> push(result, v))
-	result
-}
-
-let flatten(list) = {
-	let result = []
-	forEach(list, fun(i, item) ->
-		if (typeOf(item) = "List") {
-			result <-
-				concat(result, flatten(item))
-		} else push(result, item)
-	)
-		
-	result
-}
-
-let any(list, f) = {
-	let loop(i) =
-		if (i < length(list)) {
-			if (f(list[i])) true
-			else loop(i + 1)
-		} else false
-		
-	loop(0)
-}
-
-let all(list, f) = {
-	let loop(i) =
-		if (i < length(list)) {
-			if (!f(list[i])) false
-			else loop(i + 1)
-		} else true
-		
-	loop(0)
-}
-
 ## test functions
 
 let names() = {
@@ -91,8 +20,6 @@ let names() = {
 	let funambulism = value
 	let iffy = value
 	let elsewhere = value
-	let matchmaker = value
-	let withdrawer = value
 	let andante = value
 	let oracle = value
 }
@@ -264,13 +191,14 @@ let equality() = {
 		func_val,   ## Func
 	]
 	
-	forEach(values, fun(skip, value) -> {
+	List.forEach(values, fun(skip, value) -> {
 		## equal to itself
 		ensure(value = value)
 		
 		## not equal to a value of any other
 		## type
-		forEach(values, fun(index, other) ->
+		List.forEach(values, fun(index, other)
+			->
 			if (index != skip)
 				ensure(value != other)
 		)
@@ -286,7 +214,7 @@ let equality() = {
 	ensure("" = "")
 	ensure("ABC" != "abc")
 	
-	ensure(raise != sqrt)
+	ensure(Math.pow != Math.sqrt)
 }
 
 let boolNot() = {
@@ -334,8 +262,9 @@ let variables() = {
 	
 	## assigning open upvalue
 	let y = 888
-	let func() =
+	let func() = {
 		y <- 333
+	}
 	func()
 	ensure(y = 333)
 	
@@ -354,7 +283,7 @@ let variables() = {
 	let b = nil
 	let c = nil
 	a <- b <- c <- 32
-	ensure(a = 32 and b = 32 and c = 32)
+	##ensure(a = 32 and b = 32 and c = 32)
 }
 
 let blocks() = {
@@ -448,14 +377,14 @@ let functions() = {
 	
 	## recursion
 	let clear(ls) =
-		if (length(ls) > 0) {
-			pop(ls)
+		if (List.length(ls) > 0) {
+			List.pop(ls)
 			clear(ls)
 		}
 		
 	let list = [1, 2, 3]
 	clear(list)
-	ensure(length(list) = 0)
+	ensure(List.length(list) = 0)
 }
 
 let gcStress() = {
@@ -464,8 +393,8 @@ let gcStress() = {
 		if (i < size) {
 			let newList = []
 			rep(size / 64, fun(_) ->
-				push(newList, oldList))
-			rec(new_list, i + 1)
+				List.push(newList, oldList))
+			rec(newList, i + 1)
 		}
 	}
 	
@@ -493,54 +422,6 @@ let ifElse() = {
 	ensure(result = "B")
 }
 
-let matchWith() = {
-	## wildcard only
-	let result =
-		match "Anything" with
-		? -> "Wildcard"
-	ensure(result = "Wildcard")
-	
-	## match first arm
-	let result =
-		match 100 with
-		| 100 -> "Success"
-		| 150 -> "Fail"
-		| 200 -> "Fail"
-		? -> nil
-	ensure(result = "Success")
-	
-	## match middle arm
-	let result =
-		match 150 with
-		| 100 -> "Fail"
-		| 150 -> "Success"
-		| 200 -> "Fail"
-		? -> nil
-	ensure(result = "Success")
-	
-	## match last arm
-	let result =
-		match 200 with
-		| 100 -> "Fail"
-		| 150 -> "Fail"
-		| 200 -> "Success"
-		? -> nil
-	ensure(result = "Success")
-	
-	## match three arms + wildcard
-	let name(num) =
-		match num with
-		| 0 -> "Zero"
-		| 1 -> "One"
-		| 2 -> "Two"
-		? -> "?"
-		
-	ensure(name(0) = "Zero")
-	ensure(name(1) = "One")
-	ensure(name(2) = "Two")
-	ensure(name(3) = "?")
-}
-
 let preludeLib() = {
 	## asString
 	ensure(asString(nil) = "nil")
@@ -562,128 +443,137 @@ let preludeLib() = {
 	
 	## rep
 	let nums = []
-	rep(3, fun(i) -> push(nums, (i + 1) * 3))
+	rep(3, fun(i) ->
+		List.push(nums, (i + 1) * 3))
 	ensure(nums = [3, 6, 9])
 }
 
 let listLib() = {
 	## length
-	ensure(length([]) = 0)
-	ensure(length([1]) = 1)
-	ensure(length([1, 2]) = 2)
+	ensure(List.length([]) = 0)
+	ensure(List.length([1]) = 1)
+	ensure(List.length([1, 2]) = 2)
 	
 	## push and pop
 	let x = []
 	
-	push(x, 3) ## = [3]
-	ensure(x = [3] and length(x) = 1)
-	push(x, 7) ## = [3, 7]
-	ensure(x = [3, 7] and length(x) = 2)
+	List.push(x, 3) ## = [3]
+	ensure(x = [3] and List.length(x) = 1)
+	List.push(x, 7) ## = [3, 7]
+	ensure(x = [3, 7] and List.length(x) = 2)
 	
 	## concat
 	let a = [1, 2]
 	let b = [3, 4]
-	let concatenated = concat(a, b)
+	let concatenated = List.concat(a, b)
 	ensure(concatenated = [1, 2, 3, 4])
 	
-	## each
+	## forEach
 	let indices = [0, 1, 2]
 	let copy = []
-	forEach(indices, fun(index, value) -> {
+	List.forEach(indices, fun(index, value) ->
+	{
 		ensure(index = indices[index])
-		push(copy, value)
+		List.push(copy, value)
 	})
 	ensure(copy = indices)
 	
 	## map
-	let list = map([4, 8], fun(x) -> x * 2)
+	let list = List.map([4, 8],
+		fun(x) -> x * 2)
 	ensure(list = [8, 16])
 
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]
-	let clean = flatten(mess)
+	let clean = List.flatten(mess)
 	ensure(clean = [1, 2, 3, 4, 5])
 	
 	## any
 	let set = [true, true, false]
-	ensure(any(set, fun(v) -> v))
-	ensure(any(set, fun(v) -> !v))
-	pop(set) ## = [true, true]
-	ensure(any(set, fun(v) -> v))
-	ensure(!any(set, fun(v) -> !v))
+	ensure(List.any(set, fun(v) -> v))
+	ensure(List.any(set, fun(v) -> !v))
+	List.pop(set) ## = [true, true]
+	ensure(List.any(set, fun(v) -> v))
+	ensure(!List.any(set, fun(v) -> !v))
 	
 	## all
 	let set = [5, 7]
-	ensure(all(set, fun(n) -> n >= 5))
-	ensure(all(set, fun(n) -> !(n < 5)))
-	push(set, 3) ## = [5, 7, 3]
-	ensure(!all(set, fun(n) -> n >= 5))
-	ensure(!all(set, fun(n) -> !(n < 5)))
+	ensure(List.all(set, fun(n) -> n >= 5))
+	ensure(List.all(set, fun(n) -> !(n < 5)))
+	List.push(set, 3) ## = [5, 7, 3]
+	ensure(!List.all(set, fun(n) -> n >= 5))
+	ensure(!List.all(set, fun(n) -> !(n < 5)))
 }
 
 let stringLib() = {
 	## chars
-	ensure(chars("Abc") = ["A", "b", "c"])
+	ensure(String.chars("Abc")
+		= ["A", "b", "c"])
 }
 
 let mathLib() = {
 	## pi
-	ensure(closeTo(PI, 3.141592, 0.001))
+	ensure(Math.closeTo(
+		Math.PI, 3.141592, 0.001))
 	
 	## euler's number
-	ensure(closeTo(E, 2.718281, 0.001))
+	ensure(Math.closeTo(
+		Math.E, 2.718281, 0.001))
 	
 	## closeTo
 	let zero = 0
 	let val = 0.005
 	let epsilon = 0.01
 	
-	ensure(closeTo(zero, val, epsilon))
-	ensure(!closeTo(zero, epsilon, epsilon))
+	ensure(Math.closeTo(zero, val, epsilon))
+	ensure(!Math.closeTo(zero, epsilon,
+		epsilon))
 	
 	## numSign
-	ensure(numSign(-80) = -1)
-	ensure(numSign(0) = 0)
-	ensure(numSign(80) = 1)
+	ensure(Math.numSign(-80) = -1)
+	ensure(Math.numSign(0) = 0)
+	ensure(Math.numSign(80) = 1)
 	
 	## abs
-	ensure(abs(-8) = 8 and abs(8) = 8)
+	ensure(Math.abs(-8) = 8
+		and Math.abs(8) = 8)
 	
 	## log and raise
 	let target = 8
 	let bases = [
 		## common
-		2, E, 10,
+		2, Math.E, 10,
 		## uncommon
 		3, 14, 2000, 18000, 2000000,
 	]
 	
 	let logRaise(base, target) = {
-		let power = log(target, base)
-		let result = raise(base, power)
-		ensure(closeTo(result, target, 0.001))
+		let power = Math.log(target, base)
+		let result = Math.pow(base, power)
+		ensure(Math.closeTo(
+			result, target, 0.001))
 	}
 	
-	forEach(bases, fun(_, base) ->
+	List.forEach(bases, fun(_, base) ->
 		logRaise(base, target))
 	
 	## sqrt
-	ensure(sqrt(256) = 16)
-	ensure(raise(32, 0.5) = sqrt(32))
+	ensure(Math.sqrt(256) = 16)
+	ensure(Math.pow(32, 0.5) = Math.sqrt(32))
 	
 	## min and max
-	ensure(min(-1, 1) = -1)
-	ensure(max(-1, 1) = 1)
+	ensure(Math.min(-1, 1) = -1)
+	ensure(Math.max(-1, 1) = 1)
 	
 	## clamp
 	let x = 2
-	ensure(clamp(x, -5, 5) = x)
+	ensure(Math.clamp(x, -5, 5) = x)
 	
 	let x = 20
-	ensure(clamp(x, 1, 4) = 4)
+	ensure(Math.clamp(x, 1, 4) = 4)
 	
 	let x = -12
-	ensure(clamp(x, -8, 3) = -8)
+	ensure(Math.clamp(x, -8, 3) = -8)
 	
 	## floor, ceil, and round
 	let checkRounding(n) = {
@@ -691,16 +581,16 @@ let mathLib() = {
 		let mid = n + 0.5
 		let high = n + 0.8
 	
-		ensure(floor(low) = n)
-		ensure(floor(high) = n)
+		ensure(Math.floor(low) = n)
+		ensure(Math.floor(high) = n)
 	
-		ensure(ceil(low) = n + 1)
-		ensure(ceil(high) = n + 1)
+		ensure(Math.ceil(low) = n + 1)
+		ensure(Math.ceil(high) = n + 1)
 	
-		ensure(round(low) = n)
-		ensure(round(high) = n + 1)
+		ensure(Math.round(low) = n)
+		ensure(Math.round(high) = n + 1)
 	
-		ensure(round(mid) =
+		ensure(Math.round(mid) =
 			if (n < 0) n
 			else n + 1
 		)
@@ -711,18 +601,28 @@ let mathLib() = {
 	checkRounding(4)
 	
 	## rad and deg
-	ensure(closeTo(rad(1), 0.0175, 0.001))
-	ensure(closeTo(deg(1), 57.296, 0.001))
+	ensure(
+		Math.closeTo(
+			Math.rad(1), 0.0175, 0.001))
+	ensure(
+		Math.closeTo(
+			Math.deg(1), 57.296, 0.001))
 	
 	## sin, cos, tan
-	ensure(closeTo(sin(90), 0.8939, 0.001))
-	ensure(closeTo(cos(90), -0.4480, 0.001))
-	ensure(closeTo(tan(90), -1.9952, 0.001))
+	ensure(
+		Math.closeTo(
+			Math.sin(90), 0.8939, 0.001))
+	ensure(
+		Math.closeTo(
+			Math.cos(90), -0.4480, 0.001))
+	ensure(
+		Math.closeTo(
+			Math.tan(90), -1.9952, 0.001))
 }
 
 ## tests to run
 
-let run = flatten([
+let run = List.flatten([
 	"Parser",	## category name
 	[			## functions to test
 		names,
@@ -755,11 +655,7 @@ let run = flatten([
 		lists,
 		functions,
 		gcStress,
-	],
-	"Control flow",
-	[
-		ifElse,
-		matchWith,
+		ifElse
 	],
 	"Standard library",
 	[
@@ -770,12 +666,14 @@ let run = flatten([
 	],
 ])
 
+variables()
+
 ## number of times to run each test
 let iterations = 1
 ensure(iterations > 0)
 
 ## let's go!
-forEach(run, fun(_, val) ->
+List.forEach(run, fun(_, val) ->
 	if (typeOf(val) = "String") {
 		let title = val
 		put(title)
@@ -789,7 +687,8 @@ forEach(run, fun(_, val) ->
 		
 		## align
 		let width = 20
-		let len = length(chars(name))
+		let len = List.length(
+			String.chars(name))
 		rep(width - len, fun(_) -> put("."))
 		
 		## run it

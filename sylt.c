@@ -2815,7 +2815,7 @@ value_t std_log(sylt_t* ctx) {
 }
 
 /* returns base raised to the power of exp */
-value_t std_raise(sylt_t* ctx) {
+value_t std_pow(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
@@ -2926,14 +2926,42 @@ value_t std_tan(sylt_t* ctx) {
 		num_func(tanf, tan)(numarg(0)));
 }
 
+static string_t* lib_name = NULL;
+
+void std_setlib(sylt_t* ctx, const char* lib)
+{
+	if (strlen(lib) == 0) {
+		lib_name = NULL;
+		return;
+	}
+	
+	lib_name = string_lit(lib, ctx);
+}
+
 /* adds a value to the standard library */
 void std_add(
 	sylt_t* ctx,
 	const char* name_lit,
 	value_t val)
 {
-	string_t* name = string_lit(
+	string_t* sym_name = string_lit(
 		name_lit, ctx);
+	
+	string_t* name = NULL;
+	if (lib_name) {
+		sylt_pushstring(ctx, lib_name);
+		sylt_pushstring(ctx,
+			string_lit(".", ctx));
+		sylt_concat(ctx);
+		
+		sylt_pushstring(ctx, sym_name);
+		sylt_concat(ctx);
+		name = sylt_popstring(ctx);
+		
+	} else {
+		name = sym_name;
+	}
+		
 	dict_set(ctx->vm->gdict, name, val, ctx);
 }
 
@@ -2966,6 +2994,7 @@ void load_stdlib(sylt_t* ctx) {
 	gc_pause(ctx);
 	
 	/* prelude */
+	std_setlib(ctx, "");
 	std_addf(ctx, "put", std_put, 1);
 	std_addf(ctx, "putLn", std_putln, 1);
 	std_addf(ctx, "asString",
@@ -2976,21 +3005,24 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "halt", std_halt, 0);
 	
 	/* list */
+	std_setlib(ctx, "List");
 	std_addf(ctx, "length", std_length, 1);
 	std_addf(ctx, "push", std_push, 2);
 	std_addf(ctx, "pop", std_pop, 1);
 	
 	/* string */
+	std_setlib(ctx, "String");
 	std_addf(ctx, "chars", std_chars, 1);
 	
 	/* math */
+	std_setlib(ctx, "Math");
 	std_add(ctx, "PI", wrapnum(M_PI));
 	std_add(ctx, "E", wrapnum(M_E));
 	std_addf(ctx, "closeTo", std_closeto, 3);
 	std_addf(ctx, "numSign", std_numsign, 1);
 	std_addf(ctx, "abs", std_abs, 1);
 	std_addf(ctx, "log", std_log, 2);
-	std_addf(ctx, "raise", std_raise, 2);
+	std_addf(ctx, "pow", std_pow, 2);
 	std_addf(ctx, "sqrt", std_sqrt, 1);
 	std_addf(ctx, "min", std_min, 2);
 	std_addf(ctx, "max", std_max, 2);
@@ -3539,8 +3571,11 @@ token_t scan(comp_t* cmp) {
 		return token(T_EOF);
 	
 	/* symbol name or keyword */
-	if (isalpha(peek()) || is('_')) {
-		while (isalnum(peek()) || is('_'))
+	if (isalpha(peek()) || is('_')
+		|| is('.')) {
+		
+		while (isalnum(peek()) ||
+			is('_') || is('.') || is('/'))
 			step();
 		
 		size_t len = cmp->pos - start;

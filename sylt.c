@@ -4676,7 +4676,9 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	vsnprintf(msg, MAX_ERRMSGLEN, fmt, args);
 	va_end(args);
 	
-	/* print message prefix */
+	sylt_eprintf("error");
+	
+	/* print file and line if available */
 	int state = (ctx) ? ctx->state : -1;
 	switch (state) {
 	case SYLT_STATE_COMPILING: {
@@ -4685,28 +4687,25 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		while (cmp->child)
 			cmp = cmp->child;
 		
-		sylt_eprintf("[error] ");
+		sylt_eprintf(" in ");
 		string_eprint(cmp->func->path);
-		sylt_eprintf(":%d: ", cmp->prev.line);
+		sylt_eprintf(":%d", cmp->prev.line);
 		break;
 	}
 	case SYLT_STATE_EXEC: {
 		const vm_t* vm = ctx->vm;
 		const func_t* func = vm->fp->func;
+		uint32_t line = func->lines[
+			vm->fp->ip - func->code - 1];
 		
-		size_t addr = (size_t)(
-			vm->fp->ip - func->code - 1);
-		uint32_t line = func->lines[addr];
-		
-		sylt_eprintf("[error] ");
+		sylt_eprintf(" in ");
 		string_eprint(func->path);
-		sylt_eprintf(":%d: ", line);
+		sylt_eprintf(":%d", line);
 		break;
 	}
-	default: sylt_eprintf("[error]: ");
 	}
 	
-	sylt_eprintf("%s\n", msg);
+	sylt_eprintf(": %s\n", msg);
 	longjmp(err_jump, 1);
 }
 

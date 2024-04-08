@@ -387,20 +387,6 @@ let functions() = {
 	ensure(List.length(list) = 0)
 }
 
-let gcStress() = {
-	let size = 1024
-	let rec(oldList, i) = {
-		if (i < size) {
-			let newList = []
-			rep(size / 64, fun(_) ->
-				List.push(newList, oldList))
-			rec(newList, i + 1)
-		}
-	}
-	
-	rec([1, 2, 3, 4, 5, 6, 7, 8], 0)
-}
-
 let ifElse() = {
 	## implicit nil
 	ensure((if (false) {}) = nil)
@@ -420,6 +406,21 @@ let ifElse() = {
 		else if (i > 0) "B"
 		else "C"
 	ensure(result = "B")
+}
+
+let spamGC() = {
+	let size1 = 1024
+	let size2 = 64
+	let rec(oldList, i) = {
+		if (i < size1) {
+			let newList = []
+			rep(size1 / size2, fun(_) ->
+				List.push(newList, oldList))
+			rec(newList, i + 1)
+		}
+	}
+	
+	rec([1, 2, 3, 4, 5, 6, 7, 8], 0)
 }
 
 let preludeLib() = {
@@ -454,13 +455,36 @@ let listLib() = {
 	ensure(List.length([1]) = 1)
 	ensure(List.length([1, 2]) = 2)
 	
+	## ins
+	let x = [1, 3, 4]
+	List.ins(x, 1, 2)
+	ensure(x = [1, 2, 3, 4])
+	
+	List.ins(x, -1, 5)
+	ensure(x = [1, 2, 3, 4, 5])
+	
+	let x = [1, 2, 3]
+	List.ins(x, 0, 1)
+	ensure(x = [1, 1, 2, 3])
+	
+	## del
+	let x = [1, 2, 3]
+	List.del(x, 1)
+	ensure(x = [1, 3])
+	
 	## push and pop
 	let x = []
 	
-	List.push(x, 3) ## = [3]
+	##List.push(x, 3) ## = [3]
+	List.push(x, 3)
 	ensure(x = [3] and List.length(x) = 1)
 	List.push(x, 7) ## = [3, 7]
 	ensure(x = [3, 7] and List.length(x) = 2)
+	
+	List.pop(x) ## = [3]
+	ensure(x = [3] and List.length(x) = 1)
+	List.pop(x) ## = []
+	ensure(x = [] and List.length(x) = 0)
 	
 	## concat
 	let a = [1, 2]
@@ -506,19 +530,25 @@ let listLib() = {
 }
 
 let stringLib() = {
-	## chars
+	## chars and join
 	ensure(String.chars("Abc")
 		= ["A", "b", "c"])
+	
+	ensure(String.join(["A", "b", "c"])
+		= "Abc")
+		
+	ensure(String.join([1, "2", 34])
+		= "1234")
 }
 
 let mathLib() = {
 	## pi
 	ensure(Math.closeTo(
-		Math.PI, 3.141592, 0.001))
+		Math.pi, 3.141592, 0.001))
 	
 	## euler's number
 	ensure(Math.closeTo(
-		Math.E, 2.718281, 0.001))
+		Math.e, 2.718281, 0.001))
 	
 	## closeTo
 	let zero = 0
@@ -538,11 +568,11 @@ let mathLib() = {
 	ensure(Math.abs(-8) = 8
 		and Math.abs(8) = 8)
 	
-	## log and raise
+	## log and pow
 	let target = 8
 	let bases = [
 		## common
-		2, Math.E, 10,
+		2, Math.e, 10,
 		## uncommon
 		3, 14, 2000, 18000, 2000000,
 	]
@@ -654,8 +684,8 @@ let run = List.flatten([
 		blocks,
 		lists,
 		functions,
-		gcStress,
-		ifElse
+		ifElse,
+		spamGC,
 	],
 	"Standard library",
 	[
@@ -665,8 +695,6 @@ let run = List.flatten([
 		mathLib,
 	],
 ])
-
-variables()
 
 ## number of times to run each test
 let iterations = 1

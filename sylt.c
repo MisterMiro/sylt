@@ -2800,6 +2800,40 @@ value_t stdstring_join(sylt_t* ctx) {
 	return wrapstring(str);
 }
 
+/* returns str converted to lowercase */
+value_t stdstring_lower(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	
+	string_t* copy = string_new(
+		stringarg(0)->bytes,
+		stringarg(0)->len,
+		ctx);
+	
+	for (size_t i = 0; i < copy->len; i++) {
+		copy->bytes[i] =
+			tolower(copy->bytes[i]);
+	}
+	
+	return wrapstring(copy);
+}
+
+/* returns str converted to uppercase */
+value_t stdstring_upper(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	
+	string_t* copy = string_new(
+		stringarg(0)->bytes,
+		stringarg(0)->len,
+		ctx);
+	
+	for (size_t i = 0; i < copy->len; i++) {
+		copy->bytes[i] =
+			toupper(copy->bytes[i]);
+	}
+	
+	return wrapstring(copy);
+}
+
 /* == math lib == */
 
 /* returns true if a is nearly equal
@@ -3075,9 +3109,25 @@ void load_stdlib(sylt_t* ctx) {
 	
 	/* string */
 	std_setlib(ctx, "String");
+	std_add(ctx, "alpha",	
+		wrapstring(string_lit(
+			"abcdefghijklmnopqrstuvwxyz",
+			ctx)));
+	std_add(ctx, "alphanum",	
+		wrapstring(string_lit(
+			"abcdefghijklmnopqrstuvwxyz"
+			"0123456789",
+			ctx)));
+	std_add(ctx, "digits",	
+		wrapstring(string_lit(
+			"0123456789", ctx)));
 	std_addf(ctx, "chars",
 		stdstring_chars, 1);
 	std_addf(ctx, "join", stdstring_join, 1);
+	std_addf(ctx, "lower",
+		stdstring_lower, 1);
+	std_addf(ctx, "upper",
+		stdstring_upper, 1);
 	
 	/* math */
 	std_setlib(ctx, "Math");

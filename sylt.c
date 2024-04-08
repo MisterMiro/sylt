@@ -283,7 +283,7 @@ void halt(sylt_t*, const char*, ...);
 	"index out of range, len: %d, i=%d", \
 	(len), (index)
 #define E_WRONGARGC(name, need, got) \
-	"%.*s expected %d argument%s, got %d", \
+	"%.*s() expected %d argument%s, got %d", \
 	(int)name->len, name->bytes, \
 	(need), ((need) == 1 ? "" : "s"), (got)
 
@@ -292,50 +292,58 @@ void test_errors(sylt_t* ctx) {
 	sylt_dprintf(
 		"Testing error messages, "
 		"please ignore:\n");
+		
+	#define testsrc() \
+		sylt_dprintf("(expected) "); \
+		assert(!sylt_xstring(ctx, src));
 	
 	const char* src;
 	
 	/* unexpected character */
 	src = "`";
-	assert(!sylt_xstring(ctx, src));
+	testsrc();
 	
 	/* type error */
 	src = "1 + true";
-	assert(!sylt_xstring(ctx, src));
+	testsrc();
 	
 	/* unknown escape sequence */
 	src = "\" \\w \"";
-	assert(!sylt_xstring(ctx, src));
+	testsrc();
 	
 	/* unterminated string literal */
 	src = "\"";
-	assert(!sylt_xstring(ctx, src));
+	testsrc();
 	
 	/* undefined variable */
 	src = "1 + milk";
-	assert(!sylt_xstring(ctx, src));
+	testsrc();
 	
 	/* division by zero */
 	src = "1 / 0";
-	assert(!sylt_xstring(ctx, src));
+	testsrc();
 	
 	/* stack overflow */
 	src =
-		"let rec(i, n) = "
+		"let loop(i, n) = "
 		"	if (i < n) "
-		"		rec(i + 1, n) "
-		"rec(0, 8193)";
-	assert(!sylt_xstring(ctx, src));
+		"		loop(i + 1, n) "
+		"loop(0, 8193)";
+	testsrc();
 	
 	/* index */
 	src =
 		"let list = []"
 		"list[0]";
-	assert(!sylt_xstring(ctx, src));
+	testsrc();
 	
 	/* wrong argument count */
 	src = "ensure(1, 2)";
-	assert(!sylt_xstring(ctx, src));
+	testsrc();
+	
+	/* ensure(false) */
+	src = "ensure(false)";
+	testsrc();
 }
 
 /* == memory == */
@@ -595,7 +603,6 @@ static const char* TYPE_NAMES[] = {
 static const char* user_type_name(
 	type_t tag)
 {
-	//return TYPE_NAMES[tag];
 	switch (tag) {
 	case TYPE_CLOSURE:
 		return TYPE_NAMES[TYPE_FUNCTION];
@@ -1101,57 +1108,82 @@ list_t* list_new(sylt_t* ctx) {
 	return ls;
 }
 
-/* returns a pointer to the item
- * at the given index */
-value_t* list_item(
+/* converts a possibly negative index to
+ * a positive one and halts if it is out
+ * of bounds */
+size_t list_index(
 	const list_t* ls, int index, sylt_t* ctx)
 {
-	/* empty list can not be indexed */
 	if (ls->len == 0) {
 		halt(ctx, E_INDEX(ls->len, index));
 		unreachable();
 	}
 	
-	/* negative indexing is allowed */
 	if (index < 0) {
 		int mod = ls->len + index;
 		if (mod > ls->len - 1) {
 			halt(ctx, E_INDEX(ls->len, mod));
 			unreachable();
 		}
-		return &ls->items[mod];
+		return mod;
 	}
 	
 	if (index > ls->len - 1) {
 		halt(ctx, E_INDEX(ls->len, index));
 		unreachable();
 	}
-	return &ls->items[index];
+	return index;
 }
 
-/* sets the value at the given index */
-void list_set(
+void list_insert(
 	list_t* ls,
 	int index,
 	value_t val,
 	sylt_t* ctx)
 {
-	*list_item(ls, index, ctx) = val;
+	ls->len++;
+	ls->items = arr_resize(
+		ls->items,
+		value_t,
+		nextpow2(ls->len - 1),
+		nextpow2(ls->len),
+		ctx);
+	
+	index = list_index(ls, index, ctx);
+	
+	for (int i = ls->len - 1; i > index; i--)
+		ls->items[i] = ls->items[i - 1];
+	ls->items[index] = val;
 }
 
-/* returns the value at the given index */
-value_t list_get(
-	const list_t* ls,
+value_t list_delete(
+	list_t* ls,
 	int index,
 	sylt_t* ctx)
 {
-	return *list_item(ls, index, ctx);
+	index = list_index(ls, index, ctx);
+	value_t val = ls->items[index];
+	
+	for (int i = index; i < ls->len - 1; i++)
+		ls->items[i] = ls->items[i + 1];
+	
+	ls->items = arr_resize(
+		ls->items,
+		value_t,
+		nextpow2(ls->len),
+		nextpow2(ls->len - 1),
+		ctx);
+	ls->len--;
+	
+	return val;
 }
 
 /* appends an item to the end of the list */
 void list_push(
 	list_t* ls, value_t val, sylt_t* ctx)
 {
+	//list_insert(ls, ls->len, val, ctx);
+	//return;
 	/* grow allocation */
 	ls->items = arr_resize(
 		ls->items,
@@ -1162,21 +1194,10 @@ void list_push(
 	ls->items[ls->len++] = val;
 }
 
-/* returns and then removes the last item
+/* returns and then deletes the last item
  * from the list */
 value_t list_pop(list_t* ls, sylt_t* ctx) {
-	value_t last = list_get(ls, -1, ctx);
-	
-	/* shrink allocation */
-	ls->items = arr_resize(
-		ls->items,
-		value_t,
-		nextpow2(ls->len),
-		nextpow2(ls->len - 1),
-		ctx);
-	ls->len--;
-	
-	return last;
+	return list_delete(ls, -1, ctx);
 }
 
 void list_test(sylt_t* ctx) {
@@ -1192,12 +1213,6 @@ void list_test(sylt_t* ctx) {
 	for (int i = 0; i < n; i++)
 		list_push(list, wrapnum(i + 1), ctx);
 	assert(list->len == n);
-	
-	/* test list_get() */
-	for (int i = 0; i < n; i++)
-		assert(val_eq(
-			list_get(list, i, ctx),
-			wrapnum(i + 1)));
 	
 	/* test list_pop() */
 	for (int i = n - 1; i >= 0; i--)
@@ -2384,8 +2399,8 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			sylt_num_t index = getnum(pop());
 			list_t* ls = getlist(pop());
 			
-			push(list_get(
-				ls, index, vm->ctx));
+			push(ls->items[list_index(
+				ls, index, vm->ctx)]);
 			break;
 		}
 		case OP_STORE_LIST: {
@@ -2399,7 +2414,9 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			sylt_num_t index = getnum(pop());
 			list_t* ls = getlist(pop());
 			
-			list_set(ls, index, val, vm->ctx);
+			ls->items[list_index(
+				ls, index, vm->ctx)] = val;
+			
 			push(val);
 			break;
 		}
@@ -2705,13 +2722,30 @@ value_t std_halt(sylt_t* ctx) {
 /* == list lib == */
 
 /* returns the length of arg(0) */
-value_t std_length(sylt_t* ctx) {
+value_t stdlist_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return wrapnum(listarg(0)->len);
 }
 
+/* inserts a value at the given index */
+value_t stdlist_ins(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	list_insert(
+		listarg(0), numarg(1), arg(2), ctx);
+	return wrapnil();
+}
+
+/* deletes the value at the given index */
+value_t stdlist_del(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	return list_delete(
+		listarg(0), numarg(1), ctx);
+}
+
 /* appends a value to the end of arg(0) */
-value_t std_push(sylt_t* ctx) {
+value_t stdlist_push(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	list_push(listarg(0), arg(1), ctx);
 	return wrapnil();
@@ -2719,7 +2753,7 @@ value_t std_push(sylt_t* ctx) {
 
 /* removes and returns the last value of
  * arg(0), or nil if it was empty */
-value_t std_pop(sylt_t* ctx) {
+value_t stdlist_pop(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return list_pop(listarg(0), ctx);
 }
@@ -2728,7 +2762,7 @@ value_t std_pop(sylt_t* ctx) {
 
 /* returns all chars (bytes) in a string
  * as a list */
-value_t std_chars(sylt_t* ctx) {
+value_t stdstring_chars(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* str = stringarg(0);
 	list_t* ls = list_new(ctx);
@@ -2742,11 +2776,35 @@ value_t std_chars(sylt_t* ctx) {
 	return wraplist(ls);
 }
 
+/* takes a list of values and builds a string
+ * from them */
+value_t stdstring_join(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	
+	list_t* ls = listarg(0);
+	string_t* str = string_new(NULL, 0, ctx);
+	sylt_pushstring(ctx, str);
+	
+	for (int i = 0; i < ls->len; i++) {
+		string_t* val_str = val_tostring(
+			ls->items[i], ctx);
+		
+		sylt_pushstring(ctx, str);
+		sylt_pushstring(ctx, val_str);
+		sylt_concat(ctx);
+		
+		str = sylt_popstring(ctx);
+	}
+	
+	sylt_popstring(ctx);
+	return wrapstring(str);
+}
+
 /* == math lib == */
 
 /* returns true if a is nearly equal
  * to b, within a tolerance of epsilon */
-value_t std_closeto(sylt_t* ctx) {
+value_t stdmath_closeto(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
@@ -2764,7 +2822,7 @@ value_t std_closeto(sylt_t* ctx) {
 
 /* returns -1 if x is negative, 0 if it's
  * zero, and 1 if positive */
-value_t std_numsign(sylt_t* ctx) {
+value_t stdmath_numsign(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t x = numarg(0);
 	if (x < 0)
@@ -2775,7 +2833,7 @@ value_t std_numsign(sylt_t* ctx) {
 }
 
 /* returns the absolute value of x */
-value_t std_abs(sylt_t* ctx) {
+value_t stdmath_abs(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
 		num_func(fabsf, fabs)(numarg(0));
@@ -2785,7 +2843,7 @@ value_t std_abs(sylt_t* ctx) {
 /* returns the exponent to which base
  * needs to be raised in order to 
  * produce x */
-value_t std_log(sylt_t* ctx) {
+value_t stdmath_log(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
@@ -2815,7 +2873,7 @@ value_t std_log(sylt_t* ctx) {
 }
 
 /* returns base raised to the power of exp */
-value_t std_pow(sylt_t* ctx) {
+value_t stdmath_pow(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	
@@ -2827,7 +2885,7 @@ value_t std_pow(sylt_t* ctx) {
 }
 
 /* returns the square root of x */
-value_t std_sqrt(sylt_t* ctx) {
+value_t stdmath_sqrt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
 		num_func(sqrtf, sqrt)(numarg(0));
@@ -2835,7 +2893,7 @@ value_t std_sqrt(sylt_t* ctx) {
 }
 
 /* returns the smaller value of a and b */
-value_t std_min(sylt_t* ctx) {
+value_t stdmath_min(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	return wrapnum((numarg(0) < numarg(1))
@@ -2844,7 +2902,7 @@ value_t std_min(sylt_t* ctx) {
 }
 
 /* returns the larger value of a and b */
-value_t std_max(sylt_t* ctx) {
+value_t stdmath_max(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	return wrapnum((numarg(0) > numarg(1))
@@ -2853,7 +2911,7 @@ value_t std_max(sylt_t* ctx) {
 }
 
 /* clamps x between lo and hi */
-value_t std_clamp(sylt_t* ctx) {
+value_t stdmath_clamp(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	typecheck(ctx, arg(2), TYPE_NUM);
@@ -2870,14 +2928,14 @@ value_t std_clamp(sylt_t* ctx) {
 }
 
 /* returns n rounded towards -infinity */
-value_t std_floor(sylt_t* ctx) {
+value_t stdmath_floor(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(floorf, floor)(numarg(0)));
 }
 
 /* returns n rounded towards +infinity */
-value_t std_ceil(sylt_t* ctx) {
+value_t stdmath_ceil(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(ceilf, ceil)(numarg(0)));
@@ -2885,7 +2943,7 @@ value_t std_ceil(sylt_t* ctx) {
 
 /* returns the nearest integer value to x, 
  * rounding halfway cases away from zero */
-value_t std_round(sylt_t* ctx) {
+value_t stdmath_round(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(roundf, round)(numarg(0)));
@@ -2893,34 +2951,34 @@ value_t std_round(sylt_t* ctx) {
 
 /* returns x converted from degrees to
  * radians */
-value_t std_rad(sylt_t* ctx) {
+value_t stdmath_rad(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * M_PI / 180.0);
 }
 
 /* returns x converted from radians to
  * degrees */
-value_t std_deg(sylt_t* ctx) {
+value_t stdmath_deg(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * 180.0 / M_PI);
 }
 
 /* returns the sine of x */
-value_t std_sin(sylt_t* ctx) {
+value_t stdmath_sin(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(sinf, sin)(numarg(0)));
 }
 
 /* returns the cosine of x */
-value_t std_cos(sylt_t* ctx) {
+value_t stdmath_cos(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(cosf, cos)(numarg(0)));
 }
 
 /* returns the tangent of x */
-value_t std_tan(sylt_t* ctx) {
+value_t stdmath_tan(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(tanf, tan)(numarg(0)));
@@ -3002,39 +3060,48 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "typeOf", std_typeof, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
-	std_addf(ctx, "halt", std_halt, 0);
+	std_addf(ctx, "halt", std_halt, 1);
 	
 	/* list */
 	std_setlib(ctx, "List");
-	std_addf(ctx, "length", std_length, 1);
-	std_addf(ctx, "push", std_push, 2);
-	std_addf(ctx, "pop", std_pop, 1);
+	std_addf(ctx, "length",
+		stdlist_length, 1);
+	std_addf(ctx, "ins",
+		stdlist_ins, 3);
+	std_addf(ctx, "del",
+		stdlist_del, 2);
+	std_addf(ctx, "push", stdlist_push, 2);
+	std_addf(ctx, "pop", stdlist_pop, 1);
 	
 	/* string */
 	std_setlib(ctx, "String");
-	std_addf(ctx, "chars", std_chars, 1);
+	std_addf(ctx, "chars",
+		stdstring_chars, 1);
+	std_addf(ctx, "join", stdstring_join, 1);
 	
 	/* math */
 	std_setlib(ctx, "Math");
-	std_add(ctx, "PI", wrapnum(M_PI));
-	std_add(ctx, "E", wrapnum(M_E));
-	std_addf(ctx, "closeTo", std_closeto, 3);
-	std_addf(ctx, "numSign", std_numsign, 1);
-	std_addf(ctx, "abs", std_abs, 1);
-	std_addf(ctx, "log", std_log, 2);
-	std_addf(ctx, "pow", std_pow, 2);
-	std_addf(ctx, "sqrt", std_sqrt, 1);
-	std_addf(ctx, "min", std_min, 2);
-	std_addf(ctx, "max", std_max, 2);
-	std_addf(ctx, "clamp", std_clamp, 3);
-	std_addf(ctx, "floor", std_floor, 1);
-	std_addf(ctx, "ceil", std_ceil, 1);
-	std_addf(ctx, "round", std_round, 1);
-	std_addf(ctx, "rad", std_rad, 1);
-	std_addf(ctx, "deg", std_deg, 1);
-	std_addf(ctx, "sin", std_sin, 1);
-	std_addf(ctx, "cos", std_cos, 1);
-	std_addf(ctx, "tan", std_tan, 1);
+	std_add(ctx, "pi", wrapnum(M_PI));
+	std_add(ctx, "e", wrapnum(M_E));
+	std_addf(ctx, "closeTo",
+		stdmath_closeto, 3);
+	std_addf(ctx, "numSign",
+		stdmath_numsign, 1);
+	std_addf(ctx, "abs", stdmath_abs, 1);
+	std_addf(ctx, "log", stdmath_log, 2);
+	std_addf(ctx, "pow", stdmath_pow, 2);
+	std_addf(ctx, "sqrt", stdmath_sqrt, 1);
+	std_addf(ctx, "min", stdmath_min, 2);
+	std_addf(ctx, "max", stdmath_max, 2);
+	std_addf(ctx, "clamp", stdmath_clamp, 3);
+	std_addf(ctx, "floor", stdmath_floor, 1);
+	std_addf(ctx, "ceil", stdmath_ceil, 1);
+	std_addf(ctx, "round", stdmath_round, 1);
+	std_addf(ctx, "rad", stdmath_rad, 1);
+	std_addf(ctx, "deg", stdmath_deg, 1);
+	std_addf(ctx, "sin", stdmath_sin, 1);
+	std_addf(ctx, "cos", stdmath_cos, 1);
+	std_addf(ctx, "tan", stdmath_tan, 1);
 	
 	/* parts of the stdlib are implemented 
 	 * in sylt */
@@ -4618,7 +4685,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		while (cmp->child)
 			cmp = cmp->child;
 		
-		sylt_eprintf("error in ");
+		sylt_eprintf("[error] ");
 		string_eprint(cmp->func->path);
 		sylt_eprintf(":%d: ", cmp->prev.line);
 		break;
@@ -4631,12 +4698,12 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 			vm->fp->ip - func->code - 1);
 		uint32_t line = func->lines[addr];
 		
-		sylt_eprintf("error in ");
+		sylt_eprintf("[error] ");
 		string_eprint(func->path);
 		sylt_eprintf(":%d: ", line);
 		break;
 	}
-	default: sylt_eprintf("error: ");
+	default: sylt_eprintf("[error]: ");
 	}
 	
 	sylt_eprintf("%s\n", msg);
@@ -4812,6 +4879,8 @@ void sylt_interact(sylt_t* ctx) {
 }
 
 void sylt_test(sylt_t* ctx) {
+	sylt_dprintf("Running tests:\n");
+	
 	/* test data structures */
 	list_test(ctx);
 	dict_test(ctx);
@@ -4824,13 +4893,7 @@ void sylt_test(sylt_t* ctx) {
 	 * cause any problems */
 	test_errors(ctx);
 	
-	/* make sure ensure(false) halts
-	 * (used all over in tests.sylt) */
-	assert(!sylt_xstring(
-		ctx, "ensure(false)"));
-	
 	/* run main tests */
-	sylt_dprintf("Running tests:\n");
 	sylt_xfile(ctx, "tests.sylt");
 }
 

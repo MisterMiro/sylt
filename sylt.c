@@ -2836,6 +2836,44 @@ value_t stdstring_upper(sylt_t* ctx) {
 	return wrapstring(copy);
 }
 
+/* returns true if the string starts with 
+ * another string */
+value_t stdstring_startswith(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	
+	string_t* str = stringarg(0);
+	string_t* check = stringarg(1);
+	if (check->len > str->len)
+		return wrapbool(false);
+		
+	return wrapbool(strncmp(
+		(const char*)str->bytes,
+		(const char*)check->bytes,
+		check->len) == 0);
+}
+
+
+/* returns true if the string ends with 
+ * another string */
+value_t stdstring_endswith(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	
+	string_t* str = stringarg(0);
+	string_t* check = stringarg(1);
+	if (check->len > str->len)
+		return wrapbool(false);
+		
+	return wrapbool(strncmp(
+		(const char*)str->bytes
+			+ str->len
+			- check->len,
+		(const char*)check->bytes,
+		check->len) == 0);
+}
+
+
 /* == math lib == */
 
 /* returns true if a is nearly equal
@@ -3125,11 +3163,16 @@ void load_stdlib(sylt_t* ctx) {
 			"0123456789", ctx)));
 	std_addf(ctx, "chars",
 		stdstring_chars, 1);
-	std_addf(ctx, "join", stdstring_join, 1);
+	std_addf(ctx, "join",
+		stdstring_join, 1);
 	std_addf(ctx, "lower",
 		stdstring_lower, 1);
 	std_addf(ctx, "upper",
 		stdstring_upper, 1);
+	std_addf(ctx, "startsWith",
+		stdstring_startswith, 2);
+	std_addf(ctx, "endsWith",
+		stdstring_endswith, 2);
 	
 	/* math */
 	std_setlib(ctx, "Math");

@@ -2814,6 +2814,7 @@ value_t stdstring_lower(sylt_t* ctx) {
 			tolower(copy->bytes[i]);
 	}
 	
+	string_rehash(copy);
 	return wrapstring(copy);
 }
 
@@ -2831,6 +2832,7 @@ value_t stdstring_upper(sylt_t* ctx) {
 			toupper(copy->bytes[i]);
 	}
 	
+	string_rehash(copy);
 	return wrapstring(copy);
 }
 

@@ -1,0 +1,82 @@
+## implementations of some higher-order
+## functions; these will be moved to
+## native code in the future
+
+let rep(n, f) = {
+	let loop(i) =
+		if (i < n) {
+			f(i)
+			loop(i + 1)
+		}
+	
+	loop(0)
+}
+
+let forEach(list, f) = {
+	let loop(i) =
+		if (i < length(list)) {
+			f(i, list[i])
+			loop(i + 1)
+		}
+		
+	loop(0)
+}
+
+let map(list, f) = {
+	let result = []
+	forEach(list, fun(i, value) ->
+		push(result, f(value))
+	)
+	result
+}
+
+let filter(list, f) = {
+	todo()
+}
+
+let fold(list, f, init) = {
+	todo()
+}
+
+let sort(list, f) = {
+	todo()
+}
+
+let concat(a, b) = {
+	let result = []
+	forEach(a, fun(_, v) -> push(result, v))
+	forEach(b, fun(_, v) -> push(result, v))
+	result
+}
+
+let flatten(list) = {
+	let result = []
+	forEach(list, fun(i, item) ->
+		if (typeOf(item) = "List") {
+			result <-
+				concat(result, flatten(item))
+		} else push(result, item)
+	)
+		
+	result
+}
+
+let any(list, f) = {
+	let loop(i) =
+		if (i < length(list)) {
+			if (f(list[i])) true
+			else loop(i + 1)
+		} else false
+		
+	loop(0)
+}
+
+let all(list, f) = {
+	let loop(i) =
+		if (i < length(list)) {
+			if (!f(list[i])) false
+			else loop(i + 1)
+		} else true
+		
+	loop(0)
+}

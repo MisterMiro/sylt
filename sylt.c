@@ -96,7 +96,6 @@ static void dbg_print_flags(void) {
 #define MAX_CFRAMES 8192
 #define MAX_PARAMS UINT8_MAX
 #define MAX_UPVALUES UINT8_MAX
-#define MAX_MATCH_ARMS 512
 #define MAX_ERRMSGLEN 1024
 
 /* == debug macros == */
@@ -1404,7 +1403,9 @@ void dbg_print_dict(dict_t* dc, sylt_t* ctx) {
  * struct that can be used to initialize
  * a string */
 void string_rehash(string_t* str) {
-	assert(str->bytes[str->len] == '\0');
+	if (str->bytes[str->len] != '\0')
+		str->bytes[str->len] = '\0';
+	//assert(str->bytes[str->len] == '\0');
 	str->hash = dict_gethash(str);
 }
 
@@ -2669,21 +2670,18 @@ value_t std_ensure(sylt_t* ctx) {
 	return arg(0);
 }
 
-/* calls f n times with n as argument */
-value_t std_rep(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_CLOSURE);
-	
-	int n = numarg(0);
-	closure_t* f = closurearg(1);
-	
-	for (int i = 0; i < n; i++) {
-		sylt_pushclosure(ctx, f);
-		sylt_pushnum(ctx, i);
-		sylt_call(ctx, 1);
-		vm_exec(ctx->vm, true);
-	}
-	
+/* marks code as not yet implemented */
+value_t std_todo(sylt_t* ctx) {
+	halt(ctx, "todo() reached");
+	return wrapnil();
+}
+
+/* unconditionally halts program execution
+ * with an error message */
+value_t std_halt(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	halt(ctx,
+		(const char*)stringarg(0)->bytes);
 	return wrapnil();
 }
 
@@ -2957,7 +2955,8 @@ void load_stdlib(sylt_t* ctx) {
 		std_asstring, 1);
 	std_addf(ctx, "typeOf", std_typeof, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
-	std_addf(ctx, "rep", std_rep, 2);
+	std_addf(ctx, "todo", std_todo, 0);
+	std_addf(ctx, "halt", std_halt, 0);
 	
 	/* list */
 	std_addf(ctx, "length", std_length, 1);
@@ -2994,6 +2993,7 @@ void load_stdlib(sylt_t* ctx) {
 /* == compiler == */
 
 typedef enum {
+	T_SOF, /* start of file */
 	T_NAME,
 	T_NIL,
 	T_TRUE,
@@ -3002,8 +3002,6 @@ typedef enum {
 	T_FUN,
 	T_IF,
 	T_ELSE,
-	T_MATCH,
-	T_WITH,
 	T_AND,
 	T_OR,
 	T_STRING,
@@ -3130,6 +3128,10 @@ void comp_init(
 	cmp->src = NULL;
 	cmp->pos = NULL;
 	cmp->line = 0;
+	cmp->prev = (token_t){
+		T_SOF,
+		string_lit("<sof>", ctx),
+		1},
 	cmp->syms = NULL;
 	cmp->nsyms = 0;
 	cmp->depth = 0;
@@ -3546,10 +3548,6 @@ token_t scan(comp_t* cmp) {
 			return token(T_IF);
 		if (keyword("else"))
 			return token(T_ELSE);
-		if (keyword("match"))
-			return token(T_MATCH);
-		if (keyword("with"))
-			return token(T_WITH);
 		if (keyword("and"))
 			return token(T_AND);
 		if (keyword("or"))
@@ -3711,7 +3709,6 @@ void index(comp_t*);
 void let(comp_t*);
 void fun(comp_t*);
 void if_else(comp_t*);
-void match_with(comp_t*);
 void block(comp_t*);
 
 typedef void (*parsefn_t)(comp_t*);
@@ -3725,6 +3722,7 @@ typedef struct {
 
 /* maps tokens to parsers */
 static parserule_t RULES[] = {
+	[T_SOF] = {NULL, NULL, PREC_NONE},
 	[T_NAME] = {name, NULL, PREC_NONE},
 	[T_NIL] = {literal, NULL, PREC_NONE},
 	[T_TRUE] = {literal, NULL, PREC_NONE},
@@ -3733,8 +3731,6 @@ static parserule_t RULES[] = {
 	[T_FUN] = {fun, NULL, PREC_NONE},
 	[T_IF] = {if_else, NULL, PREC_NONE},
 	[T_ELSE] = {NULL, NULL, PREC_NONE},
-	[T_MATCH] = {match_with, NULL, PREC_NONE},
-	[T_WITH] = {NULL, NULL, PREC_NONE},
 	[T_AND] = {NULL, binary, PREC_AND},
 	[T_OR] = {NULL, binary, PREC_OR},
 	[T_STRING] = {string, NULL, PREC_NONE},
@@ -3816,6 +3812,8 @@ void literal(comp_t* cmp) {
 void name(comp_t* cmp) {
 	string_t* name = cmp->prev.lex;
 	
+	/* figure out if we're storing or 
+	 * loading a variable */
 	bool assign = false;
 	if (match(cmp, T_LESS_MINUS)) {
 		expr(cmp, PREC_ASSIGN);
@@ -4190,7 +4188,7 @@ void parse_func(
 	fcmp.depth = cmp->depth;
 	cmp->child = &fcmp;
 	
-	//comp_open_scope(cmp);
+	comp_open_scope(cmp);
 		
 	/* parse parameter list */
 	while (!check(&fcmp, T_RPAREN)
@@ -4223,7 +4221,10 @@ void parse_func(
 	/* function body */
 	expr(&fcmp, ANY_PREC);
 	
+	comp_close_scope(cmp);
 	emit_nullary(&fcmp, OP_RET);
+	
+	
 	func_t* func = fcmp.func;
 	emit_value(cmp, wrapfunc(func));
 	
@@ -4283,75 +4284,6 @@ void if_else(comp_t* cmp) {
 	
 	/* skipped past else */
 	patch_jump(cmp, else_addr);
-}
-
-/* parses a match expression */
-void match_with(comp_t* cmp) {
-	/* match target */
-	expr(cmp, ANY_PREC);
-	
-	eat(cmp, T_WITH,
-		"expected 'with' after expression");
-	
-	int arms = 0;
-	int exits[MAX_MATCH_ARMS] = {0};
-	int nexits = 0;
-	while (match(cmp, T_PIPE)) {
-		comp_simstack(cmp, +1);
-		
-		/* target == value */
-		emit_nullary(cmp, OP_DUP);
-		expr(cmp, ANY_PREC);
-		emit_nullary(cmp, OP_EQ);
-		
-		/* skip arm if false */
-		int skip = emit_jump(cmp, OP_JMPIFN);
-		
-		/* == arm matched! == */
-		
-		/* pop OP_EQ result */
-		emit_nullary(cmp, OP_POP);
-		
-		/* pop target */
-		emit_nullary(cmp, OP_POP);
-		
-		eat(cmp, T_MINUS_GREATER,
-			"expected '->' after expression");
-			
-		expr(cmp, ANY_PREC);
-		
-		/* don't check any other arms */
-		exits[nexits++] =
-			emit_jump(cmp, OP_JMP);
-		
-		patch_jump(cmp, skip);
-		
-		/* == arm skipped == */
-		
-		/* pop OP_EQ result */
-		emit_nullary(cmp, OP_POP);
-		
-		if (arms++ == MAX_MATCH_ARMS) {
-			halt(cmp->ctx,
-				"too many arms in match; "
-				"the limit is %d",
-				MAX_MATCH_ARMS);
-			unreachable();
-		}
-	}
-			
-	eat(cmp, T_QUESTION,
-		"'?' arm required as final arm of "
-		"match expression");
-		
-	eat(cmp, T_MINUS_GREATER,
-		"expected '->' after '?'");
-	
-	emit_nullary(cmp, OP_POP);
-	expr(cmp, ANY_PREC);
-	
-	for (int i = 0; i < nexits; i++)
-		patch_jump(cmp, exits[i]);
 }
 
 /* parses a block expression.

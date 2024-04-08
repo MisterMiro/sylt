@@ -539,12 +539,15 @@ let stringLib() = {
 	## chars and join
 	ensure(String.chars("Abc")
 		= ["A", "b", "c"])
-	
 	ensure(String.join(["A", "b", "c"])
 		= "Abc")
+	ensure(String.join([1, "2", 34, "5"])
+		= "12345")
 		
-	ensure(String.join([1, "2", 34])
-		= "1234")
+	## lower and upper
+	let str = "MiXeD!"
+	ensure(String.lower(str) = "mixed!")
+	ensure(String.upper(str) = "MIXED!")
 }
 
 let mathLib() = {

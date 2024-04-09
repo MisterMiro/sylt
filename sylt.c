@@ -202,11 +202,8 @@ typedef struct {
 /* sylt API struct */
 typedef struct {
 	sylt_state_t state;
-	/* virtual machine */
 	struct vm_s* vm;
-	/* compiler */
 	struct comp_s* cmp;
-	/* memory */
 	mem_t mem;
 } sylt_t;
 
@@ -1108,33 +1105,44 @@ list_t* list_new(sylt_t* ctx) {
 	return ls;
 }
 
+/* returns true if the two lists are equal */
+bool list_eq(
+	const list_t* a, const list_t* b)
+{
+	if (!a || !b)
+		return false;
+	
+	if (a == b)
+		return true;
+		
+	if (a->len != b->len)
+		return false;
+		
+	for (int i = 0; i < a->len; i++)
+		if (!val_eq(a->items[i], b->items[i]))
+			return false;
+		
+	return true;
+}
+
 /* converts a possibly negative index to
  * a positive one and halts if it is out
  * of bounds */
 size_t list_index(
 	const list_t* ls, int index, sylt_t* ctx)
 {
-	if (ls->len == 0) {
+	if (index < 0)
+		index = ls->len + index;
+	
+	if (ls->len == 0 || index > ls->len - 1) {
 		halt(ctx, E_INDEX(ls->len, index));
 		unreachable();
 	}
 	
-	if (index < 0) {
-		int mod = ls->len + index;
-		if (mod > ls->len - 1) {
-			halt(ctx, E_INDEX(ls->len, mod));
-			unreachable();
-		}
-		return mod;
-	}
-	
-	if (index > ls->len - 1) {
-		halt(ctx, E_INDEX(ls->len, index));
-		unreachable();
-	}
 	return index;
 }
 
+/* inserts an item at the given index */
 void list_insert(
 	list_t* ls,
 	int index,
@@ -1156,6 +1164,7 @@ void list_insert(
 	ls->items[index] = val;
 }
 
+/* deletes an item from the given index */
 value_t list_delete(
 	list_t* ls,
 	int index,
@@ -1228,6 +1237,7 @@ void list_test(sylt_t* ctx) {
 
 #define DICT_MAX_LOAD 0.75
 
+/* creates a new dictionary */
 dict_t* dict_new(sylt_t* ctx) {
 	dict_t* dc = (dict_t*)obj_new(
 		sizeof(dict_t), TYPE_DICT, ctx);
@@ -1240,6 +1250,8 @@ dict_t* dict_new(sylt_t* ctx) {
 bool string_eq(
 	const string_t* a, const string_t* b);
 
+/* finds an entry in a dictionary from
+ * a string key value */
 item_t* dict_find(
 	const string_t* key,
 	const item_t* items,
@@ -1259,14 +1271,14 @@ item_t* dict_find(
 /* sets the capacity and reallocates the 
  * backing array */
 void dict_setcap(
-	dict_t* dc, size_t new_cap, sylt_t* ctx)
+	dict_t* dc, size_t cap, sylt_t* ctx)
 {
 	/* allocate a new array */
 	item_t* items = arr_alloc(
-		items, item_t, new_cap, ctx);
+		items, item_t, cap, ctx);
 	
 	/* zero out */
-	for (size_t i = 0; i < new_cap; i++) {
+	for (size_t i = 0; i < cap; i++) {
 		items[i].key = NULL;
 		items[i].val = wrapnil();
 	}
@@ -1278,19 +1290,17 @@ void dict_setcap(
 			continue;
 			
 		item_t* dst = dict_find(
-			src->key, items, new_cap);
+			src->key, items, cap);
 		dst->key = src->key;
 		dst->val = src->val;
 	}
 	
 	/* free the original */
-	arr_free(dc->items,
-		item_t,
-		dc->cap,
-		ctx);
+	arr_free(dc->items, item_t, dc->cap, ctx);
 	
+	/* update */
 	dc->items = items;
-	dc->cap = new_cap;
+	dc->cap = cap;
 }
 
 /* inserts a value into the dictionary */
@@ -1300,10 +1310,6 @@ bool dict_set(
 	value_t val,
 	sylt_t* ctx)
 {
-	sylt_pushdict(ctx, dc);
-	sylt_pushstring(ctx, key);
-	sylt_push(ctx, val);
-	
 	/* grow if needed */
 	size_t cap = dc->cap * DICT_MAX_LOAD;
 	if (dc->len + 1 > cap) {
@@ -1311,12 +1317,9 @@ bool dict_set(
 		dict_setcap(dc, new_cap, ctx);
 	}
 	
-	sylt_pop(ctx);
-	sylt_popstring(ctx);
-	sylt_popdict(ctx);
-	
 	item_t* item = dict_find(
 		key, dc->items, dc->cap);
+	
 	bool is_new = !item->key;
 	if (is_new)
 		dc->len++;
@@ -1374,8 +1377,6 @@ uint32_t dict_gethash(const string_t* str) {
 
 string_t* string_lit(
 	const char*, sylt_t*);
-void val_print(
-	value_t, bool, sylt_t*);
 
 void dict_test(sylt_t* ctx) {
 	gc_pause(ctx);
@@ -1407,6 +1408,8 @@ void dict_test(sylt_t* ctx) {
 }
 
 void string_dprint(string_t*);
+string_t* val_tostring_opts(
+	value_t, bool, sylt_t*);
 
 void dbg_print_dict(dict_t* dc, sylt_t* ctx) {
 	sylt_dprintf("(len %ld, cap %ld) {\n",
@@ -1420,7 +1423,9 @@ void dbg_print_dict(dict_t* dc, sylt_t* ctx) {
 		sylt_dprintf("    ");
 		string_dprint(item->key);
 		sylt_dprintf(" = ");
-		val_print(item->val, true, ctx);
+		string_t* val = val_tostring_opts(
+			item->val, true, ctx);
+		string_dprint(val);
 		sylt_dprintf("\n");
 	}
 	
@@ -1641,8 +1646,7 @@ void func_write(
 	
 	/* write byte */
 	func->code = arr_resize(
-		func->code,
-		uint8_t,
+		func->code, uint8_t,
 		nextpow2(func->ncode),
 		nextpow2(func->ncode + 1),
 		ctx);
@@ -1650,8 +1654,7 @@ void func_write(
 	
 	/* write corresponding line number */
 	func->lines = arr_resize(
-		func->lines,
-		uint32_t,
+		func->lines, uint32_t,
 		nextpow2(func->nlines),
 		nextpow2(func->nlines + 1),
 		ctx);
@@ -1679,14 +1682,14 @@ size_t func_write_data(
 		unreachable();
 	}
 	
-	vm_push(ctx->vm, val); /* GC */
+	sylt_push(ctx, val); /* GC */
 	func->data = arr_resize(
 		func->data,
 		value_t,
 		nextpow2(func->ndata),
 		nextpow2(func->ndata + 1),
 		ctx);
-	vm_pop(ctx->vm); /* GC */
+	sylt_pop(ctx); /* GC */
 		
 	func->data[func->ndata++] = val;
 	return func->ndata - 1;
@@ -1742,24 +1745,9 @@ bool val_eq(value_t a, value_t b) {
 		return getbool(a) == getbool(b);
 	case TYPE_NUM:
 		return getnum(a) == getnum(b);
-	case TYPE_LIST: {
-		list_t* lsa = getlist(a);
-		list_t* lsb = getlist(b);
-		if (lsa == lsb)
-			return true;
-		
-		if (lsa->len != lsb->len)
-			return false;
-		
-		for (int i = 0; i < lsa->len; i++) {
-			if (!val_eq(
-				lsa->items[i],
-				lsb->items[i]))
-				return false;
-		}
-		
-		return true;
-	}
+	case TYPE_LIST:
+		return list_eq(
+			getlist(a), getlist(b));
 	case TYPE_STRING:
 		return string_eq(
 			getstring(a), getstring(b));
@@ -1796,7 +1784,30 @@ static string_t* val_tostring(
 		break;
 	}
 	case TYPE_LIST: {
-		str = string_lit("<List>", ctx);
+		sylt_pushstring(ctx,
+			string_lit("[", ctx));
+		
+		list_t* ls = getlist(val);
+		for (size_t i = 0; i < ls->len; i++) {
+			sylt_pushstring(ctx,
+				val_tostring_opts(
+					ls->items[i],
+					true,
+					ctx));
+			sylt_concat(ctx);
+			
+			if (i < ls->len - 1) {
+				sylt_pushstring(ctx,
+					string_lit(", ", ctx));
+				sylt_concat(ctx);
+			}
+		}
+		
+		sylt_pushstring(ctx,
+			string_lit("]", ctx));
+		sylt_concat(ctx);
+		
+		str = sylt_popstring(ctx);
 		break;
 	}
 	case TYPE_DICT: {
@@ -1813,12 +1824,6 @@ static string_t* val_tostring(
 	}
 	case TYPE_CLOSURE: {
 		str = getclosure(val)->func->name;
-		sylt_pushstring(ctx, str);
-		sylt_pushstring(ctx,
-			string_lit("()", ctx));
-		
-		sylt_concat(ctx);
-		str = sylt_popstring(ctx);
 		break;
 	}
 	case TYPE_UPVALUE: {

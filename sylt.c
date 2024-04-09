@@ -40,7 +40,7 @@
 #define DBG_ASSERTIONS 1
 
 /* runs the test suite */
-#define DBG_RUN_TESTS 1
+#define DBG_RUN_TESTS 0
 
 /* disables garbage collection, though
  * memory will still be freed at shutdown
@@ -49,7 +49,7 @@
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 1
+#define DBG_GC_EVERY_ALLOC 0
 
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
@@ -116,8 +116,8 @@ static void dbg_print_flags(void) {
 #define unreachable() \
 	dbgerr("unreachable code entered");
 #else
-#define dbgerr(msg) (void)msg
-#define assert(cond) (void)cond
+#define dbgerr(msg)
+#define assert(cond)
 #define unreachable()
 #endif
 
@@ -2062,7 +2062,7 @@ void dbg_print_stack(
 		sylt_dprintf("             [ ");
 	
 	for (; v != vm->sp; v++) {
-		val_print(*v, true, 12, vm->ctx);
+		val_print(*v, true, vm->ctx);
 		if (v != vm->sp - 1)
 		  sylt_dprintf(", ");
 	}
@@ -2636,7 +2636,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 
 /* prints arg(0) to the standard output
  * and flushes the stream  */
-value_t std_put(sylt_t* ctx) {
+value_t std_print(sylt_t* ctx) {
 	val_print(arg(0), false, ctx);
 	fflush(stdout);
 	return wrapnil();
@@ -2645,7 +2645,7 @@ value_t std_put(sylt_t* ctx) {
 /* prints arg(0) to the standard output,
  * followed by a newline (\n) character
  * (which flushes the stream automatically) */
-value_t std_putln(sylt_t* ctx) {
+value_t std_println(sylt_t* ctx) {
 	val_print(arg(0), false, ctx);
 	sylt_printf("\n");
 	return wrapnil();
@@ -2900,6 +2900,7 @@ value_t stdstring_trimend(sylt_t* ctx) {
 value_t stdmath_closeto(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
+	typecheck(ctx, arg(2), TYPE_NUM);
 	
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
@@ -3146,8 +3147,8 @@ void load_stdlib(sylt_t* ctx) {
 	
 	/* prelude */
 	std_setlib(ctx, "");
-	std_addf(ctx, "put", std_put, 1);
-	std_addf(ctx, "putLn", std_putln, 1);
+	std_addf(ctx, "print", std_print, 1);
+	std_addf(ctx, "printLn", std_println, 1);
 	std_addf(ctx, "asString",
 		std_asstring, 1);
 	std_addf(ctx, "typeOf", std_typeof, 1);

@@ -2651,11 +2651,29 @@ value_t std_println(sylt_t* ctx) {
 	return wrapnil();
 }
 
-/* returns arg(0) converted to a string */
+/* reads console input into a string and 
+ * returns it */
+value_t std_readin(sylt_t* ctx) {
+	char buffer[8192];
+	fgets(buffer, 8192, stdin);
+	return wrapstring(
+		string_lit(buffer, ctx));
+}
+
+/* returns the string representation of
+ * a given value */
 value_t std_asstring(sylt_t* ctx) {
 	string_t* str =
 		val_tostring(arg(0), ctx);
 	return wrapstring(str);
+}
+
+/* returns x converted to a number, or 0 if 
+ * conversion failed */
+value_t std_asnum(sylt_t* ctx) {
+	sylt_num_t num = num_func(strtof, strtod)
+		((char*)stringarg(0)->bytes, NULL);
+	return wrapnum(num);
 }
 
 /* returns the type of arg(0) as a string */
@@ -3149,8 +3167,10 @@ void load_stdlib(sylt_t* ctx) {
 	std_setlib(ctx, "");
 	std_addf(ctx, "print", std_print, 1);
 	std_addf(ctx, "printLn", std_println, 1);
+	std_addf(ctx, "readIn", std_readin, 0);
 	std_addf(ctx, "asString",
 		std_asstring, 1);
+	std_addf(ctx, "asNum", std_asnum, 1);
 	std_addf(ctx, "typeOf", std_typeof, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);

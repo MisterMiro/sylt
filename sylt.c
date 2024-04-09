@@ -40,7 +40,7 @@
 #define DBG_ASSERTIONS 1
 
 /* runs the test suite */
-#define DBG_RUN_TESTS 0
+#define DBG_RUN_TESTS 1
 
 /* disables garbage collection, though
  * memory will still be freed at shutdown
@@ -49,7 +49,7 @@
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 0
+#define DBG_GC_EVERY_ALLOC 1
 
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
@@ -438,7 +438,7 @@ void* ptr_resize(
 	void* np = realloc(p, ns);
 	if (!np) {
 		halt(ctx, E_OUTOFMEM);
-	    return NULL;
+	    unreachable();
 	}
 	
 	return np;
@@ -675,7 +675,7 @@ typedef struct string_s {
 } string_t;
 
 /* function pointer to a sylt library
- * function written in C*/
+ * function written in C */
 typedef struct value_s (*cfunc_t)
 	(sylt_t* ctx);
 
@@ -887,6 +887,10 @@ static inline void vm_shrink(
 /* for peeking values down the stack */
 #define sylt_peek(ctx, n) \
 	vm_peek(ctx->vm, n)
+#define sylt_peeknum(ctx, n) \
+	getnum(sylt_peek(ctx, n))
+#define sylt_peeklist(ctx, n) \
+	getlist(sylt_peek(ctx, n))
 #define sylt_peekdict(ctx, n) \
 	getdict(sylt_peek(ctx, n))
 #define sylt_peekstring(ctx, n) \
@@ -925,7 +929,8 @@ obj_t* obj_new_impl(
 	assert(isheaptype(tag));
 	obj_t* obj = ptr_resize(
 		NULL, 0, size,
-		"<obj>", func_name, line,ctx);
+		"<obj>", func_name, line,
+		ctx);
 	obj->tag = tag;
 	obj->marked = false;
 	obj->next = ctx->mem.objs;
@@ -1026,8 +1031,10 @@ void obj_mark(obj_t* obj, sylt_t* ctx) {
 		(sizeof(obj_t*)
 			* ctx->mem.gc.nmarked) + 1);
 	
-	if (!ctx->mem.gc.marked)
+	if (!ctx->mem.gc.marked) {
 		halt(ctx, E_OUTOFMEM);
+		unreachable();
+	}
 	
 	ctx->mem.gc.marked
 		[ctx->mem.gc.nmarked++] = obj;
@@ -1149,13 +1156,13 @@ void list_insert(
 	value_t val,
 	sylt_t* ctx)
 {
-	ls->len++;
 	ls->items = arr_resize(
 		ls->items,
 		value_t,
-		nextpow2(ls->len - 1),
 		nextpow2(ls->len),
+		nextpow2(ls->len + 1),
 		ctx);
+	ls->len++;
 	
 	index = list_index(ls, index, ctx);
 	
@@ -1211,8 +1218,10 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 
 void list_test(sylt_t* ctx) {
 	/* empty list */
+	#if DBG_ASSERTIONS
 	list_t* empty = list_new(ctx);
 	assert(empty->len == 0);
+	#endif
 	
 	int n = 512;
 	list_t* list = list_new(ctx);
@@ -1379,6 +1388,7 @@ string_t* string_lit(
 	const char*, sylt_t*);
 
 void dict_test(sylt_t* ctx) {
+	#if DBG_ASSERTIONS
 	gc_pause(ctx);
 	dict_t* dc = dict_new(ctx);
 	
@@ -1405,6 +1415,7 @@ void dict_test(sylt_t* ctx) {
 	assert(val_eq(v1, get));
 	
 	gc_resume(ctx);
+	#endif
 }
 
 void string_dprint(string_t*);
@@ -1594,10 +1605,12 @@ void string_dprint(string_t* str) {
 
 /* TODO: more test cases */
 void string_test(sylt_t* ctx) {
+	#if DBG_ASSERTIONS
 	/* empty string */
 	string_t* empty = string_new(
 		NULL, 0, ctx);
 	assert(empty->len == 0);
+	#endif
 }
 
 /* == function == */
@@ -1748,6 +1761,8 @@ bool val_eq(value_t a, value_t b) {
 	case TYPE_LIST:
 		return list_eq(
 			getlist(a), getlist(b));
+	case TYPE_DICT:
+		return getobj(a) == getobj(b);
 	case TYPE_STRING:
 		return string_eq(
 			getstring(a), getstring(b));
@@ -3291,7 +3306,6 @@ typedef enum {
 /* the source code is scanned into a series of
  * tokens */
 typedef struct {
-	/* token type */
 	token_type_t tag;
 	/* lexeme */
 	string_t* lex;
@@ -3321,13 +3335,11 @@ typedef enum {
 	PREC_UPRE,
 	/* unary postfix: () [] */
 	PREC_UPOST,
-	PREC_PRIMARY,
 } prec_t;
 
 const int ANY_PREC = PREC_ASSIGN;
 
 typedef struct {
-	/* symbol name */
 	string_t* name;
 	/* scope depth */
 	int depth;
@@ -3465,16 +3477,12 @@ void emit_op(
 	comp_simstack(cmp, OPINFO[op].effect);
 	
 	/* write the instruction opcode */
-	func_write(
-		cmp->func,
-		op,
-		cmp->prev.line,
-		cmp->ctx);
+	func_write(cmp->func,
+		op, cmp->prev.line, cmp->ctx);
 	
 	/* write the arguments */
 	for (size_t i = 0; i < nargs; i++) {
-		func_write(
-			cmp->func,
+		func_write(cmp->func,
 			args[i],
 			cmp->prev.line,
 			cmp->ctx);
@@ -3890,6 +3898,7 @@ token_t scan(comp_t* cmp) {
 	}
 	
 	unreachable();
+	return token(T_EOF);
 }
 
 #undef token
@@ -4242,7 +4251,7 @@ void unary(comp_t* cmp) {
 	/* parse the operand */
 	expr(cmp, PREC_UPRE);
 	
-	op_t opcode;
+	op_t opcode = -1;
 	switch (token) {
 	case T_MINUS: opcode = OP_UMIN; break;
 	case T_BANG: opcode = OP_NOT; break;
@@ -4263,7 +4272,7 @@ void binary(comp_t* cmp) {
 	/* compile the right hand expression */
 	parserule_t* rule = &RULES[token];
 	
-	op_t opcode;
+	op_t opcode = -1;
 	switch (token) {
 	/* arithmetic */
 	case T_PLUS: opcode = OP_ADD; break;
@@ -4391,11 +4400,9 @@ void let(comp_t* cmp) {
 	 	* of the expression */
 		expr(cmp, ANY_PREC);
 		
-		
-		
-		if (is_local)
+		if (is_local) {
 			add_symbol(cmp, name);
-		else {
+		} else {
 			int index = func_write_data(
 				cmp->func,
 				wrapstring(name),
@@ -4437,7 +4444,7 @@ void parse_func(
 	fcmp.depth = cmp->depth;
 	cmp->child = &fcmp;
 	
-	comp_open_scope(cmp);
+	//comp_open_scope(&fcmp);
 		
 	/* parse parameter list */
 	while (!check(&fcmp, T_RPAREN)
@@ -4470,16 +4477,13 @@ void parse_func(
 	/* function body */
 	expr(&fcmp, ANY_PREC);
 	
-	comp_close_scope(cmp);
+	//comp_close_scope(&fcmp);
 	emit_nullary(&fcmp, OP_RET);
-	
-	
-	func_t* func = fcmp.func;
-	emit_value(cmp, wrapfunc(func));
+	emit_value(cmp, wrapfunc(fcmp.func));
 	
 	/* write arguments to OP_PUSHFUNC */
 	for (size_t i = 0;
-		i < func->upvalues; i++)
+		i < fcmp.func->upvalues; i++)
 	{
 		cmp_upvalue_t* upval =
 			&fcmp.upvals[i];
@@ -4542,17 +4546,12 @@ void if_else(comp_t* cmp) {
 void block(comp_t* cmp) {
 	comp_open_scope(cmp);
 	
-	/* empty block yields nil */
-	if (match(cmp, T_RCURLY)) {
-		emit_value(cmp, wrapnil());
-		comp_close_scope(cmp);
-		return;
-	}
-	
+	bool empty = true;
 	while (!check(cmp, T_RCURLY)
 		&& !check(cmp, T_EOF))
 	{
 		expr(cmp, ANY_PREC);
+		empty = false;
 		
 		/* pop the result of every expression
 		 * in a block except for the last one,
@@ -4563,6 +4562,9 @@ void block(comp_t* cmp) {
 	}
 	
 	eat(cmp, T_RCURLY, "expected '}'");
+	
+	if (empty)
+		emit_value(cmp, wrapnil());
 	comp_close_scope(cmp);
 }
 
@@ -4639,10 +4641,6 @@ void gc_mark(
 	gc_mark_vm(ctx);
 	gc_mark_compiler(ctx);
 	gc_trace_refs(ctx);
-	
-	gc_free(ctx->mem.gc.marked);
-	ctx->mem.gc.marked = NULL;
-	ctx->mem.gc.nmarked = 0;
 }
 
 /* marks all root objects reachable from
@@ -4705,10 +4703,14 @@ void gc_trace_refs(sylt_t* ctx) {
 			--ctx->mem.gc.nmarked];
 		obj_deep_mark(obj, ctx);
 	}
+	
+	gc_free(ctx->mem.gc.marked);
+	ctx->mem.gc.marked = NULL;
+	ctx->mem.gc.nmarked = 0;
 }
 
 size_t dbg_count_unreachable(sylt_t* ctx) {
-	size_t n = 0;
+	size_t count = 0;
 	obj_t* obj = ctx->mem.objs;
 	while (obj) {
 		if (obj->marked) {
@@ -4717,9 +4719,9 @@ size_t dbg_count_unreachable(sylt_t* ctx) {
 		}
 		
 		obj = obj->next;
-		n++;
+		count++;
 	}
-	return n;
+	return count;
 }
 
 /* frees the set of unreachable objects */
@@ -4801,7 +4803,6 @@ string_t* load_file(
 	fread(str->bytes, 1, len, fp);
 	fclose(fp);
 	
-	str->bytes[len] = '\0';
 	string_rehash(str);
 	return str;
 }
@@ -4861,26 +4862,21 @@ sylt_t* sylt_new(void) {
 	
 	/* init memory */
 	ctx->mem.objs = NULL;
-	/* has to be done manually when
-	 * allocating ctx struct itself */
 	ctx->mem.bytes += sizeof(sylt_t);
-	ctx->mem.highest = 0;
+	ctx->mem.highest = ctx->mem.bytes;
 	ctx->mem.count = 0;
 	ctx->mem.objcount = 0;
-	
-	/* init GC */
 	ctx->mem.gc.marked = NULL;
 	ctx->mem.gc.nmarked = 0;
 	ctx->mem.gc.trigger = GC_INIT_THRESHOLD;
 	ctx->mem.gc.cycles = 0;
 	ctx->mem.gc.pause_depth = 0;
 	
+	set_state(ctx, SYLT_STATE_INIT);
 	vm_init(ctx->vm, ctx);
 	comp_init(ctx->cmp, NULL, NULL, ctx);
-	set_state(ctx, SYLT_STATE_INIT);
-	
-	/* load the standard library */
 	load_stdlib(ctx);
+	
 	return ctx;
 }
 
@@ -5019,13 +5015,13 @@ void sylt_interact(sylt_t* ctx) {
 void sylt_test(sylt_t* ctx) {
 	sylt_dprintf("Running tests:\n");
 	
+	/* empty input */
+	assert(sylt_xstring(ctx, ""));
+	
 	/* test data structures */
 	list_test(ctx);
 	dict_test(ctx);
 	string_test(ctx);
-	
-	/* empty input */
-	assert(sylt_xstring(ctx, ""));
 	
 	/* make sure errors don't
 	 * cause any problems */

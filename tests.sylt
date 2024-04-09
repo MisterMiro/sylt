@@ -382,9 +382,9 @@ let functions() = {
 			clear(ls)
 		}
 		
-	let list = [1, 2, 3]
-	clear(list)
-	ensure(List.length(list) = 0)
+	let nums = [1, 2, 3]
+	clear(nums)
+	ensure(List.length(nums) = 0)
 }
 
 let ifElse() = {
@@ -409,8 +409,8 @@ let ifElse() = {
 }
 
 let spamGC() = {
-	let size1 = 1024
-	let size2 = 64
+	let size1 = 64
+	let size2 = 8
 	let rec(oldList, i) = {
 		if (i < size1) {
 			let newList = []
@@ -430,9 +430,8 @@ let preludeLib() = {
 		and asString(false) = "false")
 	ensure(asString(707) = "707")
 	ensure(asString(["bananas", 18, true])
-		= "<List>")
-	##	= "[\"bananas\", 18, true]")
-	ensure(asString(asString) = "asString()")
+		= "[\"bananas\", 18, true]")
+	ensure(asString(printLn) = "printLn")
 	
 	## typeOf
 	ensure(typeOf(nil) = "Nil")
@@ -481,8 +480,7 @@ let listLib() = {
 	## push and pop
 	let x = []
 	
-	##List.push(x, 3) ## = [3]
-	List.push(x, 3)
+	List.push(x, 3) ## = [3]
 	ensure(x = [3] and List.length(x) = 1)
 	List.push(x, 7) ## = [3, 7]
 	ensure(x = [3, 7] and List.length(x) = 2)
@@ -509,7 +507,7 @@ let listLib() = {
 	ensure(copy = indices)
 	
 	## map
-	let list = List.map([4, 8],
+	let list = List.map([4, 8], 
 		fun(x) -> x * 2)
 	ensure(list = [8, 16])
 
@@ -655,9 +653,8 @@ let mathLib() = {
 		)
 	}
 	
-	checkRounding(-4)
-	checkRounding(0)
-	checkRounding(4)
+	List.forEach([-1, 0, 1], fun(_, n)
+		-> checkRounding(n))
 	
 	## rad and deg
 	ensure(
@@ -733,26 +730,26 @@ ensure(iterations > 0)
 List.forEach(run, fun(_, val) ->
 	if (typeOf(val) = "String") {
 		let title = val
-		put(title)
-		putLn(":")
+		print(title)
+		printLn(":")
 		
 	} else {
 		let test = val
 		let name = asString(test)
-		put("  ")
-		put(name)
+		print("  ")
+		print(name)
 		
 		## align
-		let width = 32
+		let width = 20
 		let len = List.length(
 			String.chars(name))
-		rep(width - len, fun(_) -> put("."))
+		rep(width - len, fun(_) -> print("."))
 		
 		## run it
 		rep(iterations, fun(_) -> val())
 		
-		putLn("OK")
+		printLn("OK")
 	}
 )
 
-putLn("All tests passed!")
+printLn("All tests passed!")

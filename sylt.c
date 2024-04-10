@@ -2676,6 +2676,10 @@ value_t std_println(sylt_t* ctx) {
 value_t std_readin(sylt_t* ctx) {
 	char buffer[8192];
 	fgets(buffer, 8192, stdin);
+	
+	/* get rid of trailing newline */
+	buffer[strlen(buffer) - 1] = '\0';
+	
 	return wrapstring(
 		string_lit(buffer, ctx));
 }

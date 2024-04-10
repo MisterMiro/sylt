@@ -179,16 +179,14 @@ let comparison() = {
 }
 
 let equality() = {
-	let func_val() = 1 > 2
-	
 	## contains a value of each type
 	let values = [
-		nil,        ## Nil
-		true,       ## Bool
-		235,	    ## Num
-		[123],	  ## List
-		"'_'",	  ## String
-		func_val,   ## Func
+		nil,        	## Nil
+		true,       	## Bool
+		235,	    	## Num
+		[123],	  	## List
+		"'_'",	  	## String
+		fun(x) -> x,	## Func
 	]
 	
 	List.forEach(values, fun(skip, value) -> {
@@ -433,6 +431,9 @@ let preludeLib() = {
 		= "[\"bananas\", 18, true]")
 	ensure(asString(printLn) = "printLn")
 	
+	## asNum
+	ensure(asNum("1337.25") = 1337.25)
+	
 	## typeOf
 	ensure(typeOf(nil) = "Nil")
 	ensure(typeOf(true) = "Bool")
@@ -507,9 +508,9 @@ let listLib() = {
 	ensure(copy = indices)
 	
 	## map
-	let list = List.map([4, 8], 
+	let list = List.map([4, 8, 16], 
 		fun(x) -> x * 2)
-	ensure(list = [8, 16])
+	ensure(list = [8, 16, 32])
 
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]
@@ -566,6 +567,10 @@ let stringLib() = {
 	## trimEnd
 	ensure(String.trimEnd("hi \n\t") = "hi")
 	ensure(String.trimEnd("hi") = "hi")
+	
+	## trim
+	ensure(String.trim("\n\t hi \n\t") = "hi")
+	ensure(String.trim("hi") = "hi")
 }
 
 let mathLib() = {
@@ -727,15 +732,13 @@ let iterations = 1
 ensure(iterations > 0)
 
 ## let's go!
-List.forEach(run, fun(_, val) ->
-	if (typeOf(val) = "String") {
-		let title = val
-		print(title)
+List.forEach(run, fun(_, value) ->
+	if (typeOf(value) = "String") {
+		print(value)
 		printLn(":")
 		
 	} else {
-		let test = val
-		let name = asString(test)
+		let name = asString(value)
 		print("  ")
 		print(name)
 		
@@ -746,7 +749,7 @@ List.forEach(run, fun(_, val) ->
 		rep(width - len, fun(_) -> print("."))
 		
 		## run it
-		rep(iterations, fun(_) -> val())
+		rep(iterations, fun(_) -> value())
 		
 		printLn("OK")
 	}

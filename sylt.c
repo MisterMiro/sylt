@@ -4868,32 +4868,24 @@ sylt_t* sylt_new(void) {
 	
 	sylt_t* ctx = NULL;
 	ptr_alloc(ctx, sylt_t, NULL);
-	
 	set_state(ctx, SYLT_STATE_ALLOC);
 	ptr_alloc(ctx->vm, vm_t, ctx);
 	ptr_alloc(ctx->cmp, comp_t, ctx);
 	
-	/* init memory */
 	ctx->mem.objs = NULL;
-	/* has to be done manually when
-	 * allocating ctx struct itself */
 	ctx->mem.bytes += sizeof(sylt_t);
-	ctx->mem.highest = 0;
+	ctx->mem.highest = ctx->mem.bytes;
 	ctx->mem.count = 0;
 	ctx->mem.objcount = 0;
-	
-	/* init GC */
 	ctx->mem.gc.marked = NULL;
 	ctx->mem.gc.nmarked = 0;
 	ctx->mem.gc.trigger = GC_INIT_THRESHOLD;
 	ctx->mem.gc.cycles = 0;
 	ctx->mem.gc.pause_depth = 0;
 	
+	set_state(ctx, SYLT_STATE_INIT);
 	vm_init(ctx->vm, ctx);
 	comp_init(ctx->cmp, NULL, NULL, ctx);
-	set_state(ctx, SYLT_STATE_INIT);
-	
-	/* load the standard library */
 	load_stdlib(ctx);
 	return ctx;
 }

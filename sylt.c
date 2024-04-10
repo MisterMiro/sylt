@@ -2127,8 +2127,6 @@ static inline value_t vm_peek(
 	return *ptr;
 }
 
-void vm_math(vm_t* vm, op_t opcode);
-
 /* returns the value referenced by
  * an upvalue */
 value_t vm_load_upval(
@@ -2420,12 +2418,71 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			break;
 		}
 		/* == arithmetic == */
-		case OP_ADD:
-		case OP_SUB:
-		case OP_MUL:
-		case OP_DIV:
+		case OP_ADD: {
+			typecheck(vm->ctx,
+				peek(0), TYPE_NUM);
+			typecheck(vm->ctx,
+				peek(1), TYPE_NUM);
+			sylt_num_t b = getnum(pop());
+			sylt_num_t a = getnum(pop());
+			push(wrapnum(a + b));
+			break;
+		}
+		case OP_SUB: {
+			typecheck(vm->ctx,
+				peek(0), TYPE_NUM);
+			typecheck(vm->ctx,
+				peek(1), TYPE_NUM);
+			sylt_num_t b = getnum(pop());
+			sylt_num_t a = getnum(pop());
+			push(wrapnum(a - b));
+			break;
+		}
+		case OP_MUL: {
+			typecheck(vm->ctx,
+				peek(0), TYPE_NUM);
+			typecheck(vm->ctx,
+				peek(1), TYPE_NUM);
+			sylt_num_t b = getnum(pop());
+			sylt_num_t a = getnum(pop());
+			push(wrapnum(a * b));
+			break;
+		}
+		case OP_DIV: {
+			typecheck(vm->ctx,
+				peek(0), TYPE_NUM);
+			typecheck(vm->ctx,
+				peek(1), TYPE_NUM);
+			sylt_num_t b = getnum(pop());
+			sylt_num_t a = getnum(pop());
+			
+			if (b == 0.0f) {
+				halt(vm->ctx, E_DIVBYZERO);
+				unreachable();
+			}
+			
+			push(wrapnum(a / b));
+			break;
+		}
 		case OP_EDIV: {
-			vm_math(vm, op);
+			typecheck(vm->ctx,
+				peek(0), TYPE_NUM);
+			typecheck(vm->ctx,
+				peek(1), TYPE_NUM);
+			sylt_num_t b = getnum(pop());
+			sylt_num_t a = getnum(pop());
+			
+			if (b == 0.0f) {
+				halt(vm->ctx, E_DIVBYZERO);
+				unreachable();
+			}
+		
+			sylt_num_t res =
+				num_func(fmodf, fmod)(a, b);
+		
+			if (res < 0)
+				res += fabs(b);
+			push(wrapnum(res));
 			break;
 		}
 		case OP_UMIN: {
@@ -2435,11 +2492,44 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			break;
 		}
 		/* == comparison == */
-		case OP_LT:
-		case OP_LTE:
-		case OP_GT:
+		case OP_LT: {
+			typecheck(vm->ctx,
+				peek(0), TYPE_NUM);
+			typecheck(vm->ctx,
+				peek(1), TYPE_NUM);
+			sylt_num_t b = getnum(pop());
+			sylt_num_t a = getnum(pop());
+			push(wrapbool(a < b));
+			break;
+		}
+		case OP_LTE: {
+			typecheck(vm->ctx,
+				peek(0), TYPE_NUM);
+			typecheck(vm->ctx,
+				peek(1), TYPE_NUM);
+			sylt_num_t b = getnum(pop());
+			sylt_num_t a = getnum(pop());
+			push(wrapbool(a <= b));
+			break;
+		}
+		case OP_GT: {
+			typecheck(vm->ctx,
+				peek(0), TYPE_NUM);
+			typecheck(vm->ctx,
+				peek(1), TYPE_NUM);
+			sylt_num_t b = getnum(pop());
+			sylt_num_t a = getnum(pop());
+			push(wrapbool(a > b));
+			break;
+		}
 		case OP_GTE: {
-			vm_math(vm, op);
+			typecheck(vm->ctx,
+				peek(0), TYPE_NUM);
+			typecheck(vm->ctx,
+				peek(1), TYPE_NUM);
+			sylt_num_t b = getnum(pop());
+			sylt_num_t a = getnum(pop());
+			push(wrapbool(a >= b));
 			break;
 		}
 		/* equality */
@@ -2514,62 +2604,6 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 		}
 		default: unreachable();
 		}
-	}
-}
-
-void vm_math(vm_t* vm, op_t opcode) {
-	typecheck(vm->ctx, peek(0), TYPE_NUM);
-	typecheck(vm->ctx, peek(1), TYPE_NUM);
-	sylt_num_t b = getnum(pop());
-	sylt_num_t a = getnum(pop());
-	
-	switch (opcode) {
-	/* arithmetic */
-	case OP_ADD:
-		push(wrapnum(a + b));
-		break;
-	case OP_SUB:
-		push(wrapnum(a - b));
-		break;
-	case OP_MUL:
-		push(wrapnum(a * b));
-		break;
-	case OP_DIV:
-		if (b == 0.0f) {
-			halt(vm->ctx, E_DIVBYZERO);
-			unreachable();
-		}
-		
-		push(wrapnum(a / b));
-		break;
-	case OP_EDIV: {
-		if (b == 0.0f) {
-			halt(vm->ctx, E_DIVBYZERO);
-			unreachable();
-		}
-		
-		sylt_num_t res =
-			num_func(fmodf, fmod)(a, b);
-		
-		if (res < 0)
-			res += fabs(b);
-		push(wrapnum(res));
-		break;
-	}
-	/* comparison */
-	case OP_LT:
-		push(wrapbool(a < b));
-		break;
-	case OP_LTE:
-		push(wrapbool(a <= b));
-		break;
-	case OP_GT:
-		push(wrapbool(a > b));
-		break;
-	case OP_GTE:
-		push(wrapbool(a >= b));
-		break;
-	default: unreachable();
 	}
 }
 

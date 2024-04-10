@@ -82,3 +82,9 @@ let List.all(list, f) = {
 		
 	loop(0)
 }
+
+let String.trim(s) = {
+	s <- String.trimStart(s)
+	s <- String.trimEnd(s)
+	s
+}

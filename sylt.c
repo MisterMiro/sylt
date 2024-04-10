@@ -30,7 +30,11 @@
 
 /* some extra stack space for hiding stuff
  * from the GC */
-#define EXTRA_STACK 16
+#define SYLT_EXTRA_STACK 16
+
+/* path to standard library relative to
+ * executable */
+#define SYLT_STDLIB_PATH "stdlib.sylt"
 
 /* == debug flags ==
  * all of these should be set to 0 in
@@ -49,7 +53,7 @@
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 1
+#define DBG_GC_EVERY_ALLOC 0
 
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
@@ -2198,7 +2202,7 @@ void vm_close_upvals(
 
 /* grows the stack if necessary */
 void vm_ensure_stack(vm_t* vm, int needed) {
-	needed += EXTRA_STACK;
+	needed += SYLT_EXTRA_STACK;
 	if (vm->maxstack >= needed)
 		return;
 	
@@ -2498,13 +2502,14 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 	
 			vm->fp =
 				&vm->frames[vm->nframes - 1];
-				
+			
 			if (stdlib_call) {
 				return;
 			}
 			
 			dbg_print_header(
 				vm, vm->fp->cls);
+			
 			break;
 		}
 		default: unreachable();
@@ -3259,7 +3264,7 @@ void load_stdlib(sylt_t* ctx) {
 	
 	/* parts of the stdlib are implemented 
 	 * in sylt */
-	sylt_xfile(ctx, "stdlib.sylt");
+	sylt_xfile(ctx, SYLT_STDLIB_PATH);
 	
 	gc_resume(ctx);
 }
@@ -4400,9 +4405,11 @@ void let(comp_t* cmp) {
 	 	* of the expression */
 		expr(cmp, ANY_PREC);
 		
-		if (is_local) {
+		
+		
+		if (is_local)
 			add_symbol(cmp, name);
-		} else {
+		else {
 			int index = func_write_data(
 				cmp->func,
 				wrapstring(name),
@@ -4444,7 +4451,7 @@ void parse_func(
 	fcmp.depth = cmp->depth;
 	cmp->child = &fcmp;
 	
-	//comp_open_scope(&fcmp);
+	comp_open_scope(cmp);
 		
 	/* parse parameter list */
 	while (!check(&fcmp, T_RPAREN)
@@ -4477,13 +4484,16 @@ void parse_func(
 	/* function body */
 	expr(&fcmp, ANY_PREC);
 	
-	//comp_close_scope(&fcmp);
+	comp_close_scope(cmp);
 	emit_nullary(&fcmp, OP_RET);
-	emit_value(cmp, wrapfunc(fcmp.func));
+	
+	
+	func_t* func = fcmp.func;
+	emit_value(cmp, wrapfunc(func));
 	
 	/* write arguments to OP_PUSHFUNC */
 	for (size_t i = 0;
-		i < fcmp.func->upvalues; i++)
+		i < func->upvalues; i++)
 	{
 		cmp_upvalue_t* upval =
 			&fcmp.upvals[i];
@@ -4546,12 +4556,17 @@ void if_else(comp_t* cmp) {
 void block(comp_t* cmp) {
 	comp_open_scope(cmp);
 	
-	bool empty = true;
+	/* empty block yields nil */
+	if (match(cmp, T_RCURLY)) {
+		emit_value(cmp, wrapnil());
+		comp_close_scope(cmp);
+		return;
+	}
+	
 	while (!check(cmp, T_RCURLY)
 		&& !check(cmp, T_EOF))
 	{
 		expr(cmp, ANY_PREC);
-		empty = false;
 		
 		/* pop the result of every expression
 		 * in a block except for the last one,
@@ -4562,9 +4577,6 @@ void block(comp_t* cmp) {
 	}
 	
 	eat(cmp, T_RCURLY, "expected '}'");
-	
-	if (empty)
-		emit_value(cmp, wrapnil());
 	comp_close_scope(cmp);
 }
 
@@ -4641,6 +4653,10 @@ void gc_mark(
 	gc_mark_vm(ctx);
 	gc_mark_compiler(ctx);
 	gc_trace_refs(ctx);
+	
+	gc_free(ctx->mem.gc.marked);
+	ctx->mem.gc.marked = NULL;
+	ctx->mem.gc.nmarked = 0;
 }
 
 /* marks all root objects reachable from
@@ -4703,14 +4719,10 @@ void gc_trace_refs(sylt_t* ctx) {
 			--ctx->mem.gc.nmarked];
 		obj_deep_mark(obj, ctx);
 	}
-	
-	gc_free(ctx->mem.gc.marked);
-	ctx->mem.gc.marked = NULL;
-	ctx->mem.gc.nmarked = 0;
 }
 
 size_t dbg_count_unreachable(sylt_t* ctx) {
-	size_t count = 0;
+	size_t n = 0;
 	obj_t* obj = ctx->mem.objs;
 	while (obj) {
 		if (obj->marked) {
@@ -4719,9 +4731,9 @@ size_t dbg_count_unreachable(sylt_t* ctx) {
 		}
 		
 		obj = obj->next;
-		count++;
+		n++;
 	}
-	return count;
+	return n;
 }
 
 /* frees the set of unreachable objects */
@@ -4803,6 +4815,7 @@ string_t* load_file(
 	fread(str->bytes, 1, len, fp);
 	fclose(fp);
 	
+	str->bytes[len] = '\0';
 	string_rehash(str);
 	return str;
 }
@@ -4862,21 +4875,26 @@ sylt_t* sylt_new(void) {
 	
 	/* init memory */
 	ctx->mem.objs = NULL;
+	/* has to be done manually when
+	 * allocating ctx struct itself */
 	ctx->mem.bytes += sizeof(sylt_t);
-	ctx->mem.highest = ctx->mem.bytes;
+	ctx->mem.highest = 0;
 	ctx->mem.count = 0;
 	ctx->mem.objcount = 0;
+	
+	/* init GC */
 	ctx->mem.gc.marked = NULL;
 	ctx->mem.gc.nmarked = 0;
 	ctx->mem.gc.trigger = GC_INIT_THRESHOLD;
 	ctx->mem.gc.cycles = 0;
 	ctx->mem.gc.pause_depth = 0;
 	
-	set_state(ctx, SYLT_STATE_INIT);
 	vm_init(ctx->vm, ctx);
 	comp_init(ctx->cmp, NULL, NULL, ctx);
-	load_stdlib(ctx);
+	set_state(ctx, SYLT_STATE_INIT);
 	
+	/* load the standard library */
+	load_stdlib(ctx);
 	return ctx;
 }
 
@@ -5015,13 +5033,13 @@ void sylt_interact(sylt_t* ctx) {
 void sylt_test(sylt_t* ctx) {
 	sylt_dprintf("Running tests:\n");
 	
-	/* empty input */
-	assert(sylt_xstring(ctx, ""));
-	
 	/* test data structures */
 	list_test(ctx);
 	dict_test(ctx);
 	string_test(ctx);
+	
+	/* empty input */
+	assert(sylt_xstring(ctx, ""));
 	
 	/* make sure errors don't
 	 * cause any problems */

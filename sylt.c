@@ -1270,14 +1270,16 @@ item_t* dict_find(
 	const item_t* items,
 	size_t cap)
 {
-	uint32_t index = key->hash % cap;
+	/* key->hash % cap */
+	uint32_t index = key->hash & (cap - 1);
 	for (;;) {
 		const item_t* item = &items[index];
 		if (!item->key
 			|| string_eq(item->key, key))
 			return (item_t*)item;
 		
-		index = (index + 1) % cap;
+		/* (index + 1) % cap */
+		index = (index + 1) & (cap - 1);
 	}
 }
 

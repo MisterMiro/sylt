@@ -497,6 +497,11 @@ let listLib() = {
 	let concatenated = List.concat(a, b)
 	ensure(concatenated = [1, 2, 3, 4])
 	
+	## range
+	let a = List.range(-3, 3)
+	let b = [-3, -2, -1, 0, 1, 2]
+	ensure(a = b)
+	
 	## forEach
 	let indices = [0, 1, 2]
 	let copy = []
@@ -511,6 +516,13 @@ let listLib() = {
 	let list = List.map([4, 8, 16], 
 		fun(x) -> x * 2)
 	ensure(list = [8, 16, 32])
+	
+	## filter
+	let list = [1, 0, 0, 1, 1, 0]
+	list <- List.filter(list,
+		fun(n) -> n = 1
+	)
+	ensure(list = [1, 1, 1])
 
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]

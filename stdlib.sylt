@@ -9,6 +9,20 @@ let rep(n, f) = {
 	loop(0)
 }
 
+let List.range(min, max) = {
+	ensure(min < max)
+	
+	let result = []
+	let loop(i) = 
+		if (i < max) {
+			List.push(result, i)
+			loop(i + 1)
+		}
+	
+	loop(min)
+	result
+}
+
 let List.forEach(list, f) = {
 	let loop(i) =
 		if (i < List.length(list)) {
@@ -28,7 +42,12 @@ let List.map(list, f) = {
 }
 
 let List.filter(list, f) = {
-	todo()
+	let result = []
+	List.forEach(list, fun(_, value) ->
+		if (f(value))
+			List.push(result, value)
+	)
+	result
 }
 
 let List.fold(list, f, init) = {

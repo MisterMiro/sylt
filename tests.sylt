@@ -547,6 +547,19 @@ let listLib() = {
 }
 
 let stringLib() = {
+	## alpha
+	let str = "abcdefghijklmnopqrstuvwxyz"
+	ensure(String.alpha = str)
+	
+	## alphaNum
+	let str =
+		"abcdefghijklmnopqrstuvwxyz0123456789"
+	ensure(String.alphaNum = str)
+	
+	## digits
+	let str = "0123456789"
+	ensure(String.digits = str)
+	
 	## chars and join
 	ensure(String.chars("Abc")
 		= ["A", "b", "c"])

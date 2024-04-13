@@ -53,7 +53,7 @@
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 0
+#define DBG_GC_EVERY_ALLOC 1
 
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
@@ -513,8 +513,8 @@ typedef enum {
 	OP_NOT,
 	/* control flow */
 	OP_JMP,
-	OP_JMPIF,
-	OP_JMPIFN,
+	OP_JMP_IF,
+	OP_JMP_IFN,
 	OP_CALL,
 	OP_RET,
 } op_t;
@@ -567,8 +567,8 @@ static opinfo_t OPINFO[] = {
 	[OP_NEQ] = {"neq", 0, -1},
 	[OP_NOT] = {"not", 0, 0},
 	[OP_JMP] = {"jmp", 2, 0},
-	[OP_JMPIF] = {"jmpIf", 2, 0},
-	[OP_JMPIFN] = {"jmpIfn", 2, 0},
+	[OP_JMP_IF] = {"jmpIf", 2, 0},
+	[OP_JMP_IFN] = {"jmpIfn", 2, 0},
 	[OP_CALL] = {"call", 1, 0},
 	[OP_RET] = {"ret", 0, 0},
 };
@@ -2557,7 +2557,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			vm->fp->ip += offset;
 			break;
 		}
-		case OP_JMPIF: {
+		case OP_JMP_IF: {
 			uint16_t offset = read16();
 			typecheck(
 				vm->ctx, peek(0), TYPE_BOOL);
@@ -2565,7 +2565,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				vm->fp->ip += offset;
 			break;
 		}
-		case OP_JMPIFN: {
+		case OP_JMP_IFN: {
 			uint16_t offset = read16();
 			typecheck(
 				vm->ctx, peek(0), TYPE_BOOL);
@@ -3251,7 +3251,7 @@ void load_stdlib(sylt_t* ctx) {
 		wrapstring(string_lit(
 			"abcdefghijklmnopqrstuvwxyz",
 			ctx)));
-	std_add(ctx, "alphanum",	
+	std_add(ctx, "alphaNum",	
 		wrapstring(string_lit(
 			"abcdefghijklmnopqrstuvwxyz"
 			"0123456789",
@@ -4336,7 +4336,7 @@ void binary(comp_t* cmp) {
 		/* if the left-hand side expression
 		 * is false we jump past the 
 		 * right-hand side expression */
-		int jump = emit_jump(cmp, OP_JMPIFN);
+		int jump = emit_jump(cmp, OP_JMP_IFN);
 		
 		emit_nullary(cmp, OP_POP);
 		expr(cmp, PREC_AND);
@@ -4348,7 +4348,7 @@ void binary(comp_t* cmp) {
 		/* if the left-hand side expression
 		 * is true we jump past the 
 		 * right-hand side expression */
-		int jump = emit_jump(cmp, OP_JMPIF);
+		int jump = emit_jump(cmp, OP_JMP_IF);
 		
 		emit_nullary(cmp, OP_POP);
 		expr(cmp, PREC_OR);
@@ -4564,7 +4564,7 @@ void if_else(comp_t* cmp) {
 	/* jump to else branch if
 	 * the condition is false */
 	int then_addr =
-		emit_jump(cmp, OP_JMPIFN);
+		emit_jump(cmp, OP_JMP_IFN);
 		
 	/* 'then' branch */
 	emit_nullary(cmp, OP_POP); /* condition */

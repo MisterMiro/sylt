@@ -101,7 +101,7 @@ static void dbg_print_flags(void) {
 #define MAX_STACK (UINT8_MAX + 1)
 #define MAX_LINES UINT32_MAX
 #define MAX_JUMP UINT16_MAX
-#define MAX_CFRAMES 8192
+#define MAX_CFRAMES 32768
 #define MAX_PARAMS UINT8_MAX
 #define MAX_UPVALUES UINT8_MAX
 #define MAX_ERRMSGLEN 1024
@@ -329,7 +329,7 @@ void test_errors(sylt_t* ctx) {
 		"let loop(i, n) = "
 		"	if (i < n) "
 		"		loop(i + 1, n) "
-		"loop(0, 8193)";
+		"loop(0, 32769)";
 	testsrc();
 	
 	/* index */
@@ -1999,12 +1999,10 @@ void dbg_print_header(
 	
 	#if DBG_PRINT_DATA
 	sylt_dprintf("  data:\n");
-	for (size_t i = 0; i < func->ndata; i++)
-	{
+	for (size_t i = 0; i < func->ndata; i++) {
 		string_t* str = val_tostring_opts(
 			func->data[i],
 			true,
-			24,
 			vm->ctx);
 		
 		sylt_dprintf("    #%-2ld -- ", i);

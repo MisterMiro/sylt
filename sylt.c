@@ -514,7 +514,7 @@ typedef enum {
 	/* control flow */
 	OP_JMP,
 	OP_JMP_IF,
-	OP_JMP_IFN,
+	OP_JMP_IF_NOT,
 	OP_CALL,
 	OP_RET,
 } op_t;
@@ -568,7 +568,7 @@ static opinfo_t OPINFO[] = {
 	[OP_NOT] = {"not", 0, 0},
 	[OP_JMP] = {"jmp", 2, 0},
 	[OP_JMP_IF] = {"jmpIf", 2, 0},
-	[OP_JMP_IFN] = {"jmpIfn", 2, 0},
+	[OP_JMP_IF_NOT] = {"jmpIfNot", 2, 0},
 	[OP_CALL] = {"call", 1, 0},
 	[OP_RET] = {"ret", 0, 0},
 };
@@ -2567,7 +2567,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				vm->fp->ip += offset;
 			break;
 		}
-		case OP_JMP_IFN: {
+		case OP_JMP_IF_NOT: {
 			uint16_t offset = read16();
 			typecheck(
 				vm->ctx, peek(0), TYPE_BOOL);
@@ -4338,7 +4338,8 @@ void binary(comp_t* cmp) {
 		/* if the left-hand side expression
 		 * is false we jump past the 
 		 * right-hand side expression */
-		int jump = emit_jump(cmp, OP_JMP_IFN);
+		int jump = emit_jump(cmp,
+			OP_JMP_IF_NOT);
 		
 		emit_nullary(cmp, OP_POP);
 		expr(cmp, PREC_AND);
@@ -4566,7 +4567,7 @@ void if_else(comp_t* cmp) {
 	/* jump to else branch if
 	 * the condition is false */
 	int then_addr =
-		emit_jump(cmp, OP_JMP_IFN);
+		emit_jump(cmp, OP_JMP_IF_NOT);
 		
 	/* 'then' branch */
 	emit_nullary(cmp, OP_POP); /* condition */

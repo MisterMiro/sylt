@@ -1579,6 +1579,62 @@ void string_append(
 	*dst = sylt_popstring(ctx);
 }
 
+/* strips leading whitespace */
+string_t* string_trim_start(
+	string_t* src, sylt_t* ctx)
+{
+	string_t* dst = string_new(
+		src->bytes, src->len, ctx);
+	
+	size_t len = 0;
+	for (size_t i = 0; i < dst->len; i++) {
+		if (isspace(src->bytes[i]))
+			continue;
+		dst->bytes[len++] = src->bytes[i];
+	}
+	
+	dst->bytes = arr_resize(
+		dst->bytes, uint8_t,
+		dst->len, len, ctx);
+	dst->len = len;
+	
+	string_rehash(dst);
+	return dst;
+}
+
+/* strips trailing whitespace */
+string_t* string_trim_end(
+	string_t* src, sylt_t* ctx)
+{
+	string_t* dst = string_new(
+		src->bytes, src->len, ctx);
+	
+	size_t len = 0;
+	for (int i = dst->len - 1; i >= 0; i--) {
+		if (isspace(src->bytes[i]))
+			continue;
+		dst->bytes[dst->len - (++len)]
+			= src->bytes[i];
+	}
+	
+	dst->bytes = arr_resize(
+		dst->bytes, uint8_t,
+		dst->len, len, ctx);
+	dst->len = len;
+	
+	string_rehash(dst);
+	return dst;
+}
+
+/* strips leading and trailing whitespace */
+string_t* string_trim(
+	string_t* str, sylt_t* ctx)
+{
+	str = string_trim_start(str, ctx);
+	str = string_trim_end(str, ctx);
+	return str;
+}
+
 void string_print(string_t* str) {
 	if (!str) {
 		sylt_printf("NULL");
@@ -2923,50 +2979,22 @@ value_t stdstring_endswith(sylt_t* ctx) {
 /* strips leading whitespace */
 value_t stdstring_trimstart(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	
-	string_t* src = stringarg(0);
-	string_t* dst = string_new(
-		src->bytes, src->len, ctx);
-	
-	size_t len = 0;
-	for (size_t i = 0; i < dst->len; i++) {
-		if (isspace(src->bytes[i]))
-			continue;
-		dst->bytes[len++] = src->bytes[i];
-	}
-	
-	dst->bytes = arr_resize(
-		dst->bytes, uint8_t,
-		dst->len, len, ctx);
-	dst->len = len;
-	
-	string_rehash(dst);
-	return wrapstring(dst);
+	return wrapstring(
+		string_trim_start(stringarg(0), ctx));
 }
 
 /* strips trailing whitespace */
 value_t stdstring_trimend(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	
-	string_t* src = stringarg(0);
-	string_t* dst = string_new(
-		src->bytes, src->len, ctx);
-	
-	size_t len = 0;
-	for (int i = dst->len - 1; i >= 0; i--) {
-		if (isspace(src->bytes[i]))
-			continue;
-		dst->bytes[dst->len - (++len)]
-			= src->bytes[i];
-	}
-	
-	dst->bytes = arr_resize(
-		dst->bytes, uint8_t,
-		dst->len, len, ctx);
-	dst->len = len;
-	
-	string_rehash(dst);
-	return wrapstring(dst);
+	return wrapstring(
+		string_trim_end(stringarg(0), ctx));
+}
+
+/* strips leading and trailing whitespace */
+value_t stdstring_trim(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	return wrapstring(
+		string_trim(stringarg(0), ctx));
 }
 
 /* == math lib == */
@@ -3290,6 +3318,8 @@ void load_stdlib(sylt_t* ctx) {
 		stdstring_trimstart, 1);
 	std_addf(ctx, "trimEnd",
 		stdstring_trimend, 1);
+	std_addf(ctx, "trim",
+		stdstring_trim, 1);
 	
 	/* math */
 	std_setlib(ctx, "Math");

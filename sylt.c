@@ -6,6 +6,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include <ctype.h>
+#include <time.h>
 #include <math.h>
 
 #define SYLT_VERSION_STR "sylt dev"
@@ -1857,7 +1858,7 @@ static string_t* val_tostring(
 	}
 	case TYPE_NUM: {
 		str = string_fmt(
-			ctx, "%g", getnum(val));
+			ctx, "%.24g", getnum(val));
 		break;
 	}
 	case TYPE_LIST: {
@@ -2823,6 +2824,16 @@ value_t std_halt(sylt_t* ctx) {
 	return wrapnil();
 }
 
+/* == sys lib == */
+
+value_t stdsys_time(sylt_t* ctx) {
+	return wrapnum(time(NULL));
+}
+
+value_t stdsys_cputime(sylt_t* ctx) {
+	return wrapnum(clock() / CLOCKS_PER_SEC);
+}
+
 /* == list lib == */
 
 /* returns the length of arg(0) */
@@ -3276,6 +3287,12 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
 	std_addf(ctx, "halt", std_halt, 1);
+		
+	/* sys */
+	std_setlib(ctx, "Sys");
+	std_addf(ctx, "time", stdsys_time, 0);
+	std_addf(ctx, "cpuTime",
+		stdsys_cputime, 0);
 	
 	/* list */
 	std_setlib(ctx, "List");

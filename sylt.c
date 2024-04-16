@@ -1858,7 +1858,7 @@ static string_t* val_tostring(
 	}
 	case TYPE_NUM: {
 		str = string_fmt(
-			ctx, "%.24g", getnum(val));
+			ctx, "%g", getnum(val));
 		break;
 	}
 	case TYPE_LIST: {
@@ -2831,7 +2831,8 @@ value_t stdsys_time(sylt_t* ctx) {
 }
 
 value_t stdsys_cputime(sylt_t* ctx) {
-	return wrapnum(clock() / CLOCKS_PER_SEC);
+	return wrapnum(
+		(double)clock() / CLOCKS_PER_SEC);
 }
 
 /* == list lib == */

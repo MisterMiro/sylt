@@ -50,7 +50,7 @@ let List.filter(list, f) = {
 	result
 }
 
-let List.fold(list, f, init) = {
+let List.reduce(list, f, init) = {
 	todo()
 }
 
@@ -98,6 +98,3 @@ let List.all(list, f) = {
 		
 	loop(0)
 }
-
-let String.trim(s) =
-	String.trimEnd(String.trimStart(s))

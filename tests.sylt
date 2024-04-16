@@ -520,8 +520,7 @@ let listLib() = {
 	## filter
 	let list = [1, 0, 0, 1, 1, 0]
 	list <- List.filter(list,
-		fun(n) -> n = 1
-	)
+		fun(n) -> n = 1)
 	ensure(list = [1, 1, 1])
 
 	## flatten
@@ -586,7 +585,7 @@ let stringLib() = {
 		String.alpha, "abc"))
 		
 	## trimStart
-	ensure(String.trimStart(" \n\thi") = "hi")
+	ensure(String.trimStart("\t\n hi") = "hi")
 	ensure(String.trimStart("hi") = "hi")
 	
 	## trimEnd
@@ -661,6 +660,13 @@ let mathLib() = {
 	
 	let x = -12
 	ensure(Math.clamp(x, -8, 3) = -8)
+	
+	## lerp
+	ensure(Math.lerp(-10, 10, 0) = -10)
+	ensure(Math.lerp(-10, 10, 0.25) = -5)
+	ensure(Math.lerp(-10, 10, 0.5) = 0)
+	ensure(Math.lerp(-10, 10, 0.75) = 5)
+	ensure(Math.lerp(-10, 10, 1) = 10)
 	
 	## floor, ceil, and round
 	let checkRounding(n) = {

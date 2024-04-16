@@ -455,16 +455,16 @@ let listLib() = {
 	ensure(List.length([1]) = 1)
 	ensure(List.length([1, 2]) = 2)
 	
-	## ins
+	## insert
 	let x = [1, 3, 4]
-	List.ins(x, 1, 2)
+	List.insert(x, 1, 2)
 	ensure(x = [1, 2, 3, 4])
 	
-	List.ins(x, -1, 5)
+	List.insert(x, -1, 5)
 	ensure(x = [1, 2, 3, 4, 5])
 	
 	let x = [1, 2, 3]
-	List.ins(x, 0, 1)
+	List.insert(x, 0, 1)
 	ensure(x = [1, 1, 2, 3])
 	
 	## del
@@ -600,11 +600,11 @@ let stringLib() = {
 let mathLib() = {
 	## pi
 	ensure(Math.closeTo(
-		Math.pi, 3.141592, 0.001))
+		Math.pi, 3.141592, 0.00001))
 	
 	## euler's number
 	ensure(Math.closeTo(
-		Math.e, 2.718281, 0.001))
+		Math.e, 2.718281, 0.00001))
 	
 	## closeTo
 	let zero = 0
@@ -637,7 +637,7 @@ let mathLib() = {
 		let power = Math.log(target, base)
 		let result = Math.pow(base, power)
 		ensure(Math.closeTo(
-			result, target, 0.001))
+			result, target, 0.00001))
 	}
 	
 	List.forEach(bases, fun(_, base) ->

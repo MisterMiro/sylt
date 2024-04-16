@@ -16,13 +16,6 @@ x + 5 / 2
 ## /     division
 ## %     remainder
 
-## a useful function called 'putLn' is 
-## included in the standard library.
-## it prints its argument to the console,
-## followed by a newline character
-
-putLn("Hello, World!")
-	
 ## declare a function by adding a set of
 ## parentheses, optionally containing a comma-
 ## separated parameter list, after the name.
@@ -46,6 +39,14 @@ let multiplyBySomething(x) = {
 	x * 8
 }
 
+## sylt comes with a number of built in
+## functions as part of its standard
+## library. for example 'printLn'
+## prints its argument to the console,
+## followed by a newline character
+
+printLn("Hello, World!")
+
 ## an empty block returns 'nil'
 
 let empty = {}
@@ -62,7 +63,7 @@ let nilVal = nil
 ## functionally they're identical to regular
 ## functions
 	
-rep(3, fun(n) -> putLn((n + 1) * 2.5))
+rep(3, fun(n) -> printLn((n + 1) * 2.5))
 	
 ## prints:
 ## 2.5
@@ -104,10 +105,9 @@ let result = if (1 > 2) "hi" else nil
 	
 let countdown(i) =
 	if (i > 0) {
-		putLn(i)
+		printLn(i)
 		countdown(i - 1)
 	}
-	
 countdown(3)
 			
 ## prints:
@@ -166,11 +166,30 @@ let newline = "two\nlines"
 ## to create a list:
 let list = [1, 2, 3]
 
-## getting value at an index
+## getting value at an index:
 list[0]
 
-## storing value at an index
+## storing value at an index:
 list[0] <- 10
 
 ## negative index counts from the end
 ensure(list[-1] = list[List.length(list) - 1])
+
+## example code
+
+## computing π using Leibniz’s formula:
+
+let pi = 0
+let k = 1
+let precision = 32000
+
+rep(precision, fun(i) -> {
+	pi <- if (i % 2 = 0)
+		pi + 4 / k
+	else
+		pi - 4 / k
+	k <- k + 2
+})
+
+printLn(pi)
+ensure(Math.closeTo(pi, Math.pi, 0.0001))

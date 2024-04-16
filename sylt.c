@@ -3097,6 +3097,21 @@ value_t stdmath_clamp(sylt_t* ctx) {
 	return wrapnum(x);
 }
 
+/* linearly interpolates between a and b
+ * based on t */
+value_t stdmath_lerp(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	typecheck(ctx, arg(2), TYPE_NUM);
+	
+	sylt_num_t a = numarg(0);
+	sylt_num_t b = numarg(1);
+	sylt_num_t t = numarg(2);
+	
+	sylt_num_t res = a * (1.0f - t) + b * t;
+	return wrapnum(res);
+}
+
 /* returns n rounded towards -infinity */
 value_t stdmath_floor(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
@@ -3291,6 +3306,7 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "min", stdmath_min, 2);
 	std_addf(ctx, "max", stdmath_max, 2);
 	std_addf(ctx, "clamp", stdmath_clamp, 3);
+	std_addf(ctx, "lerp", stdmath_lerp, 3);
 	std_addf(ctx, "floor", stdmath_floor, 1);
 	std_addf(ctx, "ceil", stdmath_ceil, 1);
 	std_addf(ctx, "round", stdmath_round, 1);

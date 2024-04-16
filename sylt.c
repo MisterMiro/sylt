@@ -2776,7 +2776,7 @@ value_t stdlist_length(sylt_t* ctx) {
 }
 
 /* inserts a value at the given index */
-value_t stdlist_ins(sylt_t* ctx) {
+value_t stdlist_insert(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	list_insert(
@@ -3253,8 +3253,8 @@ void load_stdlib(sylt_t* ctx) {
 	std_setlib(ctx, "List");
 	std_addf(ctx, "length",
 		stdlist_length, 1);
-	std_addf(ctx, "ins",
-		stdlist_ins, 3);
+	std_addf(ctx, "insert",
+		stdlist_insert, 3);
 	std_addf(ctx, "del",
 		stdlist_del, 2);
 	std_addf(ctx, "push", stdlist_push, 2);

@@ -2700,7 +2700,7 @@ value_t std_print(sylt_t* ctx) {
 /* prints arg(0) to the standard output,
  * followed by a newline (\n) character
  * (which flushes the stream automatically) */
-value_t std_println(sylt_t* ctx) {
+value_t std_print_ln(sylt_t* ctx) {
 	val_print(arg(0), false, ctx);
 	sylt_printf("\n");
 	return wrapnil();
@@ -2708,7 +2708,7 @@ value_t std_println(sylt_t* ctx) {
 
 /* reads console input into a string and 
  * returns it */
-value_t std_readin(sylt_t* ctx) {
+value_t std_read_in(sylt_t* ctx) {
 	char buffer[8192];
 	fgets(buffer, 8192, stdin);
 	
@@ -2721,7 +2721,7 @@ value_t std_readin(sylt_t* ctx) {
 
 /* returns the string representation of
  * a given value */
-value_t std_asstring(sylt_t* ctx) {
+value_t std_as_string(sylt_t* ctx) {
 	string_t* str =
 		val_tostring(arg(0), ctx);
 	return wrapstring(str);
@@ -2729,14 +2729,14 @@ value_t std_asstring(sylt_t* ctx) {
 
 /* returns x converted to a number, or 0 if 
  * conversion failed */
-value_t std_asnum(sylt_t* ctx) {
+value_t std_as_num(sylt_t* ctx) {
 	sylt_num_t num = num_func(strtof, strtod)
 		((char*)stringarg(0)->bytes, NULL);
 	return wrapnum(num);
 }
 
 /* returns the type of arg(0) as a string */
-value_t std_typeof(sylt_t* ctx) {
+value_t std_type_of(sylt_t* ctx) {
 	return wrapstring(string_lit(
 		user_type_name(arg(0).tag), ctx));
 }
@@ -2774,7 +2774,7 @@ value_t stdsys_time(sylt_t* ctx) {
 	return wrapnum(time(NULL));
 }
 
-value_t stdsys_cputime(sylt_t* ctx) {
+value_t stdsys_cpu_time(sylt_t* ctx) {
 	return wrapnum(
 		(double)clock() / CLOCKS_PER_SEC);
 }
@@ -2898,7 +2898,7 @@ value_t stdstring_upper(sylt_t* ctx) {
 
 /* returns true if the string starts with 
  * another string */
-value_t stdstring_startswith(sylt_t* ctx) {
+value_t stdstring_starts_with(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_STRING);
 	
@@ -2915,7 +2915,7 @@ value_t stdstring_startswith(sylt_t* ctx) {
 
 /* returns true if the string ends with 
  * another string */
-value_t stdstring_endswith(sylt_t* ctx) {
+value_t stdstring_ends_with(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_STRING);
 	
@@ -2933,7 +2933,7 @@ value_t stdstring_endswith(sylt_t* ctx) {
 }
 
 /* strips leading whitespace */
-value_t stdstring_trimstart(sylt_t* ctx) {
+value_t stdstring_trim_start(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* src = stringarg(0);
 	string_t* dst = string_new(
@@ -2956,7 +2956,7 @@ value_t stdstring_trimstart(sylt_t* ctx) {
 }
 
 /* strips trailing whitespace */
-value_t stdstring_trimend(sylt_t* ctx) {
+value_t stdstring_trim_end(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* src = stringarg(0);
 	string_t* dst = string_new(
@@ -2982,8 +2982,8 @@ value_t stdstring_trimend(sylt_t* ctx) {
 /* strips leading and trailing whitespace */
 value_t stdstring_trim(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	value_t res = stdstring_trimend(ctx);
-	res = stdstring_trimstart(ctx);
+	value_t res = stdstring_trim_end(ctx);
+	res = stdstring_trim_start(ctx);
 	return res;
 }
 
@@ -2991,7 +2991,7 @@ value_t stdstring_trim(sylt_t* ctx) {
 
 /* returns true if a is nearly equal
  * to b, within a tolerance of epsilon */
-value_t stdmath_closeto(sylt_t* ctx) {
+value_t stdmath_close_to(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	typecheck(ctx, arg(2), TYPE_NUM);
@@ -3010,7 +3010,7 @@ value_t stdmath_closeto(sylt_t* ctx) {
 
 /* returns -1 if x is negative, 0 if it's
  * zero, and 1 if positive */
-value_t stdmath_numsign(sylt_t* ctx) {
+value_t stdmath_num_sign(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t x = numarg(0);
 	if (x < 0)
@@ -3103,7 +3103,6 @@ value_t stdmath_clamp(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	typecheck(ctx, arg(2), TYPE_NUM);
-	
 	sylt_num_t x = numarg(0);
 	sylt_num_t lo = numarg(1);
 	sylt_num_t hi = numarg(2);
@@ -3121,7 +3120,6 @@ value_t stdmath_lerp(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	typecheck(ctx, arg(2), TYPE_NUM);
-	
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
 	sylt_num_t t = numarg(2);
@@ -3257,12 +3255,12 @@ void load_stdlib(sylt_t* ctx) {
 	/* prelude */
 	std_setlib(ctx, "");
 	std_addf(ctx, "print", std_print, 1);
-	std_addf(ctx, "printLn", std_println, 1);
-	std_addf(ctx, "readIn", std_readin, 0);
+	std_addf(ctx, "printLn", std_print_ln, 1);
+	std_addf(ctx, "readIn", std_read_in, 0);
 	std_addf(ctx, "asString",
-		std_asstring, 1);
-	std_addf(ctx, "asNum", std_asnum, 1);
-	std_addf(ctx, "typeOf", std_typeof, 1);
+		std_as_string, 1);
+	std_addf(ctx, "asNum", std_as_num, 1);
+	std_addf(ctx, "typeOf", std_type_of, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
 	std_addf(ctx, "halt", std_halt, 1);
@@ -3271,7 +3269,7 @@ void load_stdlib(sylt_t* ctx) {
 	std_setlib(ctx, "Sys");
 	std_addf(ctx, "time", stdsys_time, 0);
 	std_addf(ctx, "cpuTime",
-		stdsys_cputime, 0);
+		stdsys_cpu_time, 0);
 	
 	/* list */
 	std_setlib(ctx, "List");
@@ -3307,13 +3305,13 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "upper",
 		stdstring_upper, 1);
 	std_addf(ctx, "startsWith",
-		stdstring_startswith, 2);
+		stdstring_starts_with, 2);
 	std_addf(ctx, "endsWith",
-		stdstring_endswith, 2);
+		stdstring_ends_with, 2);
 	std_addf(ctx, "trimStart",
-		stdstring_trimstart, 1);
+		stdstring_trim_start, 1);
 	std_addf(ctx, "trimEnd",
-		stdstring_trimend, 1);
+		stdstring_trim_end, 1);
 	std_addf(ctx, "trim",
 		stdstring_trim, 1);
 	
@@ -3322,9 +3320,9 @@ void load_stdlib(sylt_t* ctx) {
 	std_add(ctx, "pi", wrapnum(M_PI));
 	std_add(ctx, "e", wrapnum(M_E));
 	std_addf(ctx, "closeTo",
-		stdmath_closeto, 3);
+		stdmath_close_to, 3);
 	std_addf(ctx, "numSign",
-		stdmath_numsign, 1);
+		stdmath_num_sign, 1);
 	std_addf(ctx, "abs", stdmath_abs, 1);
 	std_addf(ctx, "log", stdmath_log, 2);
 	std_addf(ctx, "pow", stdmath_pow, 2);

@@ -6,8 +6,8 @@
 #include <string.h>
 #include <setjmp.h>
 #include <ctype.h>
-#include <time.h>
 #include <math.h>
+#include <time.h>
 
 #define SYLT_VERSION_STR "sylt dev"
 #define SYLT_VERSION_MAJ 0
@@ -27,11 +27,11 @@
 #define sylt_dprintf printf
 
 /* initial stack size */
-#define SYLT_INIT_STACK 512
+#define SYLT_INIT_STACK 16
 
 /* some extra stack space for hiding stuff
  * from the GC */
-#define SYLT_EXTRA_STACK 16
+#define SYLT_EXTRA_STACK 4
 
 /* path to standard library relative to
  * executable */
@@ -3185,6 +3185,32 @@ value_t stdmath_tan(sylt_t* ctx) {
 		num_func(tanf, tan)(numarg(0)));
 }
 
+/* generates a random number in the
+ * provided range */
+value_t stdmath_rand(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	sylt_num_t min = numarg(0);
+	sylt_num_t max = numarg(1);
+	
+	float r =
+	#if SYLT_USE_DOUBLES
+		(double)rand() / RAND_MAX;
+	#else
+		(float)rand() / RAND_MAX;
+	#endif
+
+    return wrapnum(min + r * (max - min));
+}
+
+/* sets the seed of the random number
+ * generator */
+value_t stdmath_seed_rand(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	srand(numarg(0));
+	return wrapnil();
+}
+
 static string_t* lib_name = NULL;
 
 void std_setlib(sylt_t* ctx, const char* lib)
@@ -3339,6 +3365,9 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "sin", stdmath_sin, 1);
 	std_addf(ctx, "cos", stdmath_cos, 1);
 	std_addf(ctx, "tan", stdmath_tan, 1);
+	std_addf(ctx, "rand", stdmath_rand, 2);
+	std_addf(ctx, "seedRand",
+		stdmath_seed_rand, 1);
 	
 	/* parts of the stdlib are implemented 
 	 * in sylt */

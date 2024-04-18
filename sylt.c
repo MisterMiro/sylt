@@ -3185,6 +3185,27 @@ value_t stdmath_tan(sylt_t* ctx) {
 		num_func(tanf, tan)(numarg(0)));
 }
 
+/* returns the arcsine of x */
+value_t stdmath_asin(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(asinf, asin)(numarg(0)));
+}
+
+/* returns the arccosine of x */
+value_t stdmath_acos(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(acosf, acos)(numarg(0)));
+}
+
+/* returns the arctangent of x */
+value_t stdmath_atan(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(atanf, atan)(numarg(0)));
+}
+
 /* generates a random number in the
  * provided range */
 value_t stdmath_rand(sylt_t* ctx) {
@@ -3365,6 +3386,9 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "sin", stdmath_sin, 1);
 	std_addf(ctx, "cos", stdmath_cos, 1);
 	std_addf(ctx, "tan", stdmath_tan, 1);
+	std_addf(ctx, "asin", stdmath_asin, 1);
+	std_addf(ctx, "acos", stdmath_acos, 1);
+	std_addf(ctx, "atan", stdmath_atan, 1);
 	std_addf(ctx, "rand", stdmath_rand, 2);
 	std_addf(ctx, "seedRand",
 		stdmath_seed_rand, 1);

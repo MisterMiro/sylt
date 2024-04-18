@@ -16,6 +16,14 @@ x + 5 / 2
 ## /     division
 ## %     remainder
 
+## sylt comes with a number of built in
+## functions as part of its standard
+## library. for example 'printLn'
+## prints its argument to the console,
+## followed by a newline character
+
+printLn("Hello, World!")
+	
 ## declare a function by adding a set of
 ## parentheses, optionally containing a comma-
 ## separated parameter list, after the name.
@@ -38,14 +46,6 @@ let multiplyBySomething(x) = {
 	let factor = 8
 	x * 8
 }
-
-## sylt comes with a number of built in
-## functions as part of its standard
-## library. for example 'printLn'
-## prints its argument to the console,
-## followed by a newline character
-
-printLn("Hello, World!")
 
 ## an empty block returns 'nil'
 
@@ -181,7 +181,7 @@ ensure(list[-1] = list[List.length(list) - 1])
 
 let pi = 0
 let k = 1
-let precision = 32000
+let precision = 11000
 
 rep(precision, fun(i) -> {
 	pi <- if (i % 2 = 0)

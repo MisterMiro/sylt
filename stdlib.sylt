@@ -1,36 +1,29 @@
 
 let rep(n, f) = {
-	let loop(i) =
-		if (i < n) {
-			f(i)
-			loop(i + 1)
-		}
-	
-	loop(0)
+	let i = 0
+	while (i < n) {
+		f(i)
+		i <- i + 1
+	}
 }
 
 let List.range(min, max) = {
 	ensure(min < max)
-	
 	let result = []
-	let loop(i) = 
-		if (i < max) {
-			List.push(result, i)
-			loop(i + 1)
-		}
-	
-	loop(min)
+	let i = min
+	while (i < max) {
+		List.push(result, i)
+		i <- i + 1
+	}
 	result
 }
 
 let List.forEach(list, f) = {
-	let loop(i) =
-		if (i < List.length(list)) {
-			f(i, list[i])
-			loop(i + 1)
-		}
-		
-	loop(0)
+	let i = 0
+	while (i < List.length(list)) {
+		f(i, list[i])
+		i <- i + 1
+	}
 }
 
 let List.map(list, f) = {

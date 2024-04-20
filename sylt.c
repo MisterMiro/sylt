@@ -4723,6 +4723,8 @@ void while_loop(comp_t* cmp) {
 	
 	patch_jump(cmp, jmp);
 	emit_nullary(cmp, OP_POP);
+	
+	emit_value(cmp, wrapnil());
 }
 
 /* parses a block expression.

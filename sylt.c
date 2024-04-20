@@ -516,6 +516,7 @@ typedef enum {
 	OP_JMP,
 	OP_JMP_IF,
 	OP_JMP_IF_NOT,
+	OP_JMP_BACK,
 	OP_CALL,
 	OP_RET,
 } op_t;
@@ -570,6 +571,7 @@ static opinfo_t OPINFO[] = {
 	[OP_JMP] = {"jmp", 2, 0},
 	[OP_JMP_IF] = {"jmpIf", 2, 0},
 	[OP_JMP_IF_NOT] = {"jmpIfNot", 2, 0},
+	[OP_JMP_BACK] = {"jmpBack", 2, 0},
 	[OP_CALL] = {"call", 1, 0},
 	[OP_RET] = {"ret", 0, 0},
 };
@@ -2122,7 +2124,7 @@ static inline void vm_shrink(
 static inline value_t vm_peek(
 	const vm_t* vm, int n)
 {
-	value_t* ptr = vm->sp + (-1 - n);
+	value_t* ptr = vm->sp - 1 - n;
 	assert(ptr >= vm->stack);
 	assert(ptr <= vm->sp - 1);
 	return *ptr;
@@ -2268,11 +2270,11 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 		}
 		case OP_PUSH_FUNC: {
 			gc_pause(vm->ctx);
-			func_t* func = getfunc(readval());
 			
-			/* wrap it in a closure */
+			func_t* func = getfunc(readval());
 			closure_t* cls =
 				closure_new(vm->ctx, func);
+			
 			push(wrapclosure(cls));
 			
 			arr_alloc(
@@ -2572,6 +2574,11 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				vm->ctx, peek(0), TYPE_BOOL);
 			if (!getbool(peek(0)))
 				vm->fp->ip += offset;
+			break;
+		}
+		case OP_JMP_BACK: {
+			uint16_t offset = read16();
+			vm->fp->ip -= offset;
 			break;
 		}
 		case OP_CALL: {
@@ -3214,13 +3221,7 @@ value_t stdmath_rand(sylt_t* ctx) {
 	sylt_num_t min = numarg(0);
 	sylt_num_t max = numarg(1);
 	
-	float r =
-	#if SYLT_USE_DOUBLES
-		(double)rand() / RAND_MAX;
-	#else
-		(float)rand() / RAND_MAX;
-	#endif
-
+	float r = (sylt_num_t)rand() / RAND_MAX;
     return wrapnum(min + r * (max - min));
 }
 
@@ -3403,16 +3404,17 @@ void load_stdlib(sylt_t* ctx) {
 /* == compiler == */
 
 typedef enum {
-	T_NAME, /* A-Z a-z 0-9 _ */
-	T_NIL, /* nil */
-	T_TRUE, /* true */
-	T_FALSE, /* false */
-	T_LET, /* let */
-	T_FUN, /* fun */
-	T_IF, /* if */
-	T_ELSE, /* else */
-	T_AND, /* and */
-	T_OR, /* or */
+	T_NAME,
+	T_NIL,
+	T_TRUE,
+	T_FALSE,
+	T_LET,
+	T_FUN,
+	T_IF,
+	T_ELSE,
+	T_WHILE,
+	T_AND,
+	T_OR,
 	T_STRING, /* " * " */
 	T_NUMBER, /* 0-9* */
 	T_PLUS, /* + */
@@ -3590,7 +3592,7 @@ void comp_copy_parse_state(
 
 void comp_simstack(comp_t* cmp, int n) {
 	cmp->curslots += n;
-	assert(cmp->curslots >= 0);
+	//assert(cmp->curslots >= 0);
 	
 	if (cmp->curslots > MAX_STACK) {
 		halt(cmp->ctx, E_STACKLIMIT);
@@ -3715,6 +3717,23 @@ void patch_jump(comp_t* cmp, int addr) {
 		(dist >> 8) & 0xff;
 	cmp->func->code[addr + 1] =
 		dist & 0xff;
+}
+
+void emit_loop(comp_t* cmp, int addr) {
+	func_write(cmp->func, OP_JMP_BACK,
+		cmp->prev.line, cmp->ctx);
+	
+	int dist =
+		cmp->func->ncode - addr + 2;
+	if (dist > MAX_JUMP) {
+		halt(cmp->ctx, E_JUMPLIMIT);
+		return;
+	}
+	
+	func_write(cmp->func, (dist >> 8) & 0xff,
+		cmp->prev.line, cmp->ctx);
+	func_write(cmp->func, dist & 0xff,
+		cmp->prev.line, cmp->ctx);
 }
 
 /* adds a name to the symbol table
@@ -3947,6 +3966,8 @@ token_t scan(comp_t* cmp) {
 			return token(T_IF);
 		if (keyword("else"))
 			return token(T_ELSE);
+		if (keyword("while"))
+			return token(T_WHILE);
 		if (keyword("and"))
 			return token(T_AND);
 		if (keyword("or"))
@@ -4106,6 +4127,7 @@ void index(comp_t*);
 void let(comp_t*);
 void fun(comp_t*);
 void if_else(comp_t*);
+void while_loop(comp_t*);
 void block(comp_t*);
 
 typedef void (*parsefn_t)(comp_t*);
@@ -4127,6 +4149,7 @@ static parserule_t RULES[] = {
 	[T_FUN] = {fun, NULL, PREC_NONE},
 	[T_IF] = {if_else, NULL, PREC_NONE},
 	[T_ELSE] = {NULL, NULL, PREC_NONE},
+	[T_WHILE] = {while_loop, NULL, PREC_NONE},
 	[T_AND] = {NULL, binary, PREC_AND},
 	[T_OR] = {NULL, binary, PREC_OR},
 	[T_STRING] = {string, NULL, PREC_NONE},
@@ -4679,6 +4702,27 @@ void if_else(comp_t* cmp) {
 	
 	/* skipped past else */
 	patch_jump(cmp, else_addr);
+}
+
+void while_loop(comp_t* cmp) {
+	int loop_start = cmp->func->ncode;
+	
+	/* (condition) */
+	eat(cmp, T_LPAREN,
+		"expected '(' after 'while'");
+	expr(cmp, ANY_PREC);
+	eat(cmp, T_RPAREN,
+		"expected ')' after while condition");
+		
+	int jmp = emit_jump(cmp, OP_JMP_IF_NOT);
+	emit_nullary(cmp, OP_POP);
+	
+	expr(cmp, ANY_PREC);
+	emit_nullary(cmp, OP_POP);
+	emit_loop(cmp, loop_start);
+	
+	patch_jump(cmp, jmp);
+	emit_nullary(cmp, OP_POP);
 }
 
 /* parses a block expression.

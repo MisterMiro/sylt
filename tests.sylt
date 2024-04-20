@@ -404,6 +404,16 @@ let ifElse() = {
 	ensure(result = "B")
 }
 
+let whileLoop() = {
+	let list = []
+	let n = 1
+	while (n <= 3) {
+		List.push(list, n)
+		n <- n + 1
+	}
+	ensure(list = [1, 2, 3])
+}
+
 let spamGC() = {
 	let size1 = 256
 	let size2 = 8
@@ -756,6 +766,7 @@ let run = List.flatten([
 		lists,
 		functions,
 		ifElse,
+		whileLoop,
 		spamGC,
 	],
 	"Standard library",

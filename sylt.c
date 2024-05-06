@@ -27,11 +27,11 @@
 #define sylt_dprintf printf
 
 /* initial stack size */
-#define SYLT_INIT_STACK 16
+#define SYLT_INIT_STACK 512
 
 /* some extra stack space for hiding stuff
  * from the GC */
-#define SYLT_EXTRA_STACK 4
+#define SYLT_EXTRA_STACK 32
 
 /* path to standard library relative to
  * executable */
@@ -44,13 +44,10 @@
 /* enables assertions */
 #define DBG_ASSERTIONS 1
 
-/* runs the test suite */
-#define DBG_RUN_TESTS 1
-
 /* disables garbage collection, though
  * memory will still be freed at shutdown
  * (sylt_free) to prevent memory leaks */
-#define DBG_NO_GC 0
+#define DBG_NO_GC 1
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
@@ -74,7 +71,6 @@ static void dbg_print_flags(void) {
 				"note: %s is set\n", #flag)
 			
 	pflag(DBG_ASSERTIONS);
-	pflag(DBG_RUN_TESTS);
 	pflag(DBG_NO_GC);
 	pflag(DBG_GC_EVERY_ALLOC);
 	pflag(DBG_PRINT_SYLT_STATE);
@@ -224,8 +220,8 @@ static void set_state(
 	ctx->state = state;
 	
 	#if DBG_PRINT_SYLT_STATE
-	sylt_dprintf("[state: %s]\n",
-		SYLT_STATE_NAME[state]);
+	sylt_dprintf("[%p: %s]\n",
+		ctx, SYLT_STATE_NAME[state]);
 	#endif
 }
 
@@ -585,9 +581,6 @@ typedef enum {
 	TYPE_DICT,
 	TYPE_STRING,
 	TYPE_FUNCTION,
-	/* the types below are for internal
-	 * use only and should not be exposed
-	 * to the user */
 	TYPE_CLOSURE,
 	TYPE_UPVALUE,
 } type_t;
@@ -599,7 +592,7 @@ static const char* TYPE_NAMES[] = {
 	"List",
 	"Dict",
 	"String",
-	"Func",
+	"Function",
 	"Closure",
 	"Upvalue",
 };
@@ -952,6 +945,13 @@ obj_t* obj_new_impl(
 	obj_new_impl(size, tag, \
 		__func__, __LINE__, ctx);
 
+void list_free(list_t*, sylt_t*);
+void dict_free(dict_t*, sylt_t*);
+void string_free(string_t*, sylt_t*);
+void func_free(func_t*, sylt_t*);
+void closure_free(closure_t*, sylt_t*);
+void upvalue_free(upvalue_t*, sylt_t*);
+
 /* frees a generic object and its
  * associated memory */
 void obj_free(obj_t* obj, sylt_t* ctx) {
@@ -963,59 +963,27 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 	
 	switch (obj->tag) {
 	case TYPE_LIST: {
-		list_t* list = (list_t*)obj;
-		arr_free(list->items,
-			value_t,
-			nextpow2(list->len),
-			ctx);
-		ptr_free(list, list_t, ctx);
+		list_free((list_t*)obj, ctx);
 		break;
 	}
 	case TYPE_STRING: {
-		string_t* str = (string_t*)obj;
-		arr_free(str->bytes,
-			uint8_t,
-			str->len + 1,
-			ctx);
-		ptr_free(str, string_t, ctx);
+		string_free((string_t*)obj, ctx);
 		break;
 	}
 	case TYPE_DICT: {
-		dict_t* dict = (dict_t*)obj;
-		arr_free(dict->items,
-			item_t, dict->cap, ctx);
-		ptr_free(dict, dict_t, ctx);
+		dict_free((dict_t*)obj, ctx);
 		break;
 	}
 	case TYPE_FUNCTION: {
-		func_t* func = (func_t*)obj;
-		arr_free(func->code,
-			uint8_t,
-			nextpow2(func->ncode),
-			ctx);
-    	arr_free(func->data,
-    		value_t,
-    		nextpow2(func->ndata),
-    		ctx);
-    	arr_free(func->lines,
-    		uint32_t,
-    		nextpow2(func->nlines),
-    		ctx);
-		ptr_free(func, func_t, ctx);
+		func_free((func_t*)obj, ctx);
 		break;
 	}
 	case TYPE_CLOSURE: {
-		closure_t* cls = (closure_t*)obj;
-		arr_free(
-			cls->upvals,
-			upvalue_t*,
-			cls->nupvals,
-			ctx);
-		ptr_free(cls, closure_t, ctx);
+		closure_free((closure_t*)obj, ctx);
 		break;
 	}
 	case TYPE_UPVALUE: {
-		ptr_free(obj, upvalue_t, ctx);
+		upvalue_free((upvalue_t*)obj, ctx);
 		break;
 	}
 	default: unreachable();
@@ -1117,6 +1085,14 @@ list_t* list_new(sylt_t* ctx) {
 	ls->items = NULL;
 	ls->len = 0;
 	return ls;
+}
+
+void list_free(list_t* ls, sylt_t* ctx) {
+	arr_free(ls->items,
+		value_t,
+		nextpow2(ls->len),
+		ctx);
+	ptr_free(ls, list_t, ctx);
 }
 
 /* returns true if the two lists are equal */
@@ -1223,30 +1199,35 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 	return list_delete(ls, -1, ctx);
 }
 
-void list_test(sylt_t* ctx) {
-	/* empty list */
-	#if DBG_ASSERTIONS
-	list_t* empty = list_new(ctx);
-	assert(empty->len == 0);
-	#endif
+/* returns the concatenation of a and b */
+list_t* list_concat(
+	const list_t* a,
+	const list_t* b,
+	sylt_t* ctx)
+{
+	list_t* result = list_new(ctx);
 	
-	int n = 512;
-	list_t* list = list_new(ctx);
-	sylt_pushlist(ctx, list); /* GC */
+	for (size_t i = 0; i < a->len; i++)
+		list_push(result, a->items[i], ctx);
 	
-	/* build a list using list_push() */
-	for (int i = 0; i < n; i++)
-		list_push(list, wrapnum(i + 1), ctx);
-	assert(list->len == n);
+	for (size_t i = 0; i < b->len; i++)
+		list_push(result, b->items[i], ctx);
 	
-	/* test list_pop() */
-	for (int i = n - 1; i >= 0; i--)
-		assert(val_eq(
-			list_pop(list, ctx),
-			wrapnum(i + 1)));
-	assert(list->len == 0);
-	
-	sylt_poplist(ctx); /* GC */
+	return result;
+}
+
+/* counts the occurrences of a unique value in
+ * the list */
+size_t list_count(
+	const list_t* ls,
+	value_t val)
+{
+	size_t count = 0;
+	for (size_t i = 0; i < ls->len; i++) {
+		if (val_eq(ls->items[i], val))
+			count++;
+	}
+	return count;
 }
 
 /* == dict == */
@@ -1261,6 +1242,15 @@ dict_t* dict_new(sylt_t* ctx) {
 	dc->len = 0;
 	dc->cap = 0;
 	return dc;
+}
+
+void dict_free(dict_t* dc, sylt_t* ctx) {
+	arr_free(
+		dc->items,
+		item_t,
+		dc->cap,
+		ctx);
+	ptr_free(dc, dict_t, ctx);
 }
 
 bool string_eq(
@@ -1393,40 +1383,6 @@ uint32_t dict_gethash(const string_t* str) {
 	return hash;
 }
 
-string_t* string_lit(
-	const char*, sylt_t*);
-
-void dict_test(sylt_t* ctx) {
-	#if DBG_ASSERTIONS
-	gc_pause(ctx);
-	dict_t* dc = dict_new(ctx);
-	
-	string_t* key = string_lit("1", ctx);
-	value_t v1 = wrapnum(3);
-	
-	/* insert value */
-	size_t old_len = dc->len;
-	size_t old_cap = dc->cap;
-	bool is_new = dict_set(dc, key, v1, ctx);
-	assert(dc->len > old_len);
-	assert(dc->cap > old_cap);
-	assert(is_new);
-	
-	/* update value */
-	old_len = dc->len;
-	is_new = dict_set(dc, key, v1, ctx);
-	assert(dc->len == old_len);
-	assert(!is_new);
-	
-	/* lookup */
-	value_t get;
-	dict_get(dc, key, &get);
-	assert(val_eq(v1, get));
-	
-	gc_resume(ctx);
-	#endif
-}
-
 void string_dprint(string_t*);
 string_t* val_tostring_opts(
 	value_t, bool, sylt_t*);
@@ -1486,6 +1442,15 @@ string_t* string_new(
 	return sylt_popstring(ctx);
 }
 
+void string_free(string_t* str, sylt_t* ctx) {
+	arr_free(
+		str->bytes,
+		uint8_t,
+		str->len + 1,
+		ctx);
+	ptr_free(str, dict_t, ctx);
+}
+
 /* helper function for creating a new 
  * string object from a C string literal */
 string_t* string_lit(
@@ -1529,6 +1494,22 @@ bool string_eq(
 		
 	return memcmp(a->bytes, b->bytes, a->len)
 		== 0;
+}
+
+void string_push(
+	string_t* str,
+	char c,
+	sylt_t* ctx)
+{
+	arr_resize(
+		str->bytes,
+		uint8_t,
+		nextpow2(str->len + 1),
+		nextpow2(str->len + 2),
+		ctx);
+	str->bytes[str->len++] = c;
+	string_rehash(str);
+	printf("push %c\n", c);
 }
 
 /* concatenates two strings */
@@ -1612,16 +1593,6 @@ void string_dprint(string_t* str) {
 		(int)str->len, str->bytes);
 }
 
-/* TODO: more test cases */
-void string_test(sylt_t* ctx) {
-	#if DBG_ASSERTIONS
-	/* empty string */
-	string_t* empty = string_new(
-		NULL, 0, ctx);
-	assert(empty->len == 0);
-	#endif
-}
-
 /* == function == */
 
 /* creates a new function */
@@ -1646,6 +1617,25 @@ func_t* func_new(
 	func->path = name;
 	func->cfunc = NULL;
 	return func;
+}
+
+void func_free(func_t* func, sylt_t* ctx) {
+	arr_free(
+		func->code,
+		uint8_t,
+		nextpow2(func->ncode),
+		ctx);
+    arr_free(
+    	func->data,
+    	value_t,
+    	nextpow2(func->ndata),
+    	ctx);
+    arr_free(
+    	func->lines,
+    	uint32_t,
+    	nextpow2(func->nlines),
+    	ctx);
+	ptr_free(func, func_t, ctx);
 }
 
 /* writes a byte to the functions
@@ -1731,6 +1721,18 @@ closure_t* closure_new(
 	return cls;
 }
 
+void closure_free(
+	closure_t* cls,
+	sylt_t* ctx)
+{
+	arr_free(
+		cls->upvals,
+		upvalue_t*,
+		cls->nupvals,
+		ctx);
+	ptr_free(cls, closure_t, ctx);
+}
+
 /* == upvalue == */
 
 /* creates a new upvalue */
@@ -1743,6 +1745,13 @@ upvalue_t* upvalue_new(
 	upval->closed = wrapnil();
 	upval->next = NULL;
 	return upval;
+}
+
+void upvalue_free(
+	upvalue_t* upval,
+	sylt_t* ctx)
+{
+	ptr_free(upval, upvalue_t, ctx);
 }
 
 /* == value == */
@@ -2351,9 +2360,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				readval());
 			
 			bool is_new = dict_set(vm->gdict,
-				name,
-				peek(0),
-				vm->ctx);
+				name, peek(0), vm->ctx);
 				
 			if (is_new) {
 				halt(vm->ctx,
@@ -2592,15 +2599,15 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			push(retval);
 			
 			vm->nframes--;
+			vm->fp =
+				&vm->frames[vm->nframes - 1];
+				
 			if (vm->nframes == 0) {
 				set_state(vm->ctx,
 					SYLT_STATE_DONE);
 				return;
 			}
 	
-			vm->fp =
-				&vm->frames[vm->nframes - 1];
-			
 			if (stdlib_call) {
 				return;
 			}
@@ -2686,7 +2693,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 
 #define argc() (ctx->vm->fp->ip[-1])
 #define arg(n) \
-	vm_peek(ctx->vm, argc() - (n) - 1)
+	sylt_peek(ctx, argc() - (n) - 1)
 
 #define boolarg(n) getbool(arg(n))
 #define numarg(n) getnum(arg(n))
@@ -2766,16 +2773,16 @@ value_t std_todo(sylt_t* ctx) {
 	return wrapnil();
 }
 
+/* == sys lib == */
+
 /* unconditionally halts program execution
  * with an error message */
-value_t std_halt(sylt_t* ctx) {
+value_t stdsys_halt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	halt(ctx,
 		(const char*)stringarg(0)->bytes);
 	return wrapnil();
 }
-
-/* == sys lib == */
 
 value_t stdsys_time(sylt_t* ctx) {
 	return wrapnum(time(NULL));
@@ -2795,7 +2802,7 @@ value_t stdlist_length(sylt_t* ctx) {
 }
 
 /* inserts a value at the given index */
-value_t stdlist_insert(sylt_t* ctx) {
+value_t stdlist_add(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	list_insert(
@@ -2825,7 +2832,48 @@ value_t stdlist_pop(sylt_t* ctx) {
 	return list_pop(listarg(0), ctx);
 }
 
+/* concatenates two lists */
+value_t stdlist_concat(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	typecheck(ctx, arg(1), TYPE_LIST);
+	list_t* result = list_concat(
+		listarg(0), listarg(1), ctx);
+	return wraplist(result);
+}
+
+value_t stdlist_count(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	size_t result = list_count(
+		listarg(0), arg(1));
+	return wrapnum(result);
+}
+
+/* returns a list containing a range of 
+ * numbers */
+value_t stdlist_range(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	sylt_num_t min = numarg(0);
+	sylt_num_t max = numarg(1);
+	
+	list_t* ls = list_new(ctx);
+	for (int i = min; i < max; i++)
+		list_push(ls, wrapnum(i), ctx);
+	
+	return wraplist(ls);
+}
+
 /* == string lib == */
+
+/* concatenates two strings */
+value_t stdstring_concat(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	
+	string_t* result = string_concat(
+		stringarg(0), stringarg(1), ctx);
+	return wrapstring(result);
+}
 
 /* returns all chars (bytes) in a string
  * as a list */
@@ -3297,7 +3345,9 @@ void std_addf(
 	sylt_shrink(ctx, 3);
 }
 
-void load_stdlib(sylt_t* ctx) {
+/* loads the standard library into
+ * global memory */
+void std_init(sylt_t* ctx) {
 	gc_pause(ctx);
 	
 	/* prelude */
@@ -3311,10 +3361,10 @@ void load_stdlib(sylt_t* ctx) {
 	std_addf(ctx, "typeOf", std_type_of, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
-	std_addf(ctx, "halt", std_halt, 1);
 		
 	/* sys */
 	std_setlib(ctx, "Sys");
+	std_addf(ctx, "halt", stdsys_halt, 1);
 	std_addf(ctx, "time", stdsys_time, 0);
 	std_addf(ctx, "cpuTime",
 		stdsys_cpu_time, 0);
@@ -3323,27 +3373,27 @@ void load_stdlib(sylt_t* ctx) {
 	std_setlib(ctx, "List");
 	std_addf(ctx, "length",
 		stdlist_length, 1);
-	std_addf(ctx, "insert",
-		stdlist_insert, 3);
-	std_addf(ctx, "del",
-		stdlist_del, 2);
+	std_addf(ctx, "add", stdlist_add, 3);
+	std_addf(ctx, "del", stdlist_del, 2);
 	std_addf(ctx, "push", stdlist_push, 2);
 	std_addf(ctx, "pop", stdlist_pop, 1);
+	std_addf(ctx, "concat",
+		stdlist_concat, 2);
+	std_addf(ctx, "count", stdlist_count, 2);
+	std_addf(ctx, "range",
+		stdlist_range, 2);
 	
 	/* string */
 	std_setlib(ctx, "String");
 	std_add(ctx, "alpha",	
 		wrapstring(string_lit(
-			"abcdefghijklmnopqrstuvwxyz",
-			ctx)));
-	std_add(ctx, "alphaNum",	
-		wrapstring(string_lit(
-			"abcdefghijklmnopqrstuvwxyz"
-			"0123456789",
+			"abcdefghijklmnopqrstuvwxyz", 
 			ctx)));
 	std_add(ctx, "digits",	
 		wrapstring(string_lit(
 			"0123456789", ctx)));
+	std_addf(ctx, "concat",
+		stdstring_concat, 2);
 	std_addf(ctx, "chars",
 		stdstring_chars, 1);
 	std_addf(ctx, "join",
@@ -3415,30 +3465,31 @@ typedef enum {
 	T_WHILE,
 	T_AND,
 	T_OR,
-	T_STRING, /* " * " */
-	T_NUMBER, /* 0-9* */
-	T_PLUS, /* + */
-	T_MINUS, /* - */
-	T_MINUS_GREATER, /* -> */
-	T_STAR, /* * */
-	T_SLASH, /* / */
-	T_PERCENT, /* % */
-	T_LESS, /* < */
-	T_LESS_EQ, /* <= */
-	T_LESS_MINUS, /* <- */
-	T_GREATER, /* > */
-	T_GREATER_EQ, /* >= */
-	T_EQ, /* = */
-	T_BANG, /* ! */
-	T_BANG_EQ, /* != */
-	T_LPAREN, /* ( */
-	T_RPAREN, /* ) */
-	T_LCURLY, /* { */
-	T_RCURLY, /* } */
-	T_LSQUARE, /* [ */
-	T_RSQUARE, /* [ */
-	T_COMMA, /* , */
-	T_EOF, /* end of file */
+	T_USING,
+	T_STRING,
+	T_NUMBER,
+	T_PLUS,
+	T_MINUS,
+	T_MINUS_GT,
+	T_STAR,
+	T_SLASH,
+	T_PERCENT,
+	T_LT,
+	T_LT_EQ,
+	T_LT_MINUS,
+	T_GT,
+	T_GT_EQ,
+	T_EQ,
+	T_BANG,
+	T_BANG_EQ,
+	T_LPAREN,
+	T_RPAREN,
+	T_LCURLY,
+	T_RCURLY,
+	T_LSQUARE,
+	T_RSQUARE,
+	T_COMMA,
+	T_EOF,
 } token_type_t;
 
 /* the source code is scanned into a series of
@@ -3972,6 +4023,8 @@ token_t scan(comp_t* cmp) {
 			return token(T_AND);
 		if (keyword("or"))
 			return token(T_OR);
+		if (keyword("using"))
+			return token(T_USING);
 			
 		#undef keyword
 		
@@ -3980,9 +4033,16 @@ token_t scan(comp_t* cmp) {
 	
 	/* string literal */
 	if (is('"')) {
+		//string_t* str = string_new(
+		//	NULL, 0, cmp->ctx);
+		//sylt_pushstring(cmp->ctx, str);
+		
+		//string_push(str, *step(), cmp->ctx);
 		step();
 		while (!is('"') && !eof()) {
 			step();
+			//string_push(str, *step(),
+			//	cmp->ctx);
 			
 			/* don't terminate the string if
 			 * we find a '\"', unless the
@@ -3994,16 +4054,27 @@ token_t scan(comp_t* cmp) {
 					
 			if (ignore_close)
 				step();
+				//string_push(str, *step(),
+				//	cmp->ctx);
 		}
 		
 		if (eof())
 			halt(cmp->ctx, E_UNTERMSTRING);
 		
 		step();
+		//string_push(str, *step(), cmp->ctx);
+		
+		//string_print(str);
+		
+		/*token_t tok;
+		tok.tag = T_STRING;
+		tok.lex = sylt_popstring(cmp->ctx);
+		tok.line = cmp->line;
+		return tok;*/
 		return token(T_STRING);
 	}
 	
-	/* numbers begin with a digit */
+	/* number */
 	if (isdigit(peek())) {
 		while (isdigit(peek()))
 			step();
@@ -4013,35 +4084,34 @@ token_t scan(comp_t* cmp) {
 			while (isdigit(peek()))
 				step();
 		}
-			
+		
 		return token(T_NUMBER);
 	}
 	
-	/* see if we can find an operator */
 	switch (*step()) {
 	case '+': return token(T_PLUS);
 	case '-':
-		return token((!match('>'))
-			? T_MINUS
-			: T_MINUS_GREATER);
+		if (match('>'))
+			return token(T_MINUS_GT);
+		return token(T_MINUS);
 	case '*': return token(T_STAR);
 	case '/': return token(T_SLASH);
 	case '%': return token(T_PERCENT);
 	case '<':
-		return token((!match('='))
-			? (match('-'))
-				? T_LESS_MINUS
-				: T_LESS
-			: T_LESS_EQ);
+		if (match('='))
+			return token(T_LT_EQ);
+		if (match('-'))
+			return token(T_LT_MINUS);
+		return token(T_LT);
 	case '>':
-		return token((!match('='))
-			? T_GREATER
-			: T_GREATER_EQ);
+		if (match('='))
+			return token(T_GT_EQ);
+		return token(T_GT);
 	case '=': return token(T_EQ);
 	case '!':
-		return token((!match('='))
-			? T_BANG
-			: T_BANG_EQ);
+		if (match('='))
+			return token(T_BANG_EQ);
+		return token(T_BANG);
 	case '(': return token(T_LPAREN);
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
@@ -4124,6 +4194,7 @@ void unary(comp_t*);
 void binary(comp_t*);
 void call(comp_t*);
 void index(comp_t*);
+void using(comp_t*);
 void let(comp_t*);
 void fun(comp_t*);
 void if_else(comp_t*);
@@ -4152,20 +4223,20 @@ static parserule_t RULES[] = {
 	[T_WHILE] = {while_loop, NULL, PREC_NONE},
 	[T_AND] = {NULL, binary, PREC_AND},
 	[T_OR] = {NULL, binary, PREC_OR},
+	[T_USING] = {using, NULL, PREC_NONE},
 	[T_STRING] = {string, NULL, PREC_NONE},
 	[T_NUMBER] = {number, NULL, PREC_NONE},
 	[T_PLUS] = {NULL, binary, PREC_TERM},
 	[T_MINUS] = {unary, binary, PREC_TERM},
-	[T_MINUS_GREATER] = 
-		{NULL, NULL, PREC_NONE},
+	[T_MINUS_GT] = {NULL, NULL, PREC_NONE},
 	[T_STAR] = {NULL, binary, PREC_FACTOR},
 	[T_SLASH] = {NULL, binary, PREC_FACTOR},
 	[T_PERCENT] = {NULL, binary, PREC_FACTOR},
-	[T_LESS] = {NULL, binary, PREC_CMP},
-	[T_LESS_EQ] = {NULL, binary, PREC_CMP},
-	[T_LESS_MINUS] = {NULL, NULL, PREC_NONE},
-	[T_GREATER] = {NULL, binary, PREC_CMP},
-	[T_GREATER_EQ] = {NULL, binary, PREC_CMP},
+	[T_LT] = {NULL, binary, PREC_CMP},
+	[T_LT_EQ] = {NULL, binary, PREC_CMP},
+	[T_LT_MINUS] = {NULL, NULL, PREC_NONE},
+	[T_GT] = {NULL, binary, PREC_CMP},
+	[T_GT_EQ] = {NULL, binary, PREC_CMP},
 	[T_EQ] = {NULL, binary, PREC_EQ},
 	[T_BANG] = {unary, NULL, PREC_NONE},
 	[T_BANG_EQ] = {NULL, binary, PREC_EQ},
@@ -4232,7 +4303,7 @@ void name(comp_t* cmp) {
 	/* figure out if we're storing or 
 	 * loading a variable */
 	bool assign = false;
-	if (match(cmp, T_LESS_MINUS)) {
+	if (match(cmp, T_LT_MINUS)) {
 		expr(cmp, PREC_ASSIGN);
 		assign = true;
 	}
@@ -4440,10 +4511,10 @@ void binary(comp_t* cmp) {
 	case T_SLASH: opcode = OP_DIV; break;
 	case T_PERCENT: opcode = OP_EDIV; break;
 	/* comparison */
-	case T_LESS: opcode = OP_LT; break;
-	case T_LESS_EQ: opcode = OP_LTE; break;
-	case T_GREATER: opcode = OP_GT; break;
-	case T_GREATER_EQ: opcode = OP_GTE; break;
+	case T_LT: opcode = OP_LT; break;
+	case T_LT_EQ: opcode = OP_LTE; break;
+	case T_GT: opcode = OP_GT; break;
+	case T_GT_EQ: opcode = OP_GTE; break;
 	/* equality */
 	case T_EQ: opcode = OP_EQ; break;
 	case T_BANG_EQ: opcode = OP_NEQ; break;
@@ -4510,13 +4581,31 @@ void index(comp_t* cmp) {
 	expr(cmp, PREC_OR);
 	eat(cmp, T_RSQUARE, "expected ']'");
 	
-	if (match(cmp, T_LESS_MINUS)) {
+	if (match(cmp, T_LT_MINUS)) {
 		expr(cmp, PREC_ASSIGN);
 		emit_nullary(cmp, OP_STORE_LIST);
 		return;
 	}
 	
 	emit_nullary(cmp, OP_LOAD_LIST);
+}
+
+/* parses a using expression */
+void using(comp_t* cmp) {
+	eat(cmp, T_NAME,
+		"expected module name after 'using'");
+	token_t name = cmp->prev;
+	string_t* path = name.lex;
+	
+	gc_pause(cmp->ctx);
+	sylt_t* importer = sylt_new();
+	sylt_xfile(importer,
+		(const char*)path->bytes);
+	dict_copy(cmp->ctx->vm->gdict,
+		importer->vm->gdict,
+		cmp->ctx);
+	sylt_free(importer);
+	gc_resume(cmp->ctx);
 }
 
 void parse_func(comp_t*, string_t*);
@@ -4560,11 +4649,9 @@ void let(comp_t* cmp) {
 	 	* of the expression */
 		expr(cmp, ANY_PREC);
 		
-		
-		
-		if (is_local)
+		if (is_local) {
 			add_symbol(cmp, name);
-		else {
+		} else {
 			int index = func_write_data(
 				cmp->func,
 				wrapstring(name),
@@ -4630,7 +4717,7 @@ void parse_func(
 		"expected ')' or a parameter name");
 	
 	if (is_lambda)
-		eat(&fcmp, T_MINUS_GREATER,
+		eat(&fcmp, T_MINUS_GT,
 			"expected '->' after ')'");
 	else
 		eat(&fcmp, T_EQ,
@@ -4641,7 +4728,6 @@ void parse_func(
 	
 	comp_close_scope(cmp);
 	emit_nullary(&fcmp, OP_RET);
-	
 	
 	func_t* func = fcmp.func;
 	emit_value(cmp, wrapfunc(func));
@@ -4663,7 +4749,6 @@ void parse_func(
 			cmp->ctx);
 	}
 	
-	//comp_close_scope(&fcmp);
 	comp_copy_parse_state(cmp, &fcmp);
 	comp_free(&fcmp);
 	cmp->child = NULL;
@@ -4797,6 +4882,7 @@ void gc_collect(
 	
 	if (ctx->mem.gc.state == GC_STATE_PAUSED)
 		return;
+	
 	assert(ctx->mem.gc.state
 		== GC_STATE_IDLE);
 
@@ -5013,7 +5099,6 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	int state = (ctx) ? ctx->state : -1;
 	switch (state) {
 	case SYLT_STATE_COMPILING: {
-		/* find the deepest compiler */
 		comp_t* cmp = ctx->cmp;
 		while (cmp->child)
 			cmp = cmp->child;
@@ -5064,7 +5149,7 @@ sylt_t* sylt_new(void) {
 	set_state(ctx, SYLT_STATE_INIT);
 	vm_init(ctx->vm, ctx);
 	comp_init(ctx->cmp, NULL, NULL, ctx);
-	load_stdlib(ctx);
+	std_init(ctx);
 	return ctx;
 }
 
@@ -5084,7 +5169,7 @@ void sylt_free(sylt_t* ctx) {
 		ctx->vm = NULL;
 	}
 	
-	/* free compiler */
+	/* free compiler(s) */
 	if (ctx->cmp) {
 		comp_t* cmp = ctx->cmp;
 		do {
@@ -5203,11 +5288,6 @@ void sylt_interact(sylt_t* ctx) {
 void sylt_test(sylt_t* ctx) {
 	sylt_dprintf("Running tests:\n");
 	
-	/* test data structures */
-	list_test(ctx);
-	dict_test(ctx);
-	string_test(ctx);
-	
 	/* empty input */
 	assert(sylt_xstring(ctx, ""));
 	
@@ -5225,9 +5305,24 @@ int main(int argc, char *argv[]) {
 	
 	sylt_t* ctx = sylt_new();
 	
-	#if DBG_RUN_TESTS
-	sylt_test(ctx);
-	#endif
+	/* build list from args */
+	list_t* args = list_new(ctx);
+	for (int i = 0; i < argc; i++) {
+		string_t* arg = string_lit(
+			argv[i], ctx);
+		list_push(args, wrapstring(arg), ctx);
+	}
+	
+	#define has_flag(flag) \
+		list_count(args, \
+			wrapstring( \
+				string_lit(flag, ctx))) \
+		> 0
+	
+	if (has_flag("-test"))
+		sylt_test(ctx);
+		
+	#undef has_flag
 	
 	if (argc == 1)
 		sylt_interact(ctx);

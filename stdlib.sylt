@@ -7,23 +7,9 @@ let rep(n, f) = {
 	}
 }
 
-let List.range(min, max) = {
-	ensure(min < max)
-	let result = []
-	let i = min
-	while (i < max) {
-		List.push(result, i)
-		i <- i + 1
-	}
-	result
-}
-
 let List.forEach(list, f) = {
-	let i = 0
-	while (i < List.length(list)) {
-		f(i, list[i])
-		i <- i + 1
-	}
+	rep(List.length(list), fun(i) ->
+		f(i, list[i]))
 }
 
 let List.map(list, f) = {
@@ -40,23 +26,6 @@ let List.filter(list, f) = {
 		if (f(value))
 			List.push(result, value)
 	)
-	result
-}
-
-let List.reduce(list, f, init) = {
-	todo()
-}
-
-let List.sort(list, f) = {
-	todo()
-}
-
-let List.concat(a, b) = {
-	let result = []
-	List.forEach(a, fun(_, v) ->
-		List.push(result, v))
-	List.forEach(b, fun(_, v) ->
-		List.push(result, v))
 	result
 }
 

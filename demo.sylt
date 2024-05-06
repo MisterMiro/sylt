@@ -1,5 +1,7 @@
 ## here's a comment
 
+##using tests.sylt
+
 ## declare a variable using 'let'
 let x = 5
 	
@@ -33,21 +35,26 @@ printLn("Hello, World!")
 	
 let addNumbers(a, b) = a + b
 
-## call a function
+## calling a function:
 	
 let result = addNumbers(5, 3)
 ensure(result = 8) ## errors if not true
 
 ## use a block expression for multiple lines
 ## of code. the last expression in a block
-## is returned implicitly
+## is returned implicitly:
 
 let multiplyBySomething(x) = {
 	let factor = 8
-	x * 8
+	x * factor
 }
 
-## an empty block returns 'nil'
+## this applies even outside of functions:
+
+## prints '123'
+printLn({ 123 })
+
+## an empty block returns 'nil':
 
 let empty = {}
 
@@ -108,6 +115,7 @@ let countdown(i) =
 		printLn(i)
 		countdown(i - 1)
 	}
+
 countdown(3)
 			
 ## prints:
@@ -175,13 +183,30 @@ list[0] <- 10
 ## negative index counts from the end
 ensure(list[-1] = list[List.length(list) - 1])
 
-## example code
+## example programs
+
+## generating a random alphanumeric string:
+
+let chars = String.chars(
+	String.concat(
+		String.alpha,
+		String.digits))
+Math.seedRand(Sys.time())
+
+let len = 24
+let str = ""
+rep(len, fun(_) -> {
+	let n = Math.rand(0, List.length(chars))
+	str <- String.concat(str, chars[n])
+})
+
+printLn(str)
 
 ## computing π using Leibniz’s formula:
 
 let pi = 0
 let k = 1
-let precision = 11000
+let precision = 140000
 
 rep(precision, fun(i) -> {
 	pi <- if (i % 2 = 0)

@@ -496,6 +496,10 @@ let listLib() = {
 	let bits = [1, 0, 0, 1, 0, 1, 1, 1]
 	ensure(List.count(bits, 1) = 5)
 	
+	## contains
+	let list = ["a", "B", "c"]
+	ensure(List.contains(list, "B"))
+	
 	## range
 	let a = List.range(-3, 3)
 	let b = [-3, -2, -1, 0, 1, 2]

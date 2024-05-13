@@ -499,6 +499,7 @@ let listLib() = {
 	## contains
 	let list = ["a", "B", "c"]
 	ensure(List.contains(list, "B"))
+	ensure(!List.contains(list, "b"))
 	
 	## range
 	let a = List.range(-3, 3)

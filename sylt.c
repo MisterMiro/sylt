@@ -686,9 +686,7 @@ typedef struct {
 	/* bytecode */
 	uint8_t* code;
 	size_t ncode;
-	/* constant data; stores any
-	 * literal values found in
-	 * the source code */
+	/* constant data */
 	value_t* data;
 	size_t ndata;
 	/* line numbers mapped to bytes */
@@ -707,6 +705,8 @@ typedef struct {
 	string_t* name;
 	/* full name, including file name */
 	string_t* path;
+	/* source code */
+	string_t* src;
 	/* if set this calls a C function
 	 * and the bytecode is unused */
 	cfunc_t cfunc;
@@ -1597,7 +1597,9 @@ void string_dprint(string_t* str) {
 
 /* creates a new function */
 func_t* func_new(
-	sylt_t* ctx, string_t* name)
+	sylt_t* ctx,
+	string_t* name,
+	string_t* src)
 {
 	func_t* func = (func_t*)obj_new(
 		sizeof(func_t), TYPE_FUNCTION, ctx);
@@ -1615,6 +1617,7 @@ func_t* func_new(
 	
 	func->name = name;
 	func->path = name;
+	func->src = src;
 	func->cfunc = NULL;
 	return func;
 }
@@ -2841,11 +2844,22 @@ value_t stdlist_concat(sylt_t* ctx) {
 	return wraplist(result);
 }
 
+/* returns the number of times a value
+ * appears in the list */
 value_t stdlist_count(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	size_t result = list_count(
 		listarg(0), arg(1));
 	return wrapnum(result);
+}
+
+/* returns true if the list contains a
+ * given value */
+value_t stdlist_contains(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	bool result = list_count(
+		listarg(0), arg(1)) > 0;
+	return wrapbool(result);
 }
 
 /* returns a list containing a range of 
@@ -3332,7 +3346,9 @@ void std_addf(
 		string_lit(name, ctx));
 	
 	sylt_pushfunc(ctx, func_new(
-		ctx, sylt_peekstring(ctx, 0)));
+		ctx,
+		sylt_peekstring(ctx, 0),
+		NULL));
 	sylt_peekfunc(ctx, 0)->cfunc = cfunc;
 	sylt_peekfunc(ctx, 0)->params = params;
 	
@@ -3380,6 +3396,8 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "concat",
 		stdlist_concat, 2);
 	std_addf(ctx, "count", stdlist_count, 2);
+	std_addf(ctx, "contains",
+		stdlist_contains, 2);
 	std_addf(ctx, "range",
 		stdlist_range, 2);
 	
@@ -3551,8 +3569,6 @@ typedef struct comp_s {
 	/* current (simulated) stack size */
 	int curslots;
 	
-	/* source code */
-	string_t* src;
 	/* scanner position */
 	char* pos;
 	/* scanner line */
@@ -3582,7 +3598,6 @@ void comp_init(
 	cmp->func = NULL;
 	cmp->curslots = 0;
 	
-	cmp->src = NULL;
 	cmp->pos = NULL;
 	cmp->line = 1;
 	cmp->syms = NULL;
@@ -3605,7 +3620,7 @@ void comp_load(comp_t* cmp) {
 	string_t* src =
 		sylt_peekstring(cmp->ctx, 1);
 	
-	cmp->func = func_new(cmp->ctx, name);
+	cmp->func = func_new(cmp->ctx, name, src);
 	if (cmp->parent) {
 		/* parent_name/ */
 		sylt_pushstring(cmp->ctx,
@@ -3622,8 +3637,7 @@ void comp_load(comp_t* cmp) {
 			sylt_popstring(cmp->ctx);
 	}
 	
-	cmp->src = src;
-	cmp->pos = (char*)cmp->src->bytes;
+	cmp->pos = (char*)cmp->func->src->bytes;
 	cmp->line = 1;
 	
 	/* src and name */
@@ -3958,8 +3972,9 @@ void comp_close_scope(comp_t* cmp) {
 #define is(c) (peek() == (c))
 #define next_is(c) (peek_next() == (c))
 #define eof() \
-	((uint8_t*)cmp->pos - cmp->src->bytes \
-		>= cmp->src->len)
+	((uint8_t*)cmp->pos - \
+		cmp->func->src->bytes \
+		>= cmp->func->src->len)
 #define match(c) \
 	((!eof() && is(c)) ? \
 		step(), true : false)
@@ -4681,7 +4696,7 @@ void parse_func(
 		is_lambda = true;
 	}
 		
-	sylt_pushstring(cmp->ctx, cmp->src);
+	sylt_pushstring(cmp->ctx, cmp->func->src);
 	sylt_pushstring(cmp->ctx, name);
 	
 	/* setup a new compiler instance
@@ -4962,7 +4977,7 @@ void gc_mark_compiler(sylt_t* ctx) {
 	comp_t* cmp = ctx->cmp;
 	do {
 		obj_mark((obj_t*)cmp->func, ctx);
-		obj_mark((obj_t*)cmp->src, ctx);
+		obj_mark((obj_t*)cmp->func->src, ctx);
 		obj_mark((obj_t*)cmp->prev.lex, ctx);
 		obj_mark((obj_t*)cmp->cur.lex, ctx);
 		for (int i = 0; i < cmp->nsyms; i++)
@@ -5275,17 +5290,7 @@ bool sylt_xfile(
 	return true;
 }
 
-void sylt_interact(sylt_t* ctx) {
-	sylt_printf("%s\n", SYLT_VERSION_STR);
-	while (true) {
-		sylt_printf(">> ");
-		char buffer[4096];
-		fgets(buffer, 4096, stdin);
-		sylt_xstring(ctx, buffer);
-	}
-}
-
-void sylt_test(sylt_t* ctx) {
+void run_tests(sylt_t* ctx) {
 	sylt_dprintf("Running tests:\n");
 	
 	/* empty input */
@@ -5299,35 +5304,46 @@ void sylt_test(sylt_t* ctx) {
 	sylt_xfile(ctx, "tests.sylt");
 }
 
+void print_usage(void) {
+	sylt_printf(
+		"usage: sylt [path|flag(s)]\n");
+	sylt_printf("flags: -test\n");
+}
+
 int main(int argc, char *argv[]) {
 	dbg_print_flags();
 	dbg_print_platform_info();
 	
-	sylt_t* ctx = sylt_new();
-	
-	/* build list from args */
-	list_t* args = list_new(ctx);
-	for (int i = 0; i < argc; i++) {
-		string_t* arg = string_lit(
-			argv[i], ctx);
-		list_push(args, wrapstring(arg), ctx);
+	if (argc == 1) {
+		print_usage();
+		return EXIT_FAILURE;
 	}
 	
-	#define has_flag(flag) \
-		list_count(args, \
-			wrapstring( \
-				string_lit(flag, ctx))) \
-		> 0
+	sylt_t* ctx = sylt_new();
 	
-	if (has_flag("-test"))
-		sylt_test(ctx);
+	int path = -1;
+	for (int i = 1; i < argc; i++) {
+		string_t* arg = string_lit(
+			argv[i], ctx);
 		
-	#undef has_flag
+		if (arg->bytes[0] != '-') {
+			path = i;
+			break;
+		}
+		
+		if (string_eq(arg,
+			string_lit("-test", ctx))) {
+			run_tests(ctx);
+		} else {
+			sylt_eprintf(
+				"unknown flag '%s'\n",
+				argv[i]);
+			print_usage();
+		}
+	}
 	
-	if (argc == 1)
-		sylt_interact(ctx);
-	else
-		sylt_xfile(ctx, argv[1]);
+	if (path != -1)
+		sylt_xfile(ctx, argv[path]);
 	
 	sylt_free(ctx);
 	

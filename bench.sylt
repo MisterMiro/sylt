@@ -1,0 +1,94 @@
+
+let global = nil
+
+let loadGlobal() = {
+	rep(1000, fun(_) -> global)
+}
+
+let storeGlobal() = {
+	rep(1000, fun(_) -> global <- 10)
+}
+
+let loadLocal() = {
+	let local = nil
+	rep(1000, fun(_) -> local)
+}
+
+let storeLocal() = {
+	let local = nil
+	rep(1000, fun(_) -> local <- 10)
+}
+
+let recurse() = {
+	let depth = 8192
+	let loop(i) =
+		if (i < depth)
+			loop(i + 1)
+	loop(0)
+}
+
+let benchmarks = [
+	loadGlobal,
+	storeGlobal,
+	loadLocal,
+	storeLocal,
+	recurse,
+]
+
+let n = 100
+
+print("Benchmarking (n=")
+print(n)
+printLn("):")
+
+let start = Sys.cpuTime()
+
+List.forEach(benchmarks, fun(_, bench) -> {
+	let name = asString(bench)
+	print("  ")
+	print(name)
+	
+	let width = 20
+	let len = List.length(String.chars(name))
+	rep(width - len, fun(_) -> print("."))
+	
+	let hi = 0
+	let lo = 0
+	let times = []
+	
+	rep(n, fun(i) -> {
+		let start = Sys.cpuTime()
+		
+		bench()
+		
+		let took = Sys.cpuTime() - start
+		List.push(times, took)
+		
+		if (i = 0) {
+			lo <- took
+			hi <- took
+		}
+		
+		if (took < lo)
+			lo <- took
+		if (took > hi)
+			hi <- took
+	})
+	
+	let sum = List.sum(times)
+	let average = sum / List.length(times)
+	
+	print("avg: ")
+	print(average)
+	print("s, lo: ")
+	print(lo)
+	print("s, hi: ")
+	print(hi)
+	printLn("s")
+})
+
+let total = Sys.cpuTime() - start
+
+print("Benchmark complete (total ")
+print(total)
+printLn("s)")

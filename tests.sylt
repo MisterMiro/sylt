@@ -526,7 +526,16 @@ let listLib() = {
 	list <- List.filter(list,
 		fun(n) -> n = 1)
 	ensure(list = [1, 1, 1])
-
+	
+	## fold
+	let list = [2, 4, 6]
+	ensure(List.fold(list, 1,
+		fun(prod, value) -> prod * value)
+			= 48)
+	## sum
+	let list = [1, 2, 3]
+	ensure(List.sum(list) = 6)
+	
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]
 	let clean = List.flatten(mess)
@@ -774,8 +783,8 @@ let tests = List.flatten([
 ])
 
 ## number of times to run each test
-let iterations = 1
-ensure(iterations > 0)
+let n = 1
+ensure(n > 0)
 
 ## let's go!
 List.forEach(tests, fun(_, value) ->
@@ -795,7 +804,7 @@ List.forEach(tests, fun(_, value) ->
 		rep(width - len, fun(_) -> print("."))
 		
 		## run it
-		rep(iterations, fun(_) -> value())
+		rep(n, fun(_) -> value())
 
 		printLn("OK")
 	}

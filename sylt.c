@@ -26,11 +26,12 @@
 #define sylt_eprintf printf
 #define sylt_dprintf printf
 
-/* initial stack size */
+/* initial stack size, more will be
+ * automatically allocated as needed */
 #define SYLT_INIT_STACK 512
 
 /* some extra stack space for hiding stuff
- * from the GC */
+ * from the GC (temporary) */
 #define SYLT_EXTRA_STACK 32
 
 /* path to standard library relative to
@@ -1350,12 +1351,20 @@ bool dict_get(
 void dict_copy(
 	dict_t* dst,
 	const dict_t* src,
+	bool overwrite,
 	sylt_t* ctx)
 {
 	for (size_t i = 0; i < src->cap; i++) {
 		item_t* src_item = &src->items[i];
 		if (!src_item->key)
 			continue;
+		
+		if (!overwrite) {
+			bool exists = dict_get(
+				dst, src_item->key, NULL);
+			if (exists)
+				continue;
+		}
 		
 		dict_set(dst,
 			src_item->key,
@@ -4609,6 +4618,7 @@ void using(comp_t* cmp) {
 		(const char*)path->bytes);
 	dict_copy(cmp->ctx->vm->gdict,
 		importer->vm->gdict,
+		false,
 		cmp->ctx);
 	sylt_free(importer);
 	gc_resume(cmp->ctx);

@@ -29,6 +29,19 @@ let List.filter(list, f) = {
 	result
 }
 
+let List.fold(list, init, f) = {
+	let result = init
+	List.forEach(list, fun(_, value) ->
+		result <- f(result, value)
+	)
+	result
+}
+
+let List.sum(list) = {
+	List.fold(list, 0, fun(sum, value) ->
+		sum + value)
+}
+
 let List.flatten(list) = {
 	let result = []
 	List.forEach(list, fun(i, item) ->

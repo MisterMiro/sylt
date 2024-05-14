@@ -1563,6 +1563,34 @@ void string_append(
 	*dst = sylt_popstring(ctx);
 }
 
+bool string_starts_with(
+	const string_t* str,
+	const string_t* other)
+{
+	if (other->len > str->len)
+		return false;
+		
+	return strncmp(
+		(const char*)str->bytes,
+		(const char*)other->bytes,
+		other->len) == 0;
+}
+
+bool string_ends_with(
+	const string_t* str,
+	const string_t* other)
+{
+	if (other->len > str->len)
+		return false;
+		
+	return strncmp(
+		(const char*)str->bytes
+			+ str->len
+			- other->len,
+		(const char*)other->bytes,
+		other->len) == 0;
+}
+
 void string_print(string_t* str) {
 	if (!str) {
 		sylt_printf("NULL");
@@ -2972,14 +3000,9 @@ value_t stdstring_starts_with(sylt_t* ctx) {
 	typecheck(ctx, arg(1), TYPE_STRING);
 	
 	string_t* str = stringarg(0);
-	string_t* check = stringarg(1);
-	if (check->len > str->len)
-		return wrapbool(false);
-		
-	return wrapbool(strncmp(
-		(const char*)str->bytes,
-		(const char*)check->bytes,
-		check->len) == 0);
+	string_t* other = stringarg(1);
+	return wrapbool(string_starts_with(
+		str, other));
 }
 
 /* returns true if the string ends with 
@@ -2989,16 +3012,9 @@ value_t stdstring_ends_with(sylt_t* ctx) {
 	typecheck(ctx, arg(1), TYPE_STRING);
 	
 	string_t* str = stringarg(0);
-	string_t* check = stringarg(1);
-	if (check->len > str->len)
-		return wrapbool(false);
-		
-	return wrapbool(strncmp(
-		(const char*)str->bytes
-			+ str->len
-			- check->len,
-		(const char*)check->bytes,
-		check->len) == 0);
+	string_t* other = stringarg(1);
+	return wrapbool(string_ends_with(
+		str, other));
 }
 
 /* strips leading whitespace */
@@ -5147,6 +5163,7 @@ sylt_t* sylt_new(void) {
 	
 	sylt_t* ctx = NULL;
 	ptr_alloc(ctx, sylt_t, NULL);
+	
 	set_state(ctx, SYLT_STATE_ALLOC);
 	ptr_alloc(ctx->vm, vm_t, ctx);
 	ptr_alloc(ctx->cmp, comp_t, ctx);
@@ -5166,6 +5183,7 @@ sylt_t* sylt_new(void) {
 	vm_init(ctx->vm, ctx);
 	comp_init(ctx->cmp, NULL, NULL, ctx);
 	std_init(ctx);
+	
 	return ctx;
 }
 
@@ -5305,13 +5323,18 @@ void run_tests(sylt_t* ctx) {
 	sylt_xfile(ctx, "tests.sylt");
 }
 
+void run_benchmarks(sylt_t* ctx) {
+	sylt_xfile(ctx, "bench.sylt");
+}
+
 void print_usage(void) {
 	sylt_printf(
 		"usage: sylt [path|flag(s)]\n");
 	sylt_printf("available flags:\n");
-	sylt_printf("  -help  shows this\n");
-	sylt_printf("  -ver   prints version\n");
-	sylt_printf("  -test  runs tests\n");
+	sylt_printf("-help  shows this\n");
+	sylt_printf("-ver   prints version\n");
+	sylt_printf("-test  runs tests\n");
+	sylt_printf("-bench runs benchmarks\n");
 }
 
 void print_version(void) {
@@ -5348,6 +5371,10 @@ int main(int argc, char *argv[]) {
 		} else if (string_eq(arg,
 			string_lit("-test", ctx))) {
 			run_tests(ctx);
+			
+		} else if (string_eq(arg,
+			string_lit("-bench", ctx))) {
+			run_benchmarks(ctx);
 			
 		} else {
 			sylt_eprintf(

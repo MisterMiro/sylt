@@ -9,7 +9,7 @@
 #include <math.h>
 #include <time.h>
 
-#define SYLT_VERSION_STR "sylt dev"
+#define SYLT_VERSION_STR "Sylt Dev v0.0.0"
 #define SYLT_VERSION_MAJ 0
 #define SYLT_VERSION_MIN 0
 #define SYLT_VERSION_REV 0
@@ -1181,16 +1181,7 @@ value_t list_delete(
 void list_push(
 	list_t* ls, value_t val, sylt_t* ctx)
 {
-	//list_insert(ls, ls->len, val, ctx);
-	//return;
-	/* grow allocation */
-	ls->items = arr_resize(
-		ls->items,
-		value_t,
-		nextpow2(ls->len),
-		nextpow2(ls->len + 1),
-		ctx);
-	ls->items[ls->len++] = val;
+	list_insert(ls, -1, val, ctx);
 }
 
 /* returns and then deletes the last item
@@ -5307,7 +5298,14 @@ void run_tests(sylt_t* ctx) {
 void print_usage(void) {
 	sylt_printf(
 		"usage: sylt [path|flag(s)]\n");
-	sylt_printf("flags: -test\n");
+	sylt_printf("available flags:\n");
+	sylt_printf("  -help  shows this\n");
+	sylt_printf("  -ver   prints version\n");
+	sylt_printf("  -test  runs tests\n");
+}
+
+void print_version(void) {
+	sylt_printf("%s\n", SYLT_VERSION_STR);
 }
 
 int main(int argc, char *argv[]) {
@@ -5328,12 +5326,19 @@ int main(int argc, char *argv[]) {
 		
 		if (arg->bytes[0] != '-') {
 			path = i;
-			break;
-		}
 		
-		if (string_eq(arg,
+		} else if (string_eq(arg,
+			string_lit("-help", ctx))) {
+			print_usage();
+			
+		} else if (string_eq(arg,
+			string_lit("-ver", ctx))) {
+			print_version();
+			
+		} else if (string_eq(arg,
 			string_lit("-test", ctx))) {
 			run_tests(ctx);
+			
 		} else {
 			sylt_eprintf(
 				"unknown flag '%s'\n",

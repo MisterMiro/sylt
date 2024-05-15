@@ -6,6 +6,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include <ctype.h>
+#include <float.h>
 #include <math.h>
 #include <time.h>
 
@@ -52,9 +53,9 @@
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 1
+#define DBG_GC_EVERY_ALLOC 0
 
-#define DBG_PRINT_SYLT_STATE 0
+#define DBG_PRINT_SYLT_STATE 1
 #define DBG_PRINT_GC_STATE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
@@ -1355,21 +1356,17 @@ void dict_copy(
 	sylt_t* ctx)
 {
 	for (size_t i = 0; i < src->cap; i++) {
-		item_t* src_item = &src->items[i];
-		if (!src_item->key)
+		item_t* item = &src->items[i];
+		if (!item->key)
 			continue;
 		
-		if (!overwrite) {
-			bool exists = dict_get(
-				dst, src_item->key, NULL);
-			if (exists)
-				continue;
-		}
+		bool exists = !overwrite && dict_get(
+			dst, item->key, NULL);
+		if (exists)
+			continue;
 		
 		dict_set(dst,
-			src_item->key,
-			src_item->val,
-			ctx);
+			item->key, item->val, ctx);
 	}
 }
 
@@ -3411,7 +3408,8 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "pop", stdlist_pop, 1);
 	std_addf(ctx, "concat",
 		stdlist_concat, 2);
-	std_addf(ctx, "count", stdlist_count, 2);
+	std_addf(ctx, "count",
+		stdlist_count, 2);
 	std_addf(ctx, "contains",
 		stdlist_contains, 2);
 	std_addf(ctx, "range",
@@ -3599,6 +3597,8 @@ typedef struct comp_s {
 	int depth;
 	/* upvalues for current function */
 	cmp_upvalue_t upvals[MAX_UPVALUES];
+	/* files visited with 'using' */
+	list_t* included;
 	/* reference to API */
 	sylt_t* ctx;
 } comp_t;
@@ -3619,6 +3619,7 @@ void comp_init(
 	cmp->syms = NULL;
 	cmp->nsyms = 0;
 	cmp->depth = 0;
+	cmp->included = list_new(ctx);
 	cmp->ctx = ctx;
 }
 
@@ -3655,6 +3656,8 @@ void comp_load(comp_t* cmp) {
 	
 	cmp->pos = (char*)cmp->func->src->bytes;
 	cmp->line = 1;
+	list_push(cmp->included,
+		wrapstring(name), cmp->ctx);
 	
 	/* src and name */
 	sylt_shrink(cmp->ctx, 2);
@@ -4621,23 +4624,42 @@ void index(comp_t* cmp) {
 	emit_nullary(cmp, OP_LOAD_LIST);
 }
 
+string_t* load_file(const char*, sylt_t*);
+void compile_and_run(sylt_t*, comp_t*);
+
 /* parses a using expression */
 void using(comp_t* cmp) {
 	eat(cmp, T_NAME,
 		"expected module name after 'using'");
-	token_t name = cmp->prev;
-	string_t* path = name.lex;
 	
-	gc_pause(cmp->ctx);
-	sylt_t* importer = sylt_new();
-	sylt_xfile(importer,
-		(const char*)path->bytes);
-	dict_copy(cmp->ctx->vm->gdict,
-		importer->vm->gdict,
-		false,
-		cmp->ctx);
-	sylt_free(importer);
-	gc_resume(cmp->ctx);
+	/* append extension */
+	sylt_pushstring(cmp->ctx, cmp->prev.lex);
+	sylt_pushstring(cmp->ctx,
+		string_lit(".sylt", cmp->ctx));
+	sylt_concat(cmp->ctx);
+	string_t* path = sylt_popstring(cmp->ctx);
+	
+	/* prevent infinite loops */
+	if (list_count(cmp->included,
+		wrapstring(path)) > 0)
+		return;
+	list_push(cmp->included,
+		wrapstring(path), cmp->ctx);
+	
+	/* compile using a separate compiler */
+	comp_t import;
+	comp_init(&import, NULL, NULL, cmp->ctx);
+	import.included = cmp->included;
+	
+	sylt_pushstring(cmp->ctx,
+		load_file(
+			(const char*)path->bytes,
+			cmp->ctx));
+	sylt_pushstring(cmp->ctx,
+		string_lit(
+			(const char*)path->bytes,
+			cmp->ctx));
+	compile_and_run(cmp->ctx, &import);
 }
 
 void parse_func(comp_t*, string_t*);
@@ -5231,28 +5253,31 @@ void sylt_free(sylt_t* ctx) {
 	ptr_free(ctx, sylt_t, ctx);
 }
 
-void compile_and_run(sylt_t* ctx) {
-	comp_load(ctx->cmp);
+void compile_and_run(
+	sylt_t* ctx, comp_t* cmp)
+{
+	comp_load(cmp);
 	set_state(ctx, SYLT_STATE_COMPILING);
 	gc_pause(ctx);
 	
 	/* scan initial token for lookahead */
-	ctx->cmp->prev.line = 1;
-	ctx->cmp->cur = scan(ctx->cmp);
+	cmp->prev.line = 1;
+	cmp->cur = scan(cmp);
 	
 	/* parse the entire source */
-	while (!check(ctx->cmp, T_EOF)) {
-		expr(ctx->cmp, ANY_PREC);
-		emit_nullary(ctx->cmp, OP_POP);
+	while (!check(cmp, T_EOF)) {
+		expr(cmp, ANY_PREC);
+		emit_nullary(cmp, OP_POP);
 	}
 	
-	emit_nullary(ctx->cmp, OP_RET);
-	gc_resume(ctx);
+	emit_nullary(cmp, OP_RET);
+	
 	set_state(ctx, SYLT_STATE_COMPILED);
+	gc_resume(ctx);
 	
 	/* load program */
 	sylt_pushclosure(ctx,
-		closure_new(ctx, ctx->cmp->func));
+		closure_new(ctx, cmp->func));
 	sylt_call(ctx, 0);
 	
 	/* run program */
@@ -5278,9 +5303,9 @@ bool sylt_xstring(
 	sylt_pushstring(ctx,
 		string_lit(src, ctx));
 	sylt_pushstring(ctx,
-		string_lit("input", ctx));
+		string_lit("(input)", ctx));
 	
-	compile_and_run(ctx);
+	compile_and_run(ctx, ctx->cmp);
 	return true;
 }
 
@@ -5305,7 +5330,7 @@ bool sylt_xfile(
 	sylt_pushstring(ctx,
 		string_lit(path, ctx));
 	
-	compile_and_run(ctx);
+	compile_and_run(ctx, ctx->cmp);
 	return true;
 }
 

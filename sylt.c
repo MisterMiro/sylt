@@ -6,7 +6,6 @@
 #include <string.h>
 #include <setjmp.h>
 #include <ctype.h>
-#include <float.h>
 #include <math.h>
 #include <time.h>
 
@@ -49,20 +48,20 @@
 /* disables garbage collection, though
  * memory will still be freed at shutdown
  * (sylt_free) to prevent memory leaks */
-#define DBG_NO_GC 1
+#define DBG_NO_GC 0
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 0
+#define DBG_GC_EVERY_ALLOC 1
 
 #define DBG_PRINT_SYLT_STATE 1
-#define DBG_PRINT_GC_STATE 0
+#define DBG_PRINT_GC_STATE 1
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_CODE 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
-#define DBG_PRINT_MEM_STATS 0
+#define DBG_PRINT_MEM_STATS 1
 #define DBG_PRINT_PLATFORM_INFO 0
 
 /* prints all debug flags that are set */
@@ -286,6 +285,9 @@ void halt(sylt_t*, const char*, ...);
 #define E_INDEX(len, index) \
 	"index out of range, len: %d, i=%d", \
 	(len), (index)
+#define E_KEYNOTFOUND(key) \
+	"key '%.*s' not found", \
+	(key->len), (key->bytes)
 #define E_WRONGARGC(name, need, got) \
 	"%.*s takes %d argument%s but got %d", \
 	(int)name->len, name->bytes, \
@@ -769,6 +771,9 @@ typedef struct vm_s {
 	/* global variables */
 	dict_t* gdict;
 	
+	/* unique strings */
+	dict_t* strings;
+	
 	/* linked list of open upvalues */
 	upvalue_t* openups;
 	
@@ -789,7 +794,7 @@ typedef struct vm_s {
 
 /* macros for creating a value_t
  * struct from a raw value */
-#define wrapnil() \
+#define nil() \
 	(value_t){TYPE_NIL, {.num = 0}}
 #define wrapbool(v) \
 	(value_t){TYPE_BOOL, {.num = (v)}}
@@ -933,6 +938,7 @@ obj_t* obj_new_impl(
 		NULL, 0, size,
 		"<obj>", func_name, line,
 		ctx);
+	
 	obj->tag = tag;
 	obj->marked = false;
 	obj->next = ctx->mem.objs;
@@ -1269,6 +1275,37 @@ item_t* dict_find(
 	}
 }
 
+string_t* dict_find_string(
+	const dict_t* dc,
+	const uint8_t* bytes,
+	size_t len,
+	uint32_t hash)
+{
+	if (dc->len == 0)
+		return NULL;
+	
+	/* hash % cap */
+	uint32_t index = hash & (dc->cap - 1);
+	for (;;) {
+		const item_t* item =
+			&dc->items[index];
+		if (!item->key)
+			return NULL;
+		
+		bool eq = len == item->key->len
+			&& hash == item->key->hash
+			&& strncmp(
+				(char*)bytes,
+				(char*)item->key->bytes,
+				len) == 0;
+		if (eq)
+			return item->key;
+			
+		/* (index + 1) % cap */
+		index = (index + 1) & (dc->cap - 1);
+	}
+}
+
 /* sets the capacity and reallocates the 
  * backing array */
 void dict_setcap(
@@ -1281,7 +1318,7 @@ void dict_setcap(
 	/* zero out */
 	for (size_t i = 0; i < cap; i++) {
 		items[i].key = NULL;
-		items[i].val = wrapnil();
+		items[i].val = nil();
 	}
 	
 	/* copy old entries to new array */
@@ -1371,10 +1408,12 @@ void dict_copy(
 }
 
 /* FNV-1a */
-uint32_t dict_gethash(const string_t* str) {
+uint32_t dict_calc_hash(
+	const uint8_t* bytes, size_t len)
+{
 	uint32_t hash = 2166136261u;
-	for (int i = 0; i < str->len; i++) {
-		hash ^= (uint8_t)str->bytes[i];
+	for (int i = 0; i < len; i++) {
+		hash ^= (uint8_t)bytes[i];
 		hash *= 16777619;
 	}
 	return hash;
@@ -1412,20 +1451,41 @@ void dbg_print_dict(dict_t* dc, sylt_t* ctx) {
  * might be creating a generic byte buffer
  * struct that can be used to initialize
  * a string */
-void string_rehash(string_t* str) {
+void string_rehash(
+	string_t* str, sylt_t* ctx)
+{
+	/* add null terminator */
 	if (str->bytes[str->len] != '\0')
 		str->bytes[str->len] = '\0';
-	str->hash = dict_gethash(str);
+	
+	/* hash it */
+	str->hash = dict_calc_hash(
+		str->bytes, str->len);
+
+	/* add to set of unique strings */
+	dict_set(
+		ctx->vm->strings, str, nil(), ctx);
 }
 
 /* creates a new string */
 string_t* string_new(
 	uint8_t* bytes, size_t len, sylt_t* ctx)
 {
+	if (bytes) {
+		string_t* prev = dict_find_string(
+			ctx->vm->strings,
+			bytes,
+			len,
+			dict_calc_hash(bytes, len));
+	
+		if (prev)
+			return prev;
+	}
+	
 	string_t* str = (string_t*)obj_new(
 		sizeof(string_t), TYPE_STRING, ctx);
 	sylt_pushstring(ctx, str); /* GC */
-		
+	
 	str->bytes = NULL;
 	arr_alloc(
 		str->bytes, uint8_t, len + 1, ctx);
@@ -1435,7 +1495,7 @@ string_t* string_new(
 	
 	str->bytes[len] = '\0';
 	str->len = len;
-	string_rehash(str);
+	string_rehash(str, ctx);
 	return sylt_popstring(ctx);
 }
 
@@ -1470,7 +1530,7 @@ string_t* string_fmt(
 		NULL, len, ctx);
 	vsnprintf((char*)str->bytes,
 		len + 1, fmt, args);
-	string_rehash(str);
+	string_rehash(str, ctx);
 	
 	va_end(args);
 	return str;
@@ -1493,22 +1553,6 @@ bool string_eq(
 		== 0;
 }
 
-void string_push(
-	string_t* str,
-	char c,
-	sylt_t* ctx)
-{
-	arr_resize(
-		str->bytes,
-		uint8_t,
-		nextpow2(str->len + 1),
-		nextpow2(str->len + 2),
-		ctx);
-	str->bytes[str->len++] = c;
-	string_rehash(str);
-	printf("push %c\n", c);
-}
-
 /* concatenates two strings */
 string_t* string_concat(
 	const string_t* a,
@@ -1525,7 +1569,7 @@ string_t* string_concat(
 	memcpy(result->bytes + a->len,
 		b->bytes, b->len);
 	
-	string_rehash(result);
+	string_rehash(result, ctx);
 	return result;
 }
 
@@ -1770,7 +1814,7 @@ upvalue_t* upvalue_new(
 	upvalue_t* upval = (upvalue_t*)obj_new(
 		sizeof(upvalue_t), TYPE_UPVALUE, ctx);
 	upval->index = index;
-	upval->closed = wrapnil();
+	upval->closed = nil();
 	upval->next = NULL;
 	return upval;
 }
@@ -1956,10 +2000,10 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 	
 	vm->nframes = 0;
 	vm->fp = NULL;
-	
 	vm->gdict = dict_new(ctx);
+	vm->strings = dict_new(ctx);
 	vm->openups = NULL;
-	vm->hidden = wrapnil();
+	vm->hidden = nil();
 	vm->ctx = ctx;
 	
 	/* initialize some stack space */
@@ -2280,7 +2324,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			break;
 		}
 		case OP_PUSH_NIL: {
-			push(wrapnil());
+			push(nil());
 			break;
 		}
 		case OP_PUSH_TRUE: {
@@ -2736,7 +2780,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 value_t std_print(sylt_t* ctx) {
 	val_print(arg(0), false, ctx);
 	fflush(stdout);
-	return wrapnil();
+	return nil();
 }
 
 /* prints arg(0) to the standard output,
@@ -2745,7 +2789,7 @@ value_t std_print(sylt_t* ctx) {
 value_t std_print_ln(sylt_t* ctx) {
 	val_print(arg(0), false, ctx);
 	sylt_printf("\n");
-	return wrapnil();
+	return nil();
 }
 
 /* reads console input into a string and 
@@ -2798,7 +2842,7 @@ value_t std_ensure(sylt_t* ctx) {
 /* marks code as not yet implemented */
 value_t std_todo(sylt_t* ctx) {
 	halt(ctx, "todo() reached");
-	return wrapnil();
+	return nil();
 }
 
 /* == sys lib == */
@@ -2809,7 +2853,7 @@ value_t stdsys_halt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	halt(ctx,
 		(const char*)stringarg(0)->bytes);
-	return wrapnil();
+	return nil();
 }
 
 value_t stdsys_time(sylt_t* ctx) {
@@ -2835,7 +2879,7 @@ value_t stdlist_add(sylt_t* ctx) {
 	typecheck(ctx, arg(1), TYPE_NUM);
 	list_insert(
 		listarg(0), numarg(1), arg(2), ctx);
-	return wrapnil();
+	return nil();
 }
 
 /* deletes the value at the given index */
@@ -2850,7 +2894,7 @@ value_t stdlist_del(sylt_t* ctx) {
 value_t stdlist_push(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	list_push(listarg(0), arg(1), ctx);
-	return wrapnil();
+	return nil();
 }
 
 /* removes and returns the last value of
@@ -2968,7 +3012,7 @@ value_t stdstring_lower(sylt_t* ctx) {
 			tolower(copy->bytes[i]);
 	}
 	
-	string_rehash(copy);
+	string_rehash(copy, ctx);
 	return wrapstring(copy);
 }
 
@@ -2986,7 +3030,7 @@ value_t stdstring_upper(sylt_t* ctx) {
 			toupper(copy->bytes[i]);
 	}
 	
-	string_rehash(copy);
+	string_rehash(copy, ctx);
 	return wrapstring(copy);
 }
 
@@ -3033,7 +3077,7 @@ value_t stdstring_trim_start(sylt_t* ctx) {
 		dst->len, len, ctx);
 	dst->len = len;
 	
-	string_rehash(dst);
+	string_rehash(dst, ctx);
 	return wrapstring(dst);
 }
 
@@ -3057,7 +3101,7 @@ value_t stdstring_trim_end(sylt_t* ctx) {
 		dst->len, len, ctx);
 	dst->len = len;
 	
-	string_rehash(dst);
+	string_rehash(dst, ctx);
 	return wrapstring(dst);
 }
 
@@ -3305,7 +3349,7 @@ value_t stdmath_rand(sylt_t* ctx) {
 value_t stdmath_seed_rand(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	srand(numarg(0));
-	return wrapnil();
+	return nil();
 }
 
 static string_t* lib_name = NULL;
@@ -4318,7 +4362,7 @@ void expr(comp_t* cmp, prec_t prec) {
 void literal(comp_t* cmp) {
 	switch (cmp->prev.tag) {
 	case T_NIL:
-		emit_value(cmp, wrapnil());
+		emit_value(cmp, nil());
 		break;
 	case T_TRUE:
 		emit_value(cmp, wrapbool(true));
@@ -4488,7 +4532,7 @@ void string(comp_t* cmp) {
 		dst->len = write;
 	}
 	
-	string_rehash(dst);
+	string_rehash(dst, cmp->ctx);
 	emit_value(cmp, wrapstring(dst));
 }
 
@@ -4716,7 +4760,7 @@ void let(comp_t* cmp) {
 	}
 	
 	/* expression yields a 'nil' */
-	emit_value(cmp, wrapnil());
+	emit_value(cmp, nil());
 }
 
 /* parses an anonymous function */
@@ -4837,7 +4881,7 @@ void if_else(comp_t* cmp) {
 	if (match(cmp, T_ELSE))
 		expr(cmp, ANY_PREC);
 	else
-		emit_value(cmp, wrapnil());
+		emit_value(cmp, nil());
 	
 	/* skipped past else */
 	patch_jump(cmp, else_addr);
@@ -4863,7 +4907,7 @@ void while_loop(comp_t* cmp) {
 	patch_jump(cmp, jmp);
 	emit_nullary(cmp, OP_POP);
 	
-	emit_value(cmp, wrapnil());
+	emit_value(cmp, nil());
 }
 
 /* parses a block expression.
@@ -4875,7 +4919,7 @@ void block(comp_t* cmp) {
 	
 	/* empty block yields nil */
 	if (match(cmp, T_RCURLY)) {
-		emit_value(cmp, wrapnil());
+		emit_value(cmp, nil());
 		comp_close_scope(cmp);
 		return;
 	}
@@ -4935,6 +4979,9 @@ void gc_collect(
 	#endif
 	
 	if (ctx->mem.gc.state == GC_STATE_PAUSED)
+		return;
+		
+	if (ctx->state != SYLT_STATE_EXEC)
 		return;
 	
 	assert(ctx->mem.gc.state
@@ -4996,6 +5043,9 @@ void gc_mark_vm(sylt_t* ctx) {
 	
 	/* global variables */
 	obj_mark((obj_t*)vm->gdict, ctx);
+	
+	/* unique strings */
+	obj_mark((obj_t*)vm->strings, ctx);
 	
 	/* open upvalues */
 	upvalue_t* upval = vm->openups;
@@ -5134,7 +5184,7 @@ string_t* load_file(
 	fclose(fp);
 	
 	str->bytes[len] = '\0';
-	string_rehash(str);
+	string_rehash(str, ctx);
 	return str;
 }
 
@@ -5256,8 +5306,8 @@ void sylt_free(sylt_t* ctx) {
 void compile_and_run(
 	sylt_t* ctx, comp_t* cmp)
 {
-	comp_load(cmp);
 	set_state(ctx, SYLT_STATE_COMPILING);
+	comp_load(cmp);
 	gc_pause(ctx);
 	
 	/* scan initial token for lookahead */

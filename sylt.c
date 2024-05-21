@@ -54,14 +54,14 @@
  * super slow but good for bug hunting */
 #define DBG_GC_EVERY_ALLOC 1
 
-#define DBG_PRINT_SYLT_STATE 1
-#define DBG_PRINT_GC_STATE 1
+#define DBG_PRINT_SYLT_STATE 0
+#define DBG_PRINT_GC_STATE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_CODE 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
-#define DBG_PRINT_MEM_STATS 1
+#define DBG_PRINT_MEM_STATS 0
 #define DBG_PRINT_PLATFORM_INFO 0
 
 /* prints all debug flags that are set */
@@ -771,9 +771,6 @@ typedef struct vm_s {
 	/* global variables */
 	dict_t* gdict;
 	
-	/* unique strings */
-	dict_t* strings;
-	
 	/* linked list of open upvalues */
 	upvalue_t* openups;
 	
@@ -1446,42 +1443,12 @@ void dbg_print_dict(dict_t* dc, sylt_t* ctx) {
 
 /* == string == */
 
-/* must be called whenever the contents
- * of a string changes. a better solution
- * might be creating a generic byte buffer
- * struct that can be used to initialize
- * a string */
-void string_rehash(
-	string_t* str, sylt_t* ctx)
-{
-	/* add null terminator */
-	if (str->bytes[str->len] != '\0')
-		str->bytes[str->len] = '\0';
-	
-	/* hash it */
-	str->hash = dict_calc_hash(
-		str->bytes, str->len);
-
-	/* add to set of unique strings */
-	dict_set(
-		ctx->vm->strings, str, nil(), ctx);
-}
+void string_rehash(string_t*, sylt_t*);
 
 /* creates a new string */
 string_t* string_new(
 	uint8_t* bytes, size_t len, sylt_t* ctx)
 {
-	if (bytes) {
-		string_t* prev = dict_find_string(
-			ctx->vm->strings,
-			bytes,
-			len,
-			dict_calc_hash(bytes, len));
-	
-		if (prev)
-			return prev;
-	}
-	
 	string_t* str = (string_t*)obj_new(
 		sizeof(string_t), TYPE_STRING, ctx);
 	sylt_pushstring(ctx, str); /* GC */
@@ -1534,6 +1501,20 @@ string_t* string_fmt(
 	
 	va_end(args);
 	return str;
+}
+
+/* must be called whenever the contents
+ * of a string changes */
+void string_rehash(
+	string_t* str, sylt_t* ctx)
+{
+	/* add null terminator */
+	if (str->bytes[str->len] != '\0')
+		str->bytes[str->len] = '\0';
+	
+	/* hash it */
+	str->hash = dict_calc_hash(
+		str->bytes, str->len);
 }
 
 /* returns true if a == b */
@@ -1794,8 +1775,7 @@ closure_t* closure_new(
 }
 
 void closure_free(
-	closure_t* cls,
-	sylt_t* ctx)
+	closure_t* cls, sylt_t* ctx)
 {
 	arr_free(
 		cls->upvals,
@@ -1820,8 +1800,7 @@ upvalue_t* upvalue_new(
 }
 
 void upvalue_free(
-	upvalue_t* upval,
-	sylt_t* ctx)
+	upvalue_t* upval, sylt_t* ctx)
 {
 	ptr_free(upval, upvalue_t, ctx);
 }
@@ -1836,7 +1815,7 @@ void val_mark(value_t val, sylt_t* ctx) {
 	obj_mark(getobj(val), ctx);
 }
 
-/* returns true if the two values are equal */
+/* returns true if two values are equal */
 bool val_eq(value_t a, value_t b) {
 	if (a.tag != b.tag)
 		return false;
@@ -2001,7 +1980,6 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->nframes = 0;
 	vm->fp = NULL;
 	vm->gdict = dict_new(ctx);
-	vm->strings = dict_new(ctx);
 	vm->openups = NULL;
 	vm->hidden = nil();
 	vm->ctx = ctx;
@@ -2037,12 +2015,12 @@ void dbg_print_mem_stats(sylt_t* ctx) {
 	sylt_dprintf(
 		"[memory]\n"
 		"- leaked: %ld bytes\n"
-		"- highest usage: %ld bytes\n"
-		"- allocations: %ld\n"
-		"- objects: %ld\n"
+		"- top usage: %ld bytes / %ld MB\n"
+		"- allocations: %ld / %ld objects\n"
 		"- gc cycles: %ld\n",
 		ctx->mem.bytes - sizeof(sylt_t),
 		ctx->mem.highest,
+		ctx->mem.highest / 1024 / 1024,
 		ctx->mem.count,
 		ctx->mem.objcount,
 		ctx->mem.gc.cycles);
@@ -3025,10 +3003,9 @@ value_t stdstring_upper(sylt_t* ctx) {
 		stringarg(0)->len,
 		ctx);
 	
-	for (size_t i = 0; i < copy->len; i++) {
+	for (size_t i = 0; i < copy->len; i++)
 		copy->bytes[i] =
 			toupper(copy->bytes[i]);
-	}
 	
 	string_rehash(copy, ctx);
 	return wrapstring(copy);
@@ -5043,9 +5020,6 @@ void gc_mark_vm(sylt_t* ctx) {
 	
 	/* global variables */
 	obj_mark((obj_t*)vm->gdict, ctx);
-	
-	/* unique strings */
-	obj_mark((obj_t*)vm->strings, ctx);
 	
 	/* open upvalues */
 	upvalue_t* upval = vm->openups;

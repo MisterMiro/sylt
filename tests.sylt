@@ -444,6 +444,30 @@ let preludeLib() = {
 	ensure(nums = [3, 6, 9])
 }
 
+let fileLib() = {
+	let path = "test_file.txt"
+	
+	## open + write + close
+	let handle = File.open(path, "w")
+	File.write(handle, "Hey\n")
+	File.close(handle)
+	
+	## size
+	let handle = File.open(path, "r")
+	let size = File.size(handle)
+	ensure(size = 4)
+	File.close(handle)
+	
+	## read
+	let handle = File.open(path, "r")
+	let contents = File.read(handle, size)
+	ensure(contents = "Hey\n")
+	File.close(handle)
+	
+	## del
+	File.del(path)
+}
+
 let listLib() = {
 	## length
 	ensure(List.length([]) = 0)
@@ -473,7 +497,7 @@ let listLib() = {
 	List.del(x, 0)
 	ensure(x = [])
 	
-	## push and pop
+	## push + pop
 	let x = []
 	
 	List.push(x, 3) ## = [3]
@@ -486,7 +510,7 @@ let listLib() = {
 	List.pop(x) ## = []
 	ensure(x = [] and List.length(x) = 0)
 	
-	## first and last
+	## first + last
 	let list = ["first", "middle", "last"]
 	ensure(List.first(list) = "first")
 	ensure(List.last(list) = "last")
@@ -593,7 +617,7 @@ let stringLib() = {
 	let b = "123"
 	ensure(String.concat(a, b) = "abc123")
 	
-	## chars and join
+	## chars + join
 	ensure(String.chars("Abc")
 		= ["A", "b", "c"])
 	ensure(String.join(["A", "b", "c"])
@@ -601,7 +625,7 @@ let stringLib() = {
 	ensure(String.join([1, "2", 34, "5"])
 		= "12345")
 		
-	## lower and upper
+	## lower + upper
 	let str = "MiXeD!"
 	ensure(String.lower(str) = "mixed!")
 	ensure(String.upper(str) = "MIXED!")
@@ -631,10 +655,14 @@ let stringLib() = {
 	ensure(String.trim("hi") = "hi")
 	
 	## replaceAll
-	let str = "leet"
+	let str = "Country: SE"
 	str <- String.replaceAll(str,
-		"leet", "1337")
-	ensure(str = "1337")
+		"SE", "Sweden")
+	ensure(str = "Country: Sweden")
+	
+	str <- String.replaceAll(str,
+		"Sweden", "SE")
+	ensure(str = "Country: SE")
 	
 	str <- "leet"
 	str <- String.replaceAll(str, "e", "3")
@@ -670,7 +698,7 @@ let mathLib() = {
 	ensure(Math.abs(-8) = 8
 		and Math.abs(8) = 8)
 	
-	## log and pow
+	## log + pow
 	let target = 8
 	let bases = [
 		## common
@@ -693,7 +721,7 @@ let mathLib() = {
 	ensure(Math.sqrt(256) = 16)
 	ensure(Math.pow(32, 0.5) = Math.sqrt(32))
 	
-	## min and max
+	## min + max
 	ensure(Math.min(-1, 1) = -1)
 	ensure(Math.max(-1, 1) = 1)
 	
@@ -714,7 +742,7 @@ let mathLib() = {
 	ensure(Math.lerp(-10, 10, 0.75) = 5)
 	ensure(Math.lerp(-10, 10, 1) = 10)
 	
-	## floor, ceil, and round
+	## floor + ceil + round
 	let checkRounding(n) = {
 		let low = n + 0.2
 		let mid = n + 0.5
@@ -738,7 +766,7 @@ let mathLib() = {
 	List.forEach([-1, 0, 1], fun(n)
 		-> checkRounding(n))
 	
-	## rad and deg
+	## rad + deg
 	ensure(
 		Math.closeTo(
 			Math.rad(1), 0.0175, 0.001))
@@ -746,7 +774,7 @@ let mathLib() = {
 		Math.closeTo(
 			Math.deg(1), 57.296, 0.001))
 	
-	## sin, cos, tan
+	## sin + cos + tan
 	ensure(
 		Math.closeTo(
 			Math.sin(90), 0.8939, 0.001))
@@ -757,7 +785,7 @@ let mathLib() = {
 		Math.closeTo(
 			Math.tan(90), -1.9952, 0.001))
 			
-	## asin, acos, atan
+	## asin + acos + atan
 	ensure(
 		Math.closeTo(
 			Math.asin(1), 1.5708, 0.001))
@@ -827,6 +855,7 @@ let tests = List.flatten([
 	"Standard library",
 	[
 		preludeLib,
+		fileLib,
 		listLib,
 		stringLib,
 		mathLib,

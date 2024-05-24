@@ -374,14 +374,14 @@ let functions() = {
 	
 	## recursion
 	let clear(ls) =
-		if (List.length(ls) > 0) {
+		if (!List.isEmpty(ls)) {
 			List.pop(ls)
 			clear(ls)
 		}
 		
 	let nums = [1, 2, 3]
 	clear(nums)
-	ensure(List.length(nums) = 0)
+	ensure(List.isEmpty(nums))
 }
 
 let ifElse() = {
@@ -473,6 +473,10 @@ let listLib() = {
 	ensure(List.length([]) = 0)
 	ensure(List.length([1]) = 1)
 	ensure(List.length([1, 2]) = 2)
+	
+	## isEmpty
+	ensure(List.isEmpty([]))
+	ensure(!List.isEmpty([123]))
 	
 	## add
 	let x = [1, 3, 4]

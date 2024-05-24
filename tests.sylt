@@ -523,7 +523,15 @@ let listLib() = {
 		ensure(index = indices[index])
 		List.push(copy, value)
 	})
-	ensure(copy = indices)
+	ensure(indices = copy)
+	
+	## forEach
+	let items = [1, 2, 3]
+	let copy = []
+	List.forEach(items, fun(value) ->
+		List.push(copy, value)
+	)
+	ensure(items = copy)
 	
 	## map
 	let list = List.map([4, 8, 16], 

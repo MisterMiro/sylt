@@ -2948,6 +2948,12 @@ value_t stdlist_length(sylt_t* ctx) {
 	return wrapnum(listarg(0)->len);
 }
 
+/* returns true if the list is empty */
+value_t stdlist_is_empty(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	return wrapbool(listarg(0)->len == 0);
+}
+
 /* inserts a value at the given index */
 value_t stdlist_add(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
@@ -3605,6 +3611,8 @@ void std_init(sylt_t* ctx) {
 	std_setlib(ctx, "List");
 	std_addf(ctx, "length",
 		stdlist_length, 1);
+	std_addf(ctx, "isEmpty",
+		stdlist_is_empty, 1);
 	std_addf(ctx, "add", stdlist_add, 3);
 	std_addf(ctx, "del", stdlist_del, 2);
 	std_addf(ctx, "push", stdlist_push, 2);

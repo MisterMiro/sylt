@@ -38,6 +38,15 @@
  * executable */
 #define SYLT_STDLIB_PATH "stdlib.sylt"
 
+/* number of bytes that need to be allocated
+ * before triggering the first GC cycle
+ * (0.25 MB) */
+#define GC_INIT_THRESHOLD (1024 * 1024 * 0.25)
+
+/* how much to multiply the GC threshold
+ * by after each collection cycle */
+#define GC_THRESHOLD_CLIMB 1.5
+
 /* == debug flags ==
  * all of these should be set to 0 in
  * release builds */
@@ -285,13 +294,16 @@ void halt(sylt_t*, const char*, ...);
 #define E_INDEX(len, index) \
 	"index out of range, len: %d, i=%d", \
 	(len), (index)
-#define E_KEYNOTFOUND(key) \
-	"key '%.*s' not found", \
-	(key->len), (key->bytes)
 #define E_WRONGARGC(name, need, got) \
 	"%.*s takes %d argument%s but got %d", \
 	(int)name->len, name->bytes, \
 	(need), ((need) == 1 ? "" : "s"), (got)
+#define E_ENSURE_FAILED \
+	"ensure() failed"
+#define E_TODO_REACHED \
+	"todo() reached"
+#define E_UNREACHABLE_REACHED \
+	"unreachable() reached"
 
 /* triggers one of each error */
 void test_errors(sylt_t* ctx) {
@@ -346,6 +358,14 @@ void test_errors(sylt_t* ctx) {
 	/* ensure(false) */
 	src = "ensure(false)";
 	testsrc();
+	
+	/* todo() */
+	src = "todo()";
+	testsrc();
+	
+	/* unreachable() */
+	src = "unreachable()";
+	testsrc();
 }
 
 /* == memory == */
@@ -372,14 +392,6 @@ static unsigned nextpow2(unsigned n) {
 	n |= n >> 16;
 	return ++n;
 }
-
-/* number of bytes that need to be allocated
- * before triggering the first GC cycle */
-#define GC_INIT_THRESHOLD (1024 * 1024)
-
-/* how much to multiply the GC threshold
- * by after each collection cycle */
-#define GC_THRESHOLD_CLIMB 2
 
 /* the GC needs to allocate some memory
  * while working */
@@ -487,9 +499,9 @@ typedef enum {
 	/* memory */
 	OP_LOAD,
 	OP_STORE,
+	OP_ADD_NAME,
 	OP_LOAD_NAME,
 	OP_STORE_NAME,
-	OP_ADD_NAME,
 	OP_LOAD_UPVAL,
 	OP_STORE_UPVAL,
 	OP_LOAD_LIST,
@@ -546,9 +558,9 @@ static opinfo_t OPINFO[] = {
 	[OP_DUP] = {"dup", 0, +1},
 	[OP_LOAD] = {"load", 1, +1},
 	[OP_STORE] = {"store", 1, 0},
+	[OP_ADD_NAME] = {"addName", 1, -1},
 	[OP_LOAD_NAME] = {"loadName", 1, +1},
 	[OP_STORE_NAME] = {"storeName", 1, 0},
-	[OP_ADD_NAME] = {"addName", 1, -1},
 	[OP_LOAD_UPVAL] = {"loadUpval", 1, +1},
 	[OP_STORE_UPVAL] = {"storeUpval", 1, 0},
 	[OP_LOAD_LIST] = {"loadList", 0, -1},
@@ -823,18 +835,12 @@ typedef struct vm_s {
 #define getbool(v) (v).data.num
 #define getnum(v) (v).data.num
 #define getobj(v) (v).data.obj
-#define getlist(v) \
-	((list_t*)(v).data.obj)
-#define getdict(v) \
-	((dict_t*)(v).data.obj)
-#define getstring(v) \
-	((string_t*)(v).data.obj)
-#define getfunc(v) \
-	((func_t*)(v).data.obj)
-#define getclosure(v) \
-	((closure_t*)(v).data.obj)
-#define getupvalue(v) \
-	((upvalue_t*)(v).data.obj)
+#define getlist(v) ((list_t*)getobj(v))
+#define getdict(v) ((dict_t*)getobj(v))
+#define getstring(v) ((string_t*)getobj(v))
+#define getfunc(v) ((func_t*)getobj(v))
+#define getclosure(v) ((closure_t*)getobj(v))
+#define getupvalue(v) ((upvalue_t*)getobj(v))
 
 #define typecheck(ctx, v, t) \
 	if (v.tag != t) \
@@ -859,8 +865,7 @@ static inline void vm_shrink(
 	struct vm_s*, int);
 
 /* for pushing values on the stack */
-#define sylt_push(ctx, v) \
-	vm_push(ctx->vm, v)
+#define sylt_push(ctx, v) vm_push(ctx->vm, v)
 #define sylt_pushnum(ctx, v) \
 	sylt_push(ctx, wrapnum(v))
 #define sylt_pushlist(ctx, v) \
@@ -875,8 +880,7 @@ static inline void vm_shrink(
 	sylt_push(ctx, wrapclosure(v))
 
 /* for popping values off the stack */
-#define sylt_pop(ctx) \
-	vm_pop(ctx->vm)
+#define sylt_pop(ctx) vm_pop(ctx->vm)
 #define sylt_popnum(ctx, v) \
 	getnum(sylt_pop(ctx))
 #define sylt_poplist(ctx) \
@@ -889,8 +893,7 @@ static inline void vm_shrink(
 	getfunc(sylt_pop(ctx))
 
 /* for peeking values down the stack */
-#define sylt_peek(ctx, n) \
-	vm_peek(ctx->vm, n)
+#define sylt_peek(ctx, n) vm_peek(ctx->vm, n)
 #define sylt_peeknum(ctx, n) \
 	getnum(sylt_peek(ctx, n))
 #define sylt_peeklist(ctx, n) \
@@ -1272,37 +1275,6 @@ item_t* dict_find(
 	}
 }
 
-string_t* dict_find_string(
-	const dict_t* dc,
-	const uint8_t* bytes,
-	size_t len,
-	uint32_t hash)
-{
-	if (dc->len == 0)
-		return NULL;
-	
-	/* hash % cap */
-	uint32_t index = hash & (dc->cap - 1);
-	for (;;) {
-		const item_t* item =
-			&dc->items[index];
-		if (!item->key)
-			return NULL;
-		
-		bool eq = len == item->key->len
-			&& hash == item->key->hash
-			&& strncmp(
-				(char*)bytes,
-				(char*)item->key->bytes,
-				len) == 0;
-		if (eq)
-			return item->key;
-			
-		/* (index + 1) % cap */
-		index = (index + 1) & (dc->cap - 1);
-	}
-}
-
 /* sets the capacity and reallocates the 
  * backing array */
 void dict_setcap(
@@ -1410,7 +1382,7 @@ uint32_t dict_calc_hash(
 {
 	uint32_t hash = 2166136261u;
 	for (int i = 0; i < len; i++) {
-		hash ^= (uint8_t)bytes[i];
+		hash ^= bytes[i];
 		hash *= 16777619;
 	}
 	return hash;
@@ -1917,7 +1889,7 @@ static string_t* val_tostring(
 	default: unreachable();
 	}
 	
-	sylt_pop(ctx); /* value */
+	sylt_pop(ctx); /* val */
 	return str;
 }
 
@@ -1989,7 +1961,8 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 }
 
 void vm_free(vm_t* vm) {
-	arr_free(vm->stack, 
+	arr_free(
+		vm->stack, 
 		value_t,
 		vm->maxstack,
 		vm->ctx);
@@ -2015,12 +1988,12 @@ void dbg_print_mem_stats(sylt_t* ctx) {
 	sylt_dprintf(
 		"[memory]\n"
 		"- leaked: %ld bytes\n"
-		"- top usage: %ld bytes / %ld MB\n"
-		"- allocations: %ld / %ld objects\n"
+		"- top usage: %ld bytes (%g MB)\n"
+		"- allocations: %ld (%ld objects)\n"
 		"- gc cycles: %ld\n",
 		ctx->mem.bytes - sizeof(sylt_t),
 		ctx->mem.highest,
-		ctx->mem.highest / 1024 / 1024,
+		ctx->mem.highest / 1024.0f / 1024.0f,
 		ctx->mem.count,
 		ctx->mem.objcount,
 		ctx->mem.gc.cycles);
@@ -2349,16 +2322,15 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			{
 				uint8_t is_local = read8();
 				uint8_t index = read8();
-				upvalue_t* upval = NULL;
 				
 				if (is_local)
-					upval = vm_cap_upval(vm,
-						vm->fp->offs + index);
+					cls->upvals[i] =
+						vm_cap_upval(vm,
+							vm->fp->offs
+								+ index);
 				else
-					upval = vm->fp->
+					cls->upvals[i] = vm->fp->
 						cls->upvals[index];
-				
-				cls->upvals[i] = upval;
 			}
 			
 			gc_resume(vm->ctx);
@@ -2375,8 +2347,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			break;
 		}
 		case OP_DUP: {
-			value_t val = peek(0);
-			push(val);
+			push(peek(0));
 			break;
 		}
 		/* == memory == */
@@ -2386,6 +2357,13 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 		}
 		case OP_STORE: {
 			func_stack()[read8()] = peek(0);
+			break;
+		}
+		case OP_ADD_NAME: {
+			string_t* name = getstring(
+				readval());
+			dict_set(vm->gdict,
+				name, pop(), vm->ctx);
 			break;
 		}
 		case OP_LOAD_NAME: {
@@ -2418,13 +2396,6 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				unreachable();
 			}
 				
-			break;
-		}
-		case OP_ADD_NAME: {
-			string_t* name = getstring(
-				readval());
-			dict_set(vm->gdict,
-				name, pop(), vm->ctx);
 			break;
 		}
 		case OP_LOAD_UPVAL: {
@@ -2810,16 +2781,22 @@ value_t std_type_of(sylt_t* ctx) {
 value_t std_ensure(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_BOOL);
 	if (!boolarg(0)) {
-		halt(ctx, "ensure failed");
+		halt(ctx, E_ENSURE_FAILED);
 		unreachable();
 	}
 	
 	return arg(0);
 }
 
-/* marks code as not yet implemented */
+/* marks a code path not yet implemented */
 value_t std_todo(sylt_t* ctx) {
-	halt(ctx, "todo() reached");
+	halt(ctx, E_TODO_REACHED);
+	return nil();
+}
+
+/* marks a code path unreachable */
+value_t std_unreachable(sylt_t* ctx) {
+	halt(ctx, E_UNREACHABLE_REACHED);
 	return nil();
 }
 
@@ -3411,6 +3388,8 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "typeOf", std_type_of, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
+	std_addf(ctx, "unreachable",
+		std_unreachable, 0);
 		
 	/* sys */
 	std_setlib(ctx, "Sys");
@@ -3697,6 +3676,8 @@ void comp_copy_parse_state(
 
 void comp_simstack(comp_t* cmp, int n) {
 	cmp->curslots += n;
+	
+	/* TODO: uncomment */
 	//assert(cmp->curslots >= 0);
 	
 	if (cmp->curslots > MAX_STACK) {
@@ -5327,7 +5308,7 @@ bool sylt_xstring(
 	sylt_pushstring(ctx,
 		string_lit(src, ctx));
 	sylt_pushstring(ctx,
-		string_lit("(input)", ctx));
+		string_lit("<input>", ctx));
 	
 	compile_and_run(ctx, ctx->cmp);
 	return true;

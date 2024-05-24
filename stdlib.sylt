@@ -1,4 +1,6 @@
 
+## calls f n times, passing the current
+## iteration count to f
 let rep(n, f) = {
 	let i = 0
 	while (i < n) {
@@ -7,16 +9,22 @@ let rep(n, f) = {
 	}
 }
 
+## calls f for each item in the list,
+## passing the index as the first argument,
+## and the item as the second
 let List.iter(list, f) = {
 	rep(List.length(list), fun(i) ->
 		f(i, list[i]))
 }
 
+## calls f for each item in the list,
+## passing the item as the argument
 let List.forEach(list, f) = {
 	rep(List.length(list), fun(i) ->
 		f(list[i]))
 }
 
+## passes each value in the list through f
 let List.map(list, f) = {
 	let mapped = []
 	List.forEach(list, fun(value) ->
@@ -26,6 +34,8 @@ let List.map(list, f) = {
 	mapped
 }
 
+## returns a list containing all values
+## that pass the predicate f
 let List.filter(list, f) = {
 	let filtered = []
 	List.forEach(list, fun(value) ->
@@ -36,6 +46,11 @@ let List.filter(list, f) = {
 	filtered
 }
 
+## reduces a list down to a single value,
+## with an initial value of init,
+## passing the current accumulator as the
+## first argument to f, and the current item
+## as the second
 let List.fold(list, init, f) = {
 	let folded = init
 	List.forEach(list, fun(value) ->
@@ -45,11 +60,19 @@ let List.fold(list, init, f) = {
 	folded
 }
 
+## returns the sum of all numbers in a list
 let List.sum(list) = {
 	List.fold(list, 0, fun(sum, value) ->
 		sum + value)
 }
 
+## returns the average value in a list
+## of numbers
+let List.average(list) =
+	List.sum(list) / List.length(list)
+
+## returns a version of the original
+## list with any nested lists flattened out
 let List.flatten(list) = {
 	let flat = []
 	List.forEach(list, fun(item) ->
@@ -62,6 +85,8 @@ let List.flatten(list) = {
 	flat
 }
 
+## returns true if any value in the list
+## satisfies the predicate f
 let List.any(list, f) = {
 	let loop(i) =
 		if (i < List.length(list)) {
@@ -72,6 +97,8 @@ let List.any(list, f) = {
 	loop(0)
 }
 
+## returns true if all values in the list
+## satisfy the predicate f
 let List.all(list, f) = {
 	let loop(i) =
 		if (i < List.length(list)) {

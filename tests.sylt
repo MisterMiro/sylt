@@ -629,6 +629,18 @@ let stringLib() = {
 	## trim
 	ensure(String.trim("\n\t hi \n\t") = "hi")
 	ensure(String.trim("hi") = "hi")
+	
+	## replaceAll
+	let str = "leet"
+	str <- String.replaceAll(str,
+		"leet", "1337")
+	ensure(str = "1337")
+	
+	str <- "leet"
+	str <- String.replaceAll(str, "e", "3")
+	str <- String.replaceAll(str, "l", "1")
+	str <- String.replaceAll(str, "t", "7")
+	ensure(str = "1337")
 }
 
 let mathLib() = {

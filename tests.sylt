@@ -486,6 +486,11 @@ let listLib() = {
 	List.pop(x) ## = []
 	ensure(x = [] and List.length(x) = 0)
 	
+	## first and last
+	let list = ["first", "middle", "last"]
+	ensure(List.first(list) = "first")
+	ensure(List.last(list) = "last")
+	
 	## concat
 	let a = [1, 2]
 	let b = [3, 4]
@@ -500,6 +505,10 @@ let listLib() = {
 	let list = ["a", "B", "c"]
 	ensure(List.contains(list, "B"))
 	ensure(!List.contains(list, "b"))
+	
+	## rev
+	let normal = [1, 2, 3]
+	ensure(List.rev(normal) = [3, 2, 1])
 	
 	## range
 	let a = List.range(-3, 3)

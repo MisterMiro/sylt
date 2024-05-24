@@ -553,6 +553,10 @@ let listLib() = {
 	let list = [1, 2, 3]
 	ensure(List.sum(list) = 6)
 	
+	## average
+	let list = [1, 2, 3]
+	printLn(List.average(list))
+	
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]
 	let clean = List.flatten(mess)
@@ -663,7 +667,7 @@ let mathLib() = {
 		3, 14, 2000, 18000, 2000000,
 	]
 	
-	let logRaise(base, target) = {
+	let testLog(base, target) = {
 		let power = Math.log(target, base)
 		let result = Math.pow(base, power)
 		ensure(Math.closeTo(
@@ -671,7 +675,7 @@ let mathLib() = {
 	}
 	
 	List.forEach(bases, fun(base) ->
-		logRaise(base, target))
+		testLog(base, target))
 	
 	## sqrt
 	ensure(Math.sqrt(256) = 16)
@@ -751,6 +755,24 @@ let mathLib() = {
 	ensure(
 		Math.closeTo(
 			Math.atan(1), 0.785398, 0.001))
+	
+	## isPositive
+	ensure(Math.isPositive(3))
+	ensure(Math.isPositive(0))
+	ensure(!Math.isPositive(-1))
+	
+	## isNegative
+	ensure(Math.isNegative(-3))
+	ensure(!Math.isNegative(0))
+	ensure(!Math.isNegative(1))
+	
+	## isZero
+	ensure(Math.isZero(0))
+	ensure(!Math.isZero(3))
+	ensure(!Math.isZero(-3))
+	
+	## factorial
+	ensure(Math.factorial(5) = 120)
 }
 
 ## tests to run

@@ -7,34 +7,42 @@ let rep(n, f) = {
 	}
 }
 
-let List.forEach(list, f) = {
+let List.iter(list, f) = {
 	rep(List.length(list), fun(i) ->
 		f(i, list[i]))
 }
 
+let List.forEach(list, f) = {
+	rep(List.length(list), fun(i) ->
+		f(list[i]))
+}
+
 let List.map(list, f) = {
-	let result = []
-	List.forEach(list, fun(i, value) ->
-		List.push(result, f(value))
+	let mapped = []
+	List.forEach(list, fun(value) ->
+		List.push(mapped, f(value))
 	)
-	result
+	
+	mapped
 }
 
 let List.filter(list, f) = {
-	let result = []
-	List.forEach(list, fun(_, value) ->
+	let filtered = []
+	List.forEach(list, fun(value) ->
 		if (f(value))
-			List.push(result, value)
+			List.push(filtered, value)
 	)
-	result
+	
+	filtered
 }
 
 let List.fold(list, init, f) = {
-	let result = init
-	List.forEach(list, fun(_, value) ->
-		result <- f(result, value)
+	let folded = init
+	List.forEach(list, fun(value) ->
+		folded <- f(folded, value)
 	)
-	result
+	
+	folded
 }
 
 let List.sum(list) = {
@@ -43,15 +51,15 @@ let List.sum(list) = {
 }
 
 let List.flatten(list) = {
-	let result = []
-	List.forEach(list, fun(i, item) ->
+	let flat = []
+	List.forEach(list, fun(item) ->
 		if (typeOf(item) = "List") {
-			result <- List.concat(result,
-					List.flatten(item))
-		} else List.push(result, item)
+			let child = List.flatten(item)
+			flat <- List.concat(flat, child)
+		} else List.push(flat, item)
 	)
-		
-	result
+	
+	flat
 }
 
 let List.any(list, f) = {

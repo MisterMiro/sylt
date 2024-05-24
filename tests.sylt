@@ -188,13 +188,13 @@ let equality() = {
 		fun(x) -> x,	## Func
 	]
 	
-	List.forEach(values, fun(skip, value) -> {
+	List.iter(values, fun(skip, value) -> {
 		## equal to itself
 		ensure(value = value)
 		
 		## not equal to a value of any other
 		## type
-		List.forEach(values,
+		List.iter(values,
 			fun(index, other) ->
 				if (index != skip)
 					ensure(value != other)
@@ -515,10 +515,10 @@ let listLib() = {
 	let b = [-3, -2, -1, 0, 1, 2]
 	ensure(a = b)
 	
-	## forEach
+	## iter
 	let indices = [0, 1, 2]
 	let copy = []
-	List.forEach(indices, fun(index, value) ->
+	List.iter(indices, fun(index, value) ->
 	{
 		ensure(index = indices[index])
 		List.push(copy, value)
@@ -662,7 +662,7 @@ let mathLib() = {
 			result, target, 0.00001))
 	}
 	
-	List.forEach(bases, fun(_, base) ->
+	List.forEach(bases, fun(base) ->
 		logRaise(base, target))
 	
 	## sqrt
@@ -711,7 +711,7 @@ let mathLib() = {
 		)
 	}
 	
-	List.forEach([-1, 0, 1], fun(_, n)
+	List.forEach([-1, 0, 1], fun(n)
 		-> checkRounding(n))
 	
 	## rad and deg
@@ -796,7 +796,7 @@ let n = 1
 ensure(n > 0)
 
 ## let's go!
-List.forEach(tests, fun(_, value) ->
+List.forEach(tests, fun(value) ->
 	if (typeOf(value) = "String") {
 		print(value)
 		printLn(":")

@@ -40,7 +40,7 @@
 
 /* number of bytes that need to be allocated
  * before triggering the first GC cycle
- * (0.25 MB) */
+ * (0.25 MB by default) */
 #define GC_INIT_THRESHOLD (1024 * 1024 * 0.25)
 
 /* how much to multiply the GC threshold
@@ -3106,6 +3106,50 @@ value_t stdstring_trim(sylt_t* ctx) {
 	return res;
 }
 
+/* replaces all occurrences of the substring
+ * 'find' with 'replace' */
+value_t stdstring_replace_all(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	typecheck(ctx, arg(2), TYPE_STRING);
+	
+	string_t* str = stringarg(0);
+	string_t* find = stringarg(1);
+	string_t* replace = stringarg(2);
+	
+	string_t* new_str =
+		string_lit("", ctx);
+		
+	for (size_t i = 0; i < str->len;) {
+		bool found_match =
+			find->len <= str->len - i
+			&& strncmp(
+				(const char*)str->bytes + i,
+				(const char*)find->bytes,
+				find->len) == 0;
+		
+		if (found_match) {
+			sylt_pushstring(ctx, new_str);
+			sylt_pushstring(ctx, replace);
+			sylt_concat(ctx);
+			new_str = sylt_popstring(ctx);
+			i += find->len;
+			continue;
+		}
+		
+		sylt_pushstring(ctx, new_str);
+		sylt_pushstring(ctx, string_new(
+			(unsigned char*)str->bytes + i,
+			1, ctx));
+		sylt_concat(ctx);
+		new_str = sylt_popstring(ctx);
+		i++;
+	}
+	
+	string_rehash(new_str, ctx);
+	return wrapstring(new_str);
+}
+
 /* == math lib == */
 
 /* returns true if a is nearly equal
@@ -3487,6 +3531,8 @@ void std_init(sylt_t* ctx) {
 		stdstring_trim_end, 1);
 	std_addf(ctx, "trim",
 		stdstring_trim, 1);
+	std_addf(ctx, "replaceAll",
+		stdstring_replace_all, 3);
 	
 	/* math */
 	std_setlib(ctx, "Math");

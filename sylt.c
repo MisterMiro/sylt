@@ -1140,6 +1140,15 @@ size_t list_index(
 	return index;
 }
 
+/* returns the nth item in the list, errors
+ * if the index is out of bounds */
+value_t list_get(
+	list_t* ls, int index, sylt_t* ctx)
+{
+	index = list_index(ls, index, ctx);
+	return ls->items[index];
+}
+
 /* inserts an item at the given index */
 void list_insert(
 	list_t* ls,
@@ -2859,6 +2868,18 @@ value_t stdlist_pop(sylt_t* ctx) {
 	return list_pop(listarg(0), ctx);
 }
 
+/* returns the first item in the list */
+value_t stdlist_first(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	return list_get(listarg(0), 0, ctx);
+}
+
+/* returns the last item in the list */
+value_t stdlist_last(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	return list_get(listarg(0), -1, ctx);
+}
+
 /* concatenates two lists */
 value_t stdlist_concat(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
@@ -2884,6 +2905,24 @@ value_t stdlist_contains(sylt_t* ctx) {
 	bool result = list_count(
 		listarg(0), arg(1)) > 0;
 	return wrapbool(result);
+}
+
+/* reverses the items in the list */
+value_t stdlist_rev(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	
+	list_t* old_ls = listarg(0);
+	if (old_ls->len == 0)
+		return arg(0);
+	
+	list_t* new_ls = list_new(ctx);
+	for (size_t i = 0; i < old_ls->len; i++)
+		list_push(new_ls,
+			old_ls->items[
+				old_ls->len - i - 1],
+			ctx);
+	
+	return wraplist(new_ls);
 }
 
 /* returns a list containing a range of 
@@ -3406,12 +3445,16 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "del", stdlist_del, 2);
 	std_addf(ctx, "push", stdlist_push, 2);
 	std_addf(ctx, "pop", stdlist_pop, 1);
+	std_addf(ctx, "first", stdlist_first, 1);
+	std_addf(ctx, "last", stdlist_last, 1);
 	std_addf(ctx, "concat",
 		stdlist_concat, 2);
 	std_addf(ctx, "count",
 		stdlist_count, 2);
 	std_addf(ctx, "contains",
 		stdlist_contains, 2);
+	std_addf(ctx, "rev",
+		stdlist_rev, 1);
 	std_addf(ctx, "range",
 		stdlist_range, 2);
 	

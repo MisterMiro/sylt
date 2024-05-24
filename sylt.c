@@ -112,6 +112,7 @@ static void dbg_print_flags(void) {
 #define MAX_PARAMS UINT8_MAX
 #define MAX_UPVALUES UINT8_MAX
 #define MAX_ERRMSGLEN 1024
+#define MAX_FILES 2048
 
 /* == debug macros == */
 
@@ -265,6 +266,8 @@ void halt(sylt_t*, const char*, ...);
 	"no file path specified"
 #define E_OPENFAILED(path) \
 	"failed to open '%s'", (path)
+#define E_INVALID_HANDLE(handle) \
+	"invalid file handle: %d", (handle)
 #define E_UNEXPECTEDCHAR(c) \
 	"unexpected character '%c'", (c)
 #define E_TYPE(ex, got) \
@@ -788,6 +791,9 @@ typedef struct vm_s {
 	
 	/* special slot for return value */
 	value_t hidden;
+	
+	/* file handles opened by user */
+	FILE* files[MAX_FILES];
 	
 	/* reference to API */
 	sylt_t* ctx;
@@ -1963,6 +1969,8 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->gdict = dict_new(ctx);
 	vm->openups = NULL;
 	vm->hidden = nil();
+	for (size_t i = 0; i < MAX_FILES; i++)
+		vm->files[i] = NULL;
 	vm->ctx = ctx;
 	
 	/* initialize some stack space */
@@ -1975,6 +1983,10 @@ void vm_free(vm_t* vm) {
 		value_t,
 		vm->maxstack,
 		vm->ctx);
+		
+	for (size_t i = 0; i < MAX_FILES; i++)
+		if (vm->files[i])
+			fclose(vm->files[i]);
 }
 
 /* VM macros */
@@ -2829,6 +2841,105 @@ value_t stdsys_cpu_time(sylt_t* ctx) {
 		(double)clock() / CLOCKS_PER_SEC);
 }
 
+/* == file lib == */
+
+/* opens a file for reading or writing,
+ * returning a handle */
+value_t stdfile_open(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	
+	string_t* path = stringarg(0);
+	string_t* mode = stringarg(1);
+	
+	int handle = -1;
+	for (size_t i = 0; i < MAX_FILES; i++)
+		if (!ctx->vm->files[i]) {
+			handle = i;
+			break;
+		}
+	
+	if (handle == -1)
+		halt(ctx, E_OPENFAILED(path));
+	
+	ctx->vm->files[handle] = fopen(
+		(const char*)path->bytes,
+		(const char*)mode->bytes);
+	return wrapnum(handle);
+}
+
+/* closes a handle returned by File.open */
+value_t stdfile_close(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+		
+	fclose(fp);
+	return nil();
+}
+
+/* writes a value to an open file */
+value_t stdfile_write(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	string_t* str = val_tostring(
+		arg(1), ctx);
+	
+	for (size_t i = 0; i < str->len; i++)
+		putc(str->bytes[i], fp);
+	
+	return nil();
+}
+
+/* returns a string containig n bytes read
+ * from file */
+value_t stdfile_read(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	int64_t n = (int64_t)numarg(1);
+	string_t* str = string_new(NULL, n, ctx);
+	fread(str->bytes, 1, n, fp);
+	string_rehash(str, ctx);
+	return wrapstring(str);
+}
+
+/* returns the size (in bytes) of an open
+ * file */
+value_t stdfile_size(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	fseek(fp, 0, SEEK_END);
+	size_t size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	return wrapnum(size);
+}
+
+/* deletes a file */
+value_t stdfile_del(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	string_t* path = stringarg(0);
+	remove((char*)path->bytes);
+	return nil();
+}
+
 /* == list lib == */
 
 /* returns the length of arg(0) */
@@ -3480,6 +3591,15 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "time", stdsys_time, 0);
 	std_addf(ctx, "cpuTime",
 		stdsys_cpu_time, 0);
+		
+	/* file */
+	std_setlib(ctx, "File");
+	std_addf(ctx, "open", stdfile_open, 2);
+	std_addf(ctx, "close", stdfile_close, 1);
+	std_addf(ctx, "write", stdfile_write, 2);
+	std_addf(ctx, "read", stdfile_read, 2);
+	std_addf(ctx, "size", stdfile_size, 1);
+	std_addf(ctx, "del", stdfile_del, 1);
 	
 	/* list */
 	std_setlib(ctx, "List");

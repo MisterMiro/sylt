@@ -546,16 +546,16 @@ let listLib() = {
 	
 	## fold
 	let list = [2, 4, 6]
-	ensure(List.fold(list, 1,
-		fun(prod, value) -> prod * value)
-			= 48)
+	let f = fun(prod, value) -> prod * value
+	ensure(List.fold(list, 1, f) = 48)
+	
 	## sum
 	let list = [1, 2, 3]
 	ensure(List.sum(list) = 6)
 	
 	## average
 	let list = [1, 2, 3]
-	printLn(List.average(list))
+	ensure(List.average(list) = 2)
 	
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]
@@ -838,9 +838,9 @@ List.forEach(tests, fun(value) ->
 		
 		## align
 		let width = 20
-		let len = List.length(
+		let dots = width - List.length(
 			String.chars(name))
-		rep(width - len, fun(_) -> print("."))
+		rep(dots, fun(_) -> print("."))
 		
 		## run it
 		rep(n, fun(_) -> value())

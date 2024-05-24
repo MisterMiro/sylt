@@ -1,3 +1,6 @@
+## note: most of the standard library is
+## implemented in C, only a small portion
+## of it is implemented here
 
 ## calls f n times, passing the current
 ## iteration count to f
@@ -107,4 +110,22 @@ let List.all(list, f) = {
 		} else true
 		
 	loop(0)
+}
+
+## returns true if n is greater than or
+## equal to zero
+let Math.isPositive(n) = n >= 0
+
+## returns true if n is less than zero
+let Math.isNegative(n) = n < 0
+
+## returns true if n is exactly zero
+let Math.isZero(n) = n = 0
+
+## returns n!
+let Math.factorial(n) = {
+	ensure(Math.isPositive(n))
+	
+	if (n >= 1) n * Math.factorial(n - 1)
+	else 1
 }

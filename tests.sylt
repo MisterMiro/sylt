@@ -427,7 +427,15 @@ let preludeLib() = {
 	ensure(asString(printLn) = "printLn")
 	
 	## asNum
+	ensure(asNum(nil) = 0)
+	ensure(asNum(true) = 1)
+	ensure(asNum(false) = 0)
+	ensure(asNum(112) = 112)
 	ensure(asNum("1337.25") = 1337.25)
+	ensure(asNum("") = 0)
+	ensure(asNum("error") = 0)
+	ensure(asNum([1, 2, 4]) = 0)
+	ensure(asNum(fun(_) -> {}) = 0)
 	
 	## typeOf
 	ensure(typeOf(nil) = "Nil")
@@ -446,10 +454,11 @@ let preludeLib() = {
 
 let fileLib() = {
 	let path = "test_file.txt"
+	let str = "Hey\n"
 	
 	## open + write + close
 	let handle = File.open(path, "w")
-	File.write(handle, "Hey\n")
+	File.write(handle, str)
 	File.close(handle)
 	
 	## size
@@ -461,7 +470,7 @@ let fileLib() = {
 	## read
 	let handle = File.open(path, "r")
 	let contents = File.read(handle, size)
-	ensure(contents = "Hey\n")
+	ensure(contents = str)
 	File.close(handle)
 	
 	## del

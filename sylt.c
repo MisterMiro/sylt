@@ -111,7 +111,7 @@ static void dbg_print_flags(void) {
 #define MAX_CFRAMES 32768
 #define MAX_PARAMS UINT8_MAX
 #define MAX_UPVALUES UINT8_MAX
-#define MAX_ERRMSGLEN 1024
+#define MAX_ERRMSGLEN 2048
 #define MAX_FILES 2048
 
 /* == debug macros == */
@@ -1122,7 +1122,7 @@ bool list_eq(
 	if (a->len != b->len)
 		return false;
 		
-	for (int i = 0; i < a->len; i++)
+	for (size_t i = 0; i < a->len; i++)
 		if (!val_eq(a->items[i], b->items[i]))
 			return false;
 		
@@ -2245,7 +2245,6 @@ void vm_close_upvals(
 	while (vm->openups &&
 		vm->openups->index >= last)
 	{
-	
 		upvalue_t* upval = vm->openups;
 		upval->closed = vm->stack[
 			upval->index];
@@ -2260,9 +2259,9 @@ void vm_ensure_stack(vm_t* vm, int needed) {
 	if (vm->maxstack >= needed)
 		return;
 	
-	gc_pause(vm->ctx);
 	size_t offset = vm->sp - vm->stack;
 	
+	gc_pause(vm->ctx);
 	vm->stack = arr_resize(
 		vm->stack,
 		value_t,
@@ -2270,8 +2269,8 @@ void vm_ensure_stack(vm_t* vm, int needed) {
 		needed,
 		vm->ctx);	
 	vm->maxstack = needed;
-	
 	gc_resume(vm->ctx);
+	
 	vm->sp = vm->stack + offset;
 }
 
@@ -2786,8 +2785,18 @@ value_t std_as_string(sylt_t* ctx) {
 /* returns x converted to a number, or 0 if 
  * conversion failed */
 value_t std_as_num(sylt_t* ctx) {
-	sylt_num_t num = num_func(strtof, strtod)
+	sylt_num_t num;
+	
+	switch (arg(0).tag) {
+	case TYPE_BOOL: num = boolarg(0); break;
+	case TYPE_NUM: num = numarg(0); break;
+	case TYPE_STRING:
+		num = num_func(strtof, strtod)
 		((char*)stringarg(0)->bytes, NULL);
+		break;
+	default: num = 0;
+	}
+	
 	return wrapnum(num);
 }
 

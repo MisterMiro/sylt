@@ -3280,7 +3280,7 @@ value_t stdstring_replace_all(sylt_t* ctx) {
 
 /* returns true if a is nearly equal
  * to b, within a tolerance of epsilon */
-value_t stdmath_close_to(sylt_t* ctx) {
+value_t stdmath_float_eq(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	typecheck(ctx, arg(2), TYPE_NUM);
@@ -3675,8 +3675,8 @@ void std_init(sylt_t* ctx) {
 	std_setlib(ctx, "Math");
 	std_add(ctx, "pi", wrapnum(M_PI));
 	std_add(ctx, "e", wrapnum(M_E));
-	std_addf(ctx, "closeTo",
-		stdmath_close_to, 3);
+	std_addf(ctx, "floatEq",
+		stdmath_float_eq, 3);
 	std_addf(ctx, "numSign",
 		stdmath_num_sign, 1);
 	std_addf(ctx, "abs", stdmath_abs, 1);
@@ -5587,10 +5587,10 @@ void print_usage(void) {
 	sylt_printf(
 		"usage: sylt [path|flag(s)]\n");
 	sylt_printf("available flags:\n");
-	sylt_printf("-help  shows this\n");
-	sylt_printf("-ver   prints version\n");
-	sylt_printf("-test  runs tests\n");
-	sylt_printf("-bench runs benchmarks\n");
+	sylt_printf("-help    shows this\n");
+	sylt_printf("-version prints version\n");
+	sylt_printf("-test    runs tests\n");
+	sylt_printf("-bench   runs benchmarks\n");
 }
 
 void print_version(void) {
@@ -5621,7 +5621,7 @@ int main(int argc, char *argv[]) {
 			print_usage();
 			
 		} else if (string_eq(arg,
-			string_lit("-ver", ctx))) {
+			string_lit("-version", ctx))) {
 			print_version();
 			
 		} else if (string_eq(arg,

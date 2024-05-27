@@ -31,8 +31,7 @@ let List.forEach(list, f) = {
 let List.map(list, f) = {
 	let mapped = []
 	List.forEach(list, fun(value) ->
-		List.push(mapped, f(value))
-	)
+		List.push(mapped, f(value)))
 	
 	mapped
 }
@@ -43,8 +42,7 @@ let List.filter(list, f) = {
 	let filtered = []
 	List.forEach(list, fun(value) ->
 		if (f(value))
-			List.push(filtered, value)
-	)
+			List.push(filtered, value))
 	
 	filtered
 }
@@ -57,22 +55,21 @@ let List.filter(list, f) = {
 let List.fold(list, init, f) = {
 	let folded = init
 	List.forEach(list, fun(value) ->
-		folded <- f(folded, value)
-	)
+		folded <- f(folded, value))
 	
 	folded
 }
 
 ## returns the sum of all numbers in a list
-let List.sum(list) = {
+let List.sum(list) =
 	List.fold(list, 0, fun(sum, value) ->
 		sum + value)
-}
 
 ## returns the average value in a list
 ## of numbers
 let List.average(list) =
-	List.sum(list) / List.length(list)
+	if (List.isEmpty(list)) 0
+	else List.sum(list) / List.length(list)
 
 ## returns a version of the original
 ## list with any nested lists flattened out
@@ -90,41 +87,19 @@ let List.flatten(list) = {
 
 ## returns true if any value in the list
 ## satisfies the predicate f
-let List.any(list, f) = {
-	let loop(i) =
-		if (i < List.length(list)) {
-			if (f(list[i])) true
-			else loop(i + 1)
-		} else false
-		
-	loop(0)
-}
+let List.any(list, f) =
+	List.fold(list, false, fun(acc, val) ->
+		acc or f(val))
 
 ## returns true if all values in the list
 ## satisfy the predicate f
-let List.all(list, f) = {
-	let loop(i) =
-		if (i < List.length(list)) {
-			if (!f(list[i])) false
-			else loop(i + 1)
-		} else true
-		
-	loop(0)
-}
-
-## returns true if n is greater than or
-## equal to zero
-let Math.isPositive(n) = n >= 0
-
-## returns true if n is less than zero
-let Math.isNegative(n) = n < 0
-
-## returns true if n is exactly zero
-let Math.isZero(n) = n = 0
+let List.all(list, f) =
+	List.fold(list, true, fun(acc, val) ->
+		acc and f(val))
 
 ## returns n!
 let Math.factorial(n) = {
-	ensure(Math.isPositive(n))
+	ensure(n >= 0)
 	
 	if (n >= 1) n * Math.factorial(n - 1)
 	else 1

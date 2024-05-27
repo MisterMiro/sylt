@@ -453,7 +453,7 @@ let preludeLib() = {
 }
 
 let fileLib() = {
-	let path = "test_file.txt"
+	let path = "sylt_test_file.txt"
 	let str = "Hey\n"
 	
 	## open + write + close
@@ -464,7 +464,8 @@ let fileLib() = {
 	## size
 	let handle = File.open(path, "r")
 	let size = File.size(handle)
-	ensure(size = 4)
+	ensure(size =
+		List.length(String.chars(str)))
 	File.close(handle)
 	
 	## read
@@ -579,13 +580,12 @@ let listLib() = {
 	
 	## filter
 	let list = [1, 0, 0, 1, 1, 0]
-	list <- List.filter(list,
-		fun(n) -> n = 1)
+	list <- List.filter(list, fun(n) -> n = 1)
 	ensure(list = [1, 1, 1])
 	
 	## fold
 	let list = [2, 4, 6]
-	let f = fun(prod, value) -> prod * value
+	let f(product, value) = product * value
 	ensure(List.fold(list, 1, f) = 48)
 	
 	## sum
@@ -689,20 +689,20 @@ let stringLib() = {
 
 let mathLib() = {
 	## pi
-	ensure(Math.closeTo(
+	ensure(Math.floatEq(
 		Math.pi, 3.141592, 0.00001))
 	
 	## euler's number
-	ensure(Math.closeTo(
+	ensure(Math.floatEq(
 		Math.e, 2.718281, 0.00001))
 	
-	## closeTo
+	## floatEq
 	let zero = 0
 	let val = 0.005
 	let epsilon = 0.01
 	
-	ensure(Math.closeTo(zero, val, epsilon))
-	ensure(!Math.closeTo(zero, epsilon,
+	ensure(Math.floatEq(zero, val, epsilon))
+	ensure(!Math.floatEq(zero, epsilon,
 		epsilon))
 	
 	## numSign
@@ -726,7 +726,7 @@ let mathLib() = {
 	let testLog(base, target) = {
 		let power = Math.log(target, base)
 		let result = Math.pow(base, power)
-		ensure(Math.closeTo(
+		ensure(Math.floatEq(
 			result, target, 0.00001))
 	}
 	
@@ -784,32 +784,32 @@ let mathLib() = {
 	
 	## rad + deg
 	ensure(
-		Math.closeTo(
+		Math.floatEq(
 			Math.rad(1), 0.0175, 0.001))
 	ensure(
-		Math.closeTo(
+		Math.floatEq(
 			Math.deg(1), 57.296, 0.001))
 	
 	## sin + cos + tan
 	ensure(
-		Math.closeTo(
+		Math.floatEq(
 			Math.sin(90), 0.8939, 0.001))
 	ensure(
-		Math.closeTo(
+		Math.floatEq(
 			Math.cos(90), -0.4480, 0.001))
 	ensure(
-		Math.closeTo(
+		Math.floatEq(
 			Math.tan(90), -1.9952, 0.001))
 			
 	## asin + acos + atan
 	ensure(
-		Math.closeTo(
+		Math.floatEq(
 			Math.asin(1), 1.5708, 0.001))
 	ensure(
-		Math.closeTo(
+		Math.floatEq(
 			Math.acos(1), 0, 0.001))
 	ensure(
-		Math.closeTo(
+		Math.floatEq(
 			Math.atan(1), 0.785398, 0.001))
 	
 	## factorial

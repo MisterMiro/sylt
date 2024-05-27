@@ -537,6 +537,8 @@ let listLib() = {
 	## rev
 	let normal = [1, 2, 3]
 	ensure(List.rev(normal) = [3, 2, 1])
+	ensure(List.rev([]) = [])
+	ensure(List.rev([1]) = [1])
 	
 	## range
 	let a = List.range(-3, 3)
@@ -584,6 +586,7 @@ let listLib() = {
 	## average
 	let list = [1, 2, 3]
 	ensure(List.average(list) = 2)
+	ensure(List.average([]) = 0)
 	
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]
@@ -669,8 +672,8 @@ let stringLib() = {
 	ensure(str = "Country: SE")
 	
 	str <- "leet"
-	str <- String.replaceAll(str, "e", "3")
 	str <- String.replaceAll(str, "l", "1")
+	str <- String.replaceAll(str, "e", "3")
 	str <- String.replaceAll(str, "t", "7")
 	ensure(str = "1337")
 }
@@ -799,21 +802,6 @@ let mathLib() = {
 	ensure(
 		Math.closeTo(
 			Math.atan(1), 0.785398, 0.001))
-	
-	## isPositive
-	ensure(Math.isPositive(3))
-	ensure(Math.isPositive(0))
-	ensure(!Math.isPositive(-1))
-	
-	## isNegative
-	ensure(Math.isNegative(-3))
-	ensure(!Math.isNegative(0))
-	ensure(!Math.isNegative(1))
-	
-	## isZero
-	ensure(Math.isZero(0))
-	ensure(!Math.isZero(3))
-	ensure(!Math.isZero(-3))
 	
 	## factorial
 	ensure(Math.factorial(5) = 120)

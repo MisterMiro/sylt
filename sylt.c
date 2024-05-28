@@ -2877,6 +2877,22 @@ value_t std_unreachable(sylt_t* ctx) {
 	return nil();
 }
 
+value_t std_eval(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	
+	/* TODO: improve */
+	sylt_t* eval = sylt_new();
+	eval->vm->gdict = ctx->vm->gdict;
+	sylt_xstring(eval,
+		(const char*)stringarg(0)->bytes);
+	
+	value_t result = sylt_peek(eval, 0);
+	//sylt_free(eval);
+	
+	return result;
+}
+
+
 /* == sys lib == */
 
 value_t stdsys_mem_usage(sylt_t* ctx) {
@@ -3640,6 +3656,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "todo", std_todo, 0);
 	std_addf(ctx, "unreachable",
 		std_unreachable, 0);
+	std_addf(ctx, "eval", std_eval, 1);
 		
 	/* sys */
 	std_setlib(ctx, "Sys");
@@ -5558,7 +5575,8 @@ void compile_and_run(
 	/* parse the entire source */
 	while (!check(cmp, T_EOF)) {
 		expr(cmp, ANY_PREC);
-		emit_nullary(cmp, OP_POP);
+		if (cmp->cur.tag != T_EOF)
+			emit_nullary(cmp, OP_POP);
 	}
 	
 	emit_nullary(cmp, OP_RET);

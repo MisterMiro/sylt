@@ -1,7 +1,5 @@
 ## here's a comment
 
-##using tests.sylt
-
 ## declare a variable using 'let'
 let x = 5
 	
@@ -183,38 +181,62 @@ list[0] <- 10
 ## negative index counts from the end
 ensure(list[-1] = list[List.length(list) - 1])
 
-## example programs
+## example programs:
 
 ## generating a random alphanumeric string:
-
-let chars = String.chars(
-	String.concat(
-		String.alpha,
-		String.digits))
 Math.seedRand(Sys.time())
+let genRandomString() = {
+	let chars = String.chars(
+			String.alpha ++ String.digits)
 
-let len = 24
-let str = ""
-rep(len, fun(_) -> {
-	let n = Math.rand(0, List.length(chars))
-	str <- String.concat(str, chars[n])
-})
+	let len = 24
+	let str = ""
+	rep(len, fun(_) -> {
+		let n = Math.rand(
+			0, List.length(chars))
+		str <- str ++ chars[n]
+	})
+	
+	str
+}
 
-printLn(str)
+printLn(genRandomString())
 
 ## computing π using Leibniz’s formula:
+let computePi() = {
+	let pi = 0
+	let k = 1
+	let precision = 140000
 
-let pi = 0
-let k = 1
-let precision = 140000
+	rep(precision, fun(i) -> {
+		pi <-
+			if (i % 2 = 0) pi + 4 / k
+			else pi - 4 / k
+		k <- k + 2
+	})
+	
+	pi
+}
 
-rep(precision, fun(i) -> {
-	pi <- if (i % 2 = 0)
-		pi + 4 / k
-	else
-		pi - 4 / k
-	k <- k + 2
-})
-
+let pi = computePi()
 printLn(pi)
-ensure(Math.closeTo(pi, Math.pi, 0.0001))
+ensure(Math.floatEq(pi, Math.pi, 0.0001))
+
+## normalizing a 3D vector
+let normalizeVector() = {
+	let length(v) = Math.sqrt(v[0] * v[0]
+		+ v[1] * v[1]
+		+ v[2] * v[2])
+
+	let normalize(v) = {
+		let len = length(v)
+		v[0] <- v[0] / len
+		v[1] <- v[1] / len
+		v[2] <- v[2] / len
+	}
+
+	let vec = [1, 2, -3]
+	normalize(vec)
+
+	printLn(vec)
+}

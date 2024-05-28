@@ -273,6 +273,9 @@ void halt(sylt_t*, const char*, ...);
 #define E_TYPE(ex, got) \
 	"expected value of type %s, got %s", \
 	user_type_name(ex), user_type_name(got)
+#define E_CONCAT_TYPE(a, b) \
+	"cannot concatenate %s with %s", \
+	user_type_name(a), user_type_name(b)
 #define E_ESCAPESEQ(code) \
 	"unknown escape sequence '\\%c'", \
 	(code)
@@ -547,6 +550,8 @@ typedef enum {
 	OP_EQ,
 	OP_NEQ,
 	OP_NOT,
+	/* special */
+	OP_CONCAT,
 	/* control flow */
 	OP_JMP,
 	OP_JMP_IF,
@@ -603,6 +608,7 @@ static opinfo_t OPINFO[] = {
 	[OP_EQ] = {"eq", 0, -1},
 	[OP_NEQ] = {"neq", 0, -1},
 	[OP_NOT] = {"not", 0, 0},
+	[OP_CONCAT] = {"concat", 0, -1},
 	[OP_JMP] = {"jmp", 2, 0},
 	[OP_JMP_IF] = {"jmpIf", 2, 0},
 	[OP_JMP_IF_NOT] = {"jmpIfNot", 2, 0},
@@ -1239,6 +1245,7 @@ list_t* list_concat(
 	const list_t* b,
 	sylt_t* ctx)
 {
+	gc_pause(ctx);
 	list_t* result = list_new(ctx);
 	
 	for (size_t i = 0; i < a->len; i++)
@@ -1247,6 +1254,7 @@ list_t* list_concat(
 	for (size_t i = 0; i < b->len; i++)
 		list_push(result, b->items[i], ctx);
 	
+	gc_resume(ctx);
 	return result;
 }
 
@@ -1562,20 +1570,34 @@ string_t* string_concat(
 }
 
 void sylt_concat(sylt_t* ctx) {
-	assert(sylt_peek(ctx, 0).tag
-		== TYPE_STRING);
-	assert(sylt_peek(ctx, 1).tag
-		== TYPE_STRING);
+	value_t b = sylt_peek(ctx, 0);
+	value_t a = sylt_peek(ctx, 1);
+	value_t result;
 	
-	string_t* result = string_concat(
-		sylt_peekstring(ctx, 1),
-		sylt_peekstring(ctx, 0),
-		ctx);
+	if (a.tag == TYPE_LIST
+		&& b.tag == TYPE_LIST)
+	{
+		result = wraplist(list_concat(
+			sylt_peeklist(ctx, 1),
+			sylt_peeklist(ctx, 0),
+			ctx));
 		
-	/* pop strings */
-	sylt_shrink(ctx, 2);
+	} else if (a.tag == TYPE_STRING
+		&& b.tag == TYPE_STRING)
+	{
+		result = wrapstring(string_concat(
+			sylt_peekstring(ctx, 1),
+			sylt_peekstring(ctx, 0),
+			ctx));
+		
+	} else {
+		halt(ctx,
+			E_CONCAT_TYPE(a.tag, b.tag));
+		unreachable();
+	}
 	
-	sylt_pushstring(ctx, result);
+	sylt_shrink(ctx, 2); /* pop operands */
+	sylt_push(ctx, result);
 }
 
 /* appends src to dst */
@@ -2622,6 +2644,11 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			push(wrapbool(!getbool(pop())));
 			break;
 		}
+		/* == special == */
+		case OP_CONCAT: {
+			sylt_concat(vm->ctx);
+			break;
+		}
 		/* == control flow == */
 		case OP_JMP: {
 			uint16_t offset = read16();
@@ -3034,15 +3061,6 @@ value_t stdlist_last(sylt_t* ctx) {
 	return list_get(listarg(0), -1, ctx);
 }
 
-/* concatenates two lists */
-value_t stdlist_concat(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
-	typecheck(ctx, arg(1), TYPE_LIST);
-	list_t* result = list_concat(
-		listarg(0), listarg(1), ctx);
-	return wraplist(result);
-}
-
 /* returns the number of times a value
  * appears in the list */
 value_t stdlist_count(sylt_t* ctx) {
@@ -3115,16 +3133,6 @@ value_t stdstring_chars(sylt_t* ctx) {
 	}
 	
 	return wraplist(ls);
-}
-
-/* concatenates two strings */
-value_t stdstring_concat(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
-	
-	string_t* result = string_concat(
-		stringarg(0), stringarg(1), ctx);
-	return wrapstring(result);
 }
 
 /* takes a list of values and builds a string
@@ -3671,8 +3679,6 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "pop", stdlist_pop, 1);
 	std_addf(ctx, "first", stdlist_first, 1);
 	std_addf(ctx, "last", stdlist_last, 1);
-	std_addf(ctx, "concat",
-		stdlist_concat, 2);
 	std_addf(ctx, "count",
 		stdlist_count, 2);
 	std_addf(ctx, "contains",
@@ -3695,8 +3701,6 @@ void std_init(sylt_t* ctx) {
 		stdstring_length, 1);
 	std_addf(ctx, "chars",
 		stdstring_chars, 1);
-	std_addf(ctx, "concat",
-		stdstring_concat, 2);
 	std_addf(ctx, "join",
 		stdstring_join, 1);
 	std_addf(ctx, "lower",
@@ -3772,6 +3776,7 @@ typedef enum {
 	T_STRING,
 	T_NUMBER,
 	T_PLUS,
+	T_PLUS_PLUS,
 	T_MINUS,
 	T_MINUS_GT,
 	T_STAR,
@@ -4396,7 +4401,10 @@ token_t scan(comp_t* cmp) {
 	}
 	
 	switch (*step()) {
-	case '+': return token(T_PLUS);
+	case '+':
+		if (match('+'))
+			return token(T_PLUS_PLUS);
+		return token(T_PLUS);
 	case '-':
 		if (match('>'))
 			return token(T_MINUS_GT);
@@ -4534,6 +4542,7 @@ static parserule_t RULES[] = {
 	[T_STRING] = {string, NULL, PREC_NONE},
 	[T_NUMBER] = {number, NULL, PREC_NONE},
 	[T_PLUS] = {NULL, binary, PREC_TERM},
+	[T_PLUS_PLUS] = {NULL, binary, PREC_TERM},
 	[T_MINUS] = {unary, binary, PREC_TERM},
 	[T_MINUS_GT] = {NULL, NULL, PREC_NONE},
 	[T_STAR] = {NULL, binary, PREC_FACTOR},
@@ -4825,6 +4834,10 @@ void binary(comp_t* cmp) {
 	/* equality */
 	case T_EQ: opcode = OP_EQ; break;
 	case T_BANG_EQ: opcode = OP_NEQ; break;
+	/* special */
+	case T_PLUS_PLUS:
+		opcode = OP_CONCAT;
+		break;
 	/* control flow */
 	case T_AND: {
 		/* if the left-hand side expression

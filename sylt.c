@@ -1181,6 +1181,16 @@ value_t list_get(
 	return ls->items[index];
 }
 
+void list_set(
+	list_t* ls,
+	int index,
+	value_t val,
+	sylt_t* ctx)
+{
+	index = list_index(ls, index, ctx);
+	ls->items[index] = val;
+}
+
 /* inserts an item at the given index */
 void list_insert(
 	list_t* ls,
@@ -2877,12 +2887,15 @@ value_t std_unreachable(sylt_t* ctx) {
 	return nil();
 }
 
+/* evaluates a string containing sylt code
+ * and returns the result */
 value_t std_eval(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	
 	/* TODO: improve */
 	sylt_t* eval = sylt_new();
 	eval->vm->gdict = ctx->vm->gdict;
+	
 	sylt_xstring(eval,
 		(const char*)stringarg(0)->bytes);
 	
@@ -2891,7 +2904,6 @@ value_t std_eval(sylt_t* ctx) {
 	
 	return result;
 }
-
 
 /* == sys lib == */
 
@@ -3173,6 +3185,47 @@ value_t stdstring_join(sylt_t* ctx) {
 	
 	sylt_popstring(ctx);
 	return wrapstring(str);
+}
+
+value_t stdstring_split(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	
+	string_t* str = stringarg(0);
+	string_t* sep = stringarg(1);
+	list_t* parts = list_new(ctx);
+	
+	if (str->len == 0)
+		return wraplist(parts);
+	
+	string_t* current =
+		string_new(NULL, 0, ctx);
+	
+	for (size_t i = 0; i < str->len; i++) {
+		string_t* c = string_new(
+			(unsigned char*)str->bytes + i,
+			1, ctx);
+		
+		bool split = sep->len > 0 &&
+			str->bytes[i] == sep->bytes[0];
+		
+		if (!split) {
+			sylt_pushstring(ctx, current);
+			sylt_pushstring(ctx, c);
+			sylt_concat(ctx);
+			current = sylt_popstring(ctx);
+		}
+		
+		if (split || i == str->len - 1) {
+			list_push(parts,
+				wrapstring(current),
+				ctx);
+			current = string_new(
+				NULL, 0, ctx);
+		}
+	}
+	
+	return wraplist(parts);
 }
 
 /* returns str converted to lowercase */
@@ -3740,6 +3793,8 @@ void std_init(sylt_t* ctx) {
 		stdstring_chars, 1);
 	std_addf(ctx, "join",
 		stdstring_join, 1);
+	std_addf(ctx, "split",
+		stdstring_split, 2);
 	std_addf(ctx, "lower",
 		stdstring_lower, 1);
 	std_addf(ctx, "upper",

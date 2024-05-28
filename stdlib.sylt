@@ -100,7 +100,7 @@ let Math.factorial(n) =
 	else 1
 
 ## left pad
-let Fmt.leftPad(str, w, ch) = {
+let String.leftPad(str, w, ch) = {
 	let n = (w - String.length(str))
 		/ String.length(ch)
 	
@@ -110,7 +110,7 @@ let Fmt.leftPad(str, w, ch) = {
 }
 
 ## right pad
-let Fmt.rightPad(str, w, ch) = {
+let String.rightPad(str, w, ch) = {
 	let n = (w - String.length(str))
 		/ String.length(ch)
 	
@@ -120,7 +120,7 @@ let Fmt.rightPad(str, w, ch) = {
 }
 
 ## center pad
-let Fmt.centerPad(str, w, ch) = {
+let String.centerPad(str, w, ch) = {
 	let n = (w - String.length(str))
 		/ String.length(ch)
 	
@@ -132,40 +132,36 @@ let Fmt.centerPad(str, w, ch) = {
 }
 
 ## string interpolation
-let Fmt.interp(str) = {
+let String.fmt(str) = {
 	let chars = String.chars(str)
-	let text = []
-	let expr = []
+	let text = ""
+	let expr = ""
 	
 	let i = 0
 	let inExpr = false
 	while (i < List.length(chars)) {
-		let ch = chars[i]
-		
-		if (ch = "%") {
+		if (chars[i] = "%") {
 			inExpr <- !inExpr
 			
 			if (inExpr) {
+				## start of expression
 				i <- i + 1
 			
 			} else {
-				let val =
-					eval(String.join(expr))
-				let evalChars = String.chars(
-					asString(val))
-				
-				text <- text ++ evalChars
+				## end of expression
+				let value = eval(expr)
+				let value = asString(value)
+				text <- text ++ value
 						
-				i <- i + List.length(expr)
-				expr <- []
+				i <- i + String.length(expr)
+				expr <- ""
 			}
 			
 		} else {
-			let list =
-				if (inExpr) expr
-				else text
-			
-			List.push(list, ch)
+			if (inExpr)
+				expr <- expr ++ chars[i]
+			else
+				text <- text ++ chars[i]
 			i <- i + 1
 		}
 	}
@@ -173,5 +169,5 @@ let Fmt.interp(str) = {
 	if (inExpr)
 		Sys.halt("unterminated interpolation")
 	
-	String.join(text)
+	text
 }

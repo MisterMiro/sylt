@@ -242,6 +242,14 @@ let boolOr() = {
 	true or would_crash()
 }
 
+let concat() = {
+	## String
+	ensure("Hello " ++ "Word" = "Hello Word")
+	
+	## List
+	ensure([1, 2] ++ [3, 4] = [1, 2, 3, 4])
+}
+
 let variables() = {
 	## declaring
 	let x = 70
@@ -464,8 +472,7 @@ let fileLib() = {
 	## size
 	let handle = File.open(path, "r")
 	let size = File.size(handle)
-	ensure(size =
-		List.length(String.chars(str)))
+	ensure(size = String.length(str))
 	File.close(handle)
 	
 	## read
@@ -528,12 +535,6 @@ let listLib() = {
 	let list = ["first", "middle", "last"]
 	ensure(List.first(list) = "first")
 	ensure(List.last(list) = "last")
-	
-	## concat
-	let a = [1, 2]
-	let b = [3, 4]
-	let concatenated = List.concat(a, b)
-	ensure(concatenated = [1, 2, 3, 4])
 	
 	## count
 	let bits = [1, 0, 0, 1, 0, 1, 1, 1]
@@ -639,11 +640,6 @@ let stringLib() = {
 	ensure(String.join([1, "2", 34, "5"])
 		= "12345")
 		
-	## concat
-	let a = "abc"
-	let b = "123"
-	ensure(String.concat(a, b) = "abc123")
-		
 	## lower + upper
 	let str = "MiXeD!"
 	ensure(String.lower(str) = "mixed!")
@@ -700,7 +696,7 @@ let fmtLib() = {
 		= "test******")
 	
 	## center
-	ensure(Fmt.center("test", 10, "|")
+	ensure(Fmt.centerPad("test", 10, "|")
 		= "|||test|||")
 }
 
@@ -829,14 +825,14 @@ let mathLib() = {
 ## tests to run
 
 let tests = List.flatten([
-	"Parser",	## category name
+	"Parsing",	## category name
 	[			## functions to test
 		names,
 		strings,
 		numbers,
 		precedence,
 	],
-	"Numbers",
+	"Operators",
 	[
 		addition,
 		subtraction,
@@ -845,14 +841,12 @@ let tests = List.flatten([
 		remainder,
 		unaryMinus,
 		arithmetic,
-	],
-	"Booleans",
-	[
 		comparison,
 		equality,
 		boolNot,
 		boolAnd,
 		boolOr,
+		concat,
 	],
 	"General",
 	[
@@ -885,9 +879,9 @@ List.forEach(tests, fun(test) ->
 		printLn(":")
 		
 	} else {
-		let name = asString(test)
 		print("  ")
-		print(Fmt.rightPad(name, 20, "."))
+		print(Fmt.rightPad(
+			asString(test), 20, "."))
 		
 		## run it
 		rep(n, fun(_) -> test())

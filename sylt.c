@@ -5734,10 +5734,6 @@ void run_tests(sylt_t* ctx) {
 	sylt_xfile(ctx, "tests.sylt");
 }
 
-void run_benchmarks(sylt_t* ctx) {
-	sylt_xfile(ctx, "bench.sylt");
-}
-
 void print_usage(void) {
 	sylt_printf(
 		"usage: sylt [path|flag(s)]\n");
@@ -5745,7 +5741,6 @@ void print_usage(void) {
 	sylt_printf("-help    shows this\n");
 	sylt_printf("-version prints version\n");
 	sylt_printf("-test    runs tests\n");
-	sylt_printf("-bench   runs benchmarks\n");
 }
 
 void print_version(void) {
@@ -5782,10 +5777,6 @@ int main(int argc, char *argv[]) {
 		} else if (string_eq(arg,
 			string_lit("-test", ctx))) {
 			run_tests(ctx);
-			
-		} else if (string_eq(arg,
-			string_lit("-bench", ctx))) {
-			run_benchmarks(ctx);
 			
 		} else {
 			sylt_eprintf(

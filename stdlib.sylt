@@ -15,17 +15,15 @@ let rep(n, f) = {
 ## calls f for each item in the list,
 ## passing the index as the first argument,
 ## and the item as the second
-let List.iter(list, f) = {
+let List.iter(list, f) =
 	rep(List.length(list), fun(i) ->
 		f(i, list[i]))
-}
 
 ## calls f for each item in the list,
 ## passing the item as the argument
-let List.forEach(list, f) = {
+let List.forEach(list, f) =
 	rep(List.length(list), fun(i) ->
 		f(list[i]))
-}
 
 ## passes each value in the list through f
 let List.map(list, f) = {
@@ -79,8 +77,7 @@ let List.flatten(list) = {
 		if (typeOf(item) = "List") {
 			let child = List.flatten(item)
 			flat <- List.concat(flat, child)
-		} else List.push(flat, item)
-	)
+		} else List.push(flat, item))
 	
 	flat
 }
@@ -98,9 +95,50 @@ let List.all(list, f) =
 		acc and f(val))
 
 ## returns n!
-let Math.factorial(n) = {
-	ensure(n >= 0)
-	
+let Math.factorial(n) =
 	if (n >= 1) n * Math.factorial(n - 1)
 	else 1
+
+## left pad
+let Fmt.leftPad(str, w, ch) = {
+	let n = w - String.length(str)
+	n <- n / String.length(ch)
+	
+	let result = ""
+	rep(n, fun(_) ->
+		result <- String.concat(result, ch))
+	
+	String.concat(result, str)
+}
+
+## right pad
+let Fmt.rightPad(str, w, ch) = {
+	let n = w - String.length(str)
+	n <- n / String.length(ch)
+	
+	let result = str
+	rep(n, fun(_) ->
+		result <- String.concat(result, ch))
+	
+	result
+}
+
+## center
+let Fmt.center(str, w, ch) = {
+	let n = w - String.length(str)
+	n <- n / String.length(ch)
+	
+	let result = ""
+	
+	## left
+	rep(n / 2, fun(_) ->
+		result <- String.concat(result, ch))
+	
+	result <- String.concat(result, str)
+	
+	## right
+	rep(n / 2, fun(_) ->
+		result <- String.concat(result, ch))
+		
+	result
 }

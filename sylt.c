@@ -3210,6 +3210,26 @@ value_t stdstring_upper(sylt_t* ctx) {
 	return wrapstring(copy);
 }
 
+/* converts lowrcase letters to uppercase
+ * and vice versa */
+value_t stdstring_swap_case(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	
+	string_t* copy = string_new(
+		stringarg(0)->bytes,
+		stringarg(0)->len,
+		ctx);
+	
+	for (size_t i = 0; i < copy->len; i++) {
+		char c = copy->bytes[i];
+		copy->bytes[i] = (isupper(c)) ?
+			tolower(c) : toupper(c);
+	}
+	
+	string_rehash(copy, ctx);
+	return wrapstring(copy);
+}
+
 /* returns true if the string starts with 
  * another string */
 value_t stdstring_starts_with(sylt_t* ctx) {
@@ -3724,6 +3744,8 @@ void std_init(sylt_t* ctx) {
 		stdstring_lower, 1);
 	std_addf(ctx, "upper",
 		stdstring_upper, 1);
+	std_addf(ctx, "swapCase",
+		stdstring_swap_case, 1);
 	std_addf(ctx, "startsWith",
 		stdstring_starts_with, 2);
 	std_addf(ctx, "endsWith",

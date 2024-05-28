@@ -183,15 +183,19 @@ ensure(list[-1] = list[List.length(list) - 1])
 
 ## example programs:
 
+## generating a list of even numbers:
+let values = List.range(1, 10)
+values <- List.filter(values, isEven)
+printLn(values)
+
 ## generating a random alphanumeric string:
 Math.seedRand(Sys.time())
 let genRandomString() = {
 	let chars = String.chars(
 			String.alpha ++ String.digits)
 
-	let len = 24
 	let str = ""
-	rep(len, fun(_) -> {
+	rep(24, fun(_) -> {
 		let n = Math.rand(
 			0, List.length(chars))
 		str <- str ++ chars[n]
@@ -223,20 +227,19 @@ printLn(pi)
 ensure(Math.floatEq(pi, Math.pi, 0.0001))
 
 ## normalizing a 3D vector
-let normalizeVector() = {
-	let length(v) = Math.sqrt(v[0] * v[0]
-		+ v[1] * v[1]
-		+ v[2] * v[2])
 
-	let normalize(v) = {
-		let len = length(v)
-		v[0] <- v[0] / len
-		v[1] <- v[1] / len
-		v[2] <- v[2] / len
-	}
+let length(v) = Math.sqrt(v[0] * v[0]
+	+ v[1] * v[1]
+	+ v[2] * v[2])
 
-	let vec = [1, 2, -3]
-	normalize(vec)
-
-	printLn(vec)
+let normalize(v) = {
+	let len = length(v)
+	v[0] <- v[0] / len
+	v[1] <- v[1] / len
+	v[2] <- v[2] / len
 }
+
+let vec = [1, 2, -3]
+normalize(vec)
+
+printLn(vec)

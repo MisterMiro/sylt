@@ -3096,14 +3096,9 @@ value_t stdlist_range(sylt_t* ctx) {
 
 /* == string lib == */
 
-/* concatenates two strings */
-value_t stdstring_concat(sylt_t* ctx) {
+value_t stdstring_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
-	
-	string_t* result = string_concat(
-		stringarg(0), stringarg(1), ctx);
-	return wrapstring(result);
+	return wrapnum(stringarg(0)->len);
 }
 
 /* returns all chars (bytes) in a string
@@ -3120,6 +3115,16 @@ value_t stdstring_chars(sylt_t* ctx) {
 	}
 	
 	return wraplist(ls);
+}
+
+/* concatenates two strings */
+value_t stdstring_concat(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	
+	string_t* result = string_concat(
+		stringarg(0), stringarg(1), ctx);
+	return wrapstring(result);
 }
 
 /* takes a list of values and builds a string
@@ -3686,10 +3691,12 @@ void std_init(sylt_t* ctx) {
 	std_add(ctx, "digits",	
 		wrapstring(string_lit(
 			"0123456789", ctx)));
-	std_addf(ctx, "concat",
-		stdstring_concat, 2);
+	std_addf(ctx, "length",
+		stdstring_length, 1);
 	std_addf(ctx, "chars",
 		stdstring_chars, 1);
+	std_addf(ctx, "concat",
+		stdstring_concat, 2);
 	std_addf(ctx, "join",
 		stdstring_join, 1);
 	std_addf(ctx, "lower",

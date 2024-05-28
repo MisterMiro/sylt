@@ -640,10 +640,11 @@ let stringLib() = {
 	ensure(String.join([1, "2", 34, "5"])
 		= "12345")
 		
-	## lower + upper
+	## lower + upper + swapCase
 	let str = "MiXeD!"
 	ensure(String.lower(str) = "mixed!")
 	ensure(String.upper(str) = "MIXED!")
+	ensure(String.swapCase(str) = "mIxEd!")
 	
 	## startsWith
 	ensure(String.startsWith(

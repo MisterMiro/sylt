@@ -188,18 +188,17 @@ let equality() = {
 		fun(x) -> x,	## Func
 	]
 	
-	List.iter(values, fun(skip, value) -> {
+	List.iter(fun(skip, value) -> {
 		## equal to itself
 		ensure(value = value)
 		
 		## not equal to a value of any other
 		## type
-		List.iter(values,
-			fun(index, other) ->
-				if (index != skip)
-					ensure(value != other)
-		)
-	})
+		List.iter(fun(index, other) ->
+			if (index != skip)
+				ensure(value != other),
+		values)
+	}, values)
 	
 	## perform more type-specific tests
 	ensure(true != false)
@@ -455,8 +454,8 @@ let preludeLib() = {
 	
 	## rep
 	let nums = []
-	rep(3, fun(i) ->
-		List.push(nums, (i + 1) * 3))
+	rep(fun(i) ->
+		List.push(nums, (i + 1) * 3), 3)
 	ensure(nums = [3, 6, 9])
 }
 
@@ -559,35 +558,31 @@ let listLib() = {
 	## iter
 	let indices = [0, 1, 2]
 	let copy = []
-	List.iter(indices, fun(index, value) ->
-	{
+	List.iter(fun(index, value) -> {
 		ensure(index = indices[index])
 		List.push(copy, value)
-	})
+	}, indices)
 	ensure(indices = copy)
 	
 	## forEach
 	let items = [1, 2, 3]
 	let copy = []
-	List.forEach(items, fun(value) ->
-		List.push(copy, value)
-	)
+	List.forEach(fun(value) ->
+		List.push(copy, value), items)
 	ensure(items = copy)
 	
 	## map
-	let list = List.map([4, 8, 16], 
-		fun(x) -> x * 2)
+	let list = List.map(twice, [4, 8, 16])
 	ensure(list = [8, 16, 32])
 	
 	## filter
 	let list = [1, 0, 0, 1, 1, 0]
-	list <- List.filter(list, fun(n) -> n = 1)
+	list <- List.filter(isOne, list)
 	ensure(list = [1, 1, 1])
 	
 	## fold
 	let list = [2, 4, 6]
-	let f(product, value) = product * value
-	ensure(List.fold(list, 1, f) = 48)
+	ensure(List.fold(mul, 1, list) = 48)
 	
 	## sum
 	let list = [1, 2, 3]
@@ -607,21 +602,25 @@ let listLib() = {
 	let clean = List.flatten(mess)
 	ensure(clean = [1, 2, 3, 4, 5])
 	
+	## dedup
+	let list = [7, 7, 8, 9, 9]
+	ensure(List.dedup(list) = [7, 8, 9])
+	
 	## any
 	let set = [true, true, false]
-	ensure(List.any(set, fun(v) -> v))
-	ensure(List.any(set, fun(v) -> !v))
+	ensure(List.any(fun(v) -> v, set))
+	ensure(List.any(fun(v) -> !v, set))
 	List.pop(set) ## = [true, true]
-	ensure(List.any(set, fun(v) -> v))
-	ensure(!List.any(set, fun(v) -> !v))
+	ensure(List.any(fun(v) -> v, set))
+	ensure(!List.any(fun(v) -> !v, set))
 	
 	## all
 	let set = [5, 7]
-	ensure(List.all(set, fun(n) -> n >= 5))
-	ensure(List.all(set, fun(n) -> !(n < 5)))
+	ensure(List.all(fun(n) -> n >= 5, set))
+	ensure(List.all(fun(n) -> !(n < 5), set))
 	List.push(set, 3) ## = [5, 7, 3]
-	ensure(!List.all(set, fun(n) -> n >= 5))
-	ensure(!List.all(set, fun(n) -> !(n < 5)))
+	ensure(!List.all(fun(n) -> n >= 5, set))
+	ensure(!List.all(fun(n) -> !(n < 5), set))
 }
 
 let stringLib() = {
@@ -756,8 +755,8 @@ let mathLib() = {
 			result, target, 0.0000001))
 	}
 	
-	List.forEach(bases, fun(base) ->
-		testLog(base, target))
+	List.forEach(fun(base) ->
+		testLog(base, target), bases)
 	
 	## sqrt
 	ensure(Math.sqrt(256) = 16)
@@ -805,8 +804,7 @@ let mathLib() = {
 		)
 	}
 	
-	List.forEach([-1, 0, 1], fun(n)
-		-> checkRounding(n))
+	List.forEach(checkRounding, [-1, 0, 1])
 	
 	## rad + deg
 	ensure(Math.floatEq(
@@ -884,7 +882,7 @@ let n = 1
 ensure(n > 0)
 
 ## let's go!
-List.forEach(tests, fun(test) ->
+List.forEach(fun(test) ->
 	if (typeOf(test) = "String") {
 		print(test)
 		printLn(":")
@@ -895,10 +893,9 @@ List.forEach(tests, fun(test) ->
 			asString(test), 20, "."))
 		
 		## run it
-		rep(n, fun(_) -> test())
+		rep(fun(_) -> test(), n)
 
 		printLn("OK")
-	}
-)
+	}, tests)
 
 printLn("All tests passed!")

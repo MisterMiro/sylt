@@ -1,18 +1,27 @@
 ## note: most of the standard library is
-## implemented in C, with only a small portion
-## implemented here
+## implemented in C
 
 ## Prelude   |
 ## ===========
 
-let isEven(n) = n % 2 = 0
-let isOdd(n) = n % 2 = 1
 let isZero(n) = n = 0
 let isOne(n) = n = 1
 let isPositive(n) = n >= 0
 let isNegative(n) = n < 0
+let isEven(n) = n % 2 = 0
+let isOdd(n) = n % 2 = 1
 
-let rep(n, f) = {
+let twice(n) = n * 2
+let half(n) = n / 2
+let square(n) = n * n
+
+let add(a, b) = a + b
+let sub(a, b) = a - b
+let mul(a, b) = a * b
+let div(a, b) = a / b
+let rem(a, b) = a % b
+
+let rep(f, n) = {
 	let i = 0
 	while (i < n) {
 		f(i)
@@ -23,39 +32,38 @@ let rep(n, f) = {
 ## List      |
 ## ===========
 
-let List.iter(list, f) =
-	rep(List.length(list), fun(i) ->
-		f(i, list[i]))
+let List.iter(f, list) =
+	rep(fun(i) -> f(i, list[i]),
+		List.length(list))
 
-let List.forEach(list, f) =
-	rep(List.length(list), fun(i) ->
-		f(list[i]))
+let List.forEach(f, list) =
+	rep(fun(i) -> f(list[i]),
+		List.length(list))
 
-let List.map(list, f) = {
+let List.map(f, list) = {
 	let mapped = []
-	List.forEach(list, fun(value) ->
-		List.push(mapped, f(value)))
+	List.forEach(fun(value) ->
+		List.push(mapped, f(value)), list)
 	mapped
 }
 
-let List.filter(list, f) = {
+let List.filter(f, list) = {
 	let filtered = []
-	List.forEach(list, fun(value) ->
+	List.forEach(fun(value) ->
 		if (f(value))
-			List.push(filtered, value))
+			List.push(filtered, value), list)
 	filtered
 }
 
-let List.fold(list, init, f) = {
+let List.fold(f, init, list) = {
 	let folded = init
-	List.forEach(list, fun(value) ->
-		folded <- f(folded, value))
+	List.forEach(fun(value) ->
+		folded <- f(folded, value), list)
 	folded
 }
 
 let List.sum(list) =
-	List.fold(list, 0, fun(sum, value) ->
-		sum + value)
+	List.fold(add, 0, list)
 
 let List.average(list) =
 	if (List.isEmpty(list)) 0
@@ -71,22 +79,30 @@ let List.mean(list) =
 
 let List.flatten(list) = {
 	let flat = []
-	List.forEach(list, fun(item) ->
+	List.forEach(fun(item) ->
 		if (typeOf(item) = "List")
 			flat <- flat ++ List.flatten(item)
 		else
-			List.push(flat, item))
+			List.push(flat, item), list)
 	flat
 }
 
-let List.any(list, f) =
-	List.fold(list, false, fun(any, val) ->
-		any or f(val))
+let List.dedup(list) = {
+	let deduped = []
+	List.forEach(fun(item) ->
+		if (!List.contains(deduped, item))
+			List.push(deduped, item), list)
+	deduped
+}
 
-let List.all(list, f) =
-	List.fold(list, true, fun(all, val) ->
-		all and f(val))
+let List.any(f, list) =
+	List.fold(fun(any, val) ->
+		any or f(val), false, list)
 
+let List.all(f, list) =
+	List.fold(fun(all, val) ->
+		all and f(val), true, list)
+		
 ## String    |
 ## ===========
 
@@ -95,7 +111,7 @@ let String.leftPad(str, w, ch) = {
 		/ String.length(ch)
 	
 	let text = ""
-	rep(n, fun(_) -> text <- text ++ ch)
+	rep(fun(_) -> text <- text ++ ch, n)
 	text ++ str
 }
 
@@ -104,7 +120,7 @@ let String.rightPad(str, w, ch) = {
 		/ String.length(ch)
 	
 	let text = str
-	rep(n, fun(_) -> text <- text ++ ch)
+	rep(fun(_) -> text <- text ++ ch, n)
 	text
 }
 
@@ -113,9 +129,9 @@ let String.centerPad(str, w, ch) = {
 		/ String.length(ch)
 	
 	let text = ""
-	rep(n / 2, fun(_) -> text <- text ++ ch)
+	rep(fun(_) -> text <- text ++ ch, half(n))
 	text <- text ++ str
-	rep(n / 2, fun(_) -> text <- text ++ ch)
+	rep(fun(_) -> text <- text ++ ch, half(n))
 	text
 }
 

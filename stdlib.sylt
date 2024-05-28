@@ -74,10 +74,10 @@ let List.average(list) =
 let List.flatten(list) = {
 	let flat = []
 	List.forEach(list, fun(item) ->
-		if (typeOf(item) = "List") {
-			let child = List.flatten(item)
-			flat <- List.concat(flat, child)
-		} else List.push(flat, item))
+		if (typeOf(item) = "List")
+			flat <- flat ++ List.flatten(item)
+		else
+			List.push(flat, item))
 	
 	flat
 }
@@ -106,9 +106,9 @@ let Fmt.leftPad(str, w, ch) = {
 	
 	let result = ""
 	rep(n, fun(_) ->
-		result <- String.concat(result, ch))
+		result <- result ++ ch)
 	
-	String.concat(result, str)
+	result ++ str
 }
 
 ## right pad
@@ -118,13 +118,13 @@ let Fmt.rightPad(str, w, ch) = {
 	
 	let result = str
 	rep(n, fun(_) ->
-		result <- String.concat(result, ch))
+		result <- result ++ ch)
 	
 	result
 }
 
-## center
-let Fmt.center(str, w, ch) = {
+## center pad
+let Fmt.centerPad(str, w, ch) = {
 	let n = w - String.length(str)
 	n <- n / String.length(ch)
 	
@@ -132,13 +132,13 @@ let Fmt.center(str, w, ch) = {
 	
 	## left
 	rep(n / 2, fun(_) ->
-		result <- String.concat(result, ch))
+		result <- result ++ ch)
 	
-	result <- String.concat(result, str)
+	result <- result ++ str
 	
 	## right
 	rep(n / 2, fun(_) ->
-		result <- String.concat(result, ch))
+		result <- result ++ ch)
 		
 	result
 }

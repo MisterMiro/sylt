@@ -598,6 +598,10 @@ let listLib() = {
 	ensure(List.average(list) = 2)
 	ensure(List.average([]) = 0)
 	
+	## mean
+	let vals = [0, 5, 10, 0]
+	ensure(List.mean(vals) = 7.5)
+	
 	## flatten
 	let mess = [1, [2, [3, 4]], 5]
 	let clean = List.flatten(mess)

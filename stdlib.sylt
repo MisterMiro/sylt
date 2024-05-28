@@ -1,9 +1,17 @@
 ## note: most of the standard library is
-## implemented in C, only a small portion
-## of it is implemented here
+## implemented in C, with only a small portion
+## implemented here
 
-## calls f n times, passing the current
-## iteration count to f
+## Prelude   |
+## ===========
+
+let isEven(n) = n % 2 = 0
+let isOdd(n) = n % 2 = 1
+let isZero(n) = n = 0
+let isOne(n) = n = 1
+let isPositive(n) = n >= 0
+let isNegative(n) = n < 0
+
 let rep(n, f) = {
 	let i = 0
 	while (i < n) {
@@ -12,65 +20,55 @@ let rep(n, f) = {
 	}
 }
 
-## calls f for each item in the list,
-## passing the index as the first argument,
-## and the item as the second
+## List      |
+## ===========
+
 let List.iter(list, f) =
 	rep(List.length(list), fun(i) ->
 		f(i, list[i]))
 
-## calls f for each item in the list,
-## passing the item as the argument
 let List.forEach(list, f) =
 	rep(List.length(list), fun(i) ->
 		f(list[i]))
 
-## passes each value in the list through f
 let List.map(list, f) = {
 	let mapped = []
 	List.forEach(list, fun(value) ->
 		List.push(mapped, f(value)))
-	
 	mapped
 }
 
-## returns a list containing all values
-## that pass the predicate f
 let List.filter(list, f) = {
 	let filtered = []
 	List.forEach(list, fun(value) ->
 		if (f(value))
 			List.push(filtered, value))
-	
 	filtered
 }
 
-## reduces a list down to a single value,
-## with an initial value of init,
-## passing the current accumulator as the
-## first argument to f, and the current item
-## as the second
 let List.fold(list, init, f) = {
 	let folded = init
 	List.forEach(list, fun(value) ->
 		folded <- f(folded, value))
-	
 	folded
 }
 
-## returns the sum of all numbers in a list
 let List.sum(list) =
 	List.fold(list, 0, fun(sum, value) ->
 		sum + value)
 
-## returns the average value in a list
-## of numbers
 let List.average(list) =
 	if (List.isEmpty(list)) 0
 	else List.sum(list) / List.length(list)
+	
+let List.mean(list) = 
+	if (isOdd(List.length(list)))
+		list[List.length(list) / 2]
+	else
+		List.average([
+			list[List.length(list) / 2 - 1],
+			list[List.length(list) / 2]])
 
-## returns a version of the original
-## list with any nested lists flattened out
 let List.flatten(list) = {
 	let flat = []
 	List.forEach(list, fun(item) ->
@@ -78,28 +76,20 @@ let List.flatten(list) = {
 			flat <- flat ++ List.flatten(item)
 		else
 			List.push(flat, item))
-	
 	flat
 }
 
-## returns true if any value in the list
-## satisfies the predicate f
 let List.any(list, f) =
-	List.fold(list, false, fun(acc, val) ->
-		acc or f(val))
+	List.fold(list, false, fun(any, val) ->
+		any or f(val))
 
-## returns true if all values in the list
-## satisfy the predicate f
 let List.all(list, f) =
-	List.fold(list, true, fun(acc, val) ->
-		acc and f(val))
+	List.fold(list, true, fun(all, val) ->
+		all and f(val))
 
-## returns n!
-let Math.factorial(n) =
-	if (n >= 1) n * Math.factorial(n - 1)
-	else 1
+## String    |
+## ===========
 
-## left pad
 let String.leftPad(str, w, ch) = {
 	let n = (w - String.length(str))
 		/ String.length(ch)
@@ -109,7 +99,6 @@ let String.leftPad(str, w, ch) = {
 	text ++ str
 }
 
-## right pad
 let String.rightPad(str, w, ch) = {
 	let n = (w - String.length(str))
 		/ String.length(ch)
@@ -119,7 +108,6 @@ let String.rightPad(str, w, ch) = {
 	text
 }
 
-## center pad
 let String.centerPad(str, w, ch) = {
 	let n = (w - String.length(str))
 		/ String.length(ch)
@@ -131,7 +119,6 @@ let String.centerPad(str, w, ch) = {
 	text
 }
 
-## string interpolation
 let String.fmt(str) = {
 	let chars = String.chars(str)
 	let text = ""
@@ -171,3 +158,10 @@ let String.fmt(str) = {
 	
 	text
 }
+
+## Math      |
+## ===========
+
+let Math.factorial(n) =
+	if (n >= 1) n * Math.factorial(n - 1)
+	else 1

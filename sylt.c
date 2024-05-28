@@ -307,6 +307,8 @@ void halt(sylt_t*, const char*, ...);
 	"todo() reached"
 #define E_UNREACHABLE_REACHED \
 	"unreachable() reached"
+#define E_SYLT_EXTENSION \
+	"the .sylt extension is not required"
 
 /* triggers one of each error */
 void test_errors(sylt_t* ctx) {
@@ -369,6 +371,24 @@ void test_errors(sylt_t* ctx) {
 	/* unreachable() */
 	src = "unreachable()";
 	testsrc();
+}
+
+static const char* get_platform(void) {
+	#ifdef _WIN32
+    return "Windows 32-bit";
+    #elif _WIN64
+    return "Windows 64-bit";
+    #elif __APPLE__ || __MACH__
+    return "Mac OSX";
+    #elif __linux__
+    return "Linux";
+    #elif __FreeBSD__
+    return "FreeBSD";
+    #elif __unix || __unix__
+    return "Unix";
+    #else
+    return "Unknown";
+    #endif
 }
 
 /* == memory == */
@@ -1851,7 +1871,7 @@ static string_t* val_tostring(
 	}
 	case TYPE_NUM: {
 		str = string_fmt(
-			ctx, "%g", getnum(val));
+			ctx, "%.8g", getnum(val));
 		break;
 	}
 	case TYPE_LIST: {
@@ -2832,6 +2852,14 @@ value_t std_unreachable(sylt_t* ctx) {
 
 /* == sys lib == */
 
+value_t stdsys_mem_usage(sylt_t* ctx) {
+	return wrapnum(ctx->mem.bytes);
+}
+
+value_t stdsys_peak_mem_usage(sylt_t* ctx) {
+	return wrapnum(ctx->mem.highest);
+}
+
 /* unconditionally halts program execution
  * with an error message */
 value_t stdsys_halt(sylt_t* ctx) {
@@ -3602,6 +3630,16 @@ void std_init(sylt_t* ctx) {
 		
 	/* sys */
 	std_setlib(ctx, "Sys");
+	std_add(ctx, "version",	
+		wrapstring(string_lit(
+			SYLT_VERSION_STR, ctx)));
+	std_add(ctx, "platform",	
+		wrapstring(string_lit(
+			get_platform(), ctx)));
+	std_addf(ctx, "memUsage",
+		stdsys_mem_usage, 0);
+	std_addf(ctx, "peakMemUsage",
+		stdsys_peak_mem_usage, 0);
 	std_addf(ctx, "halt", stdsys_halt, 1);
 	std_addf(ctx, "time", stdsys_time, 0);
 	std_addf(ctx, "cpuTime",
@@ -4858,12 +4896,18 @@ void compile_and_run(sylt_t*, comp_t*);
 /* parses a using expression */
 void using(comp_t* cmp) {
 	eat(cmp, T_NAME,
-		"expected module name after 'using'");
+		"expected file name after 'using'");
+	
+	string_t* ext = string_lit(
+		".sylt", cmp->ctx);
+	
+	/* no extension looks cleaner */
+	if (string_ends_with(cmp->prev.lex, ext))
+		halt(cmp->ctx, E_SYLT_EXTENSION);
 	
 	/* append extension */
 	sylt_pushstring(cmp->ctx, cmp->prev.lex);
-	sylt_pushstring(cmp->ctx,
-		string_lit(".sylt", cmp->ctx));
+	sylt_pushstring(cmp->ctx, ext);
 	sylt_concat(cmp->ctx);
 	string_t* path = sylt_popstring(cmp->ctx);
 	
@@ -4879,14 +4923,10 @@ void using(comp_t* cmp) {
 	comp_init(&import, NULL, NULL, cmp->ctx);
 	import.included = cmp->included;
 	
-	sylt_pushstring(cmp->ctx,
-		load_file(
-			(const char*)path->bytes,
-			cmp->ctx));
-	sylt_pushstring(cmp->ctx,
-		string_lit(
-			(const char*)path->bytes,
-			cmp->ctx));
+	sylt_pushstring(cmp->ctx, load_file(
+		(const char*)path->bytes, cmp->ctx));
+	sylt_pushstring(cmp->ctx, path);
+	
 	compile_and_run(cmp->ctx, &import);
 }
 

@@ -68,7 +68,7 @@ let nilVal = nil
 ## functionally they're identical to regular
 ## functions
 	
-rep(3, fun(n) -> printLn((n + 1) * 2.5))
+rep(fun(n) -> printLn((n + 1) * 2.5), 3)
 	
 ## prints:
 ## 2.5
@@ -122,9 +122,6 @@ countdown(3)
 ## 1
 
 ## some example functions:
-
-let addOne(n) = n + 1
-let timesTwo(n) = n * 2
 
 ## geometry
 let rectIsSquare(w, h) = (w = h)	
@@ -185,21 +182,21 @@ ensure(list[-1] = list[List.length(list) - 1])
 
 ## generating a list of even numbers:
 let values = List.range(1, 10)
-values <- List.filter(values, isEven)
+values <- List.filter(isEven, values)
 printLn(values)
 
 ## generating a random alphanumeric string:
 Math.seedRand(Sys.time())
 let genRandomString() = {
 	let chars = String.chars(
-			String.alpha ++ String.digits)
+		String.alpha ++ String.digits)
 
 	let str = ""
-	rep(24, fun(_) -> {
+	rep(fun(_) -> {
 		let n = Math.rand(
 			0, List.length(chars))
 		str <- str ++ chars[n]
-	})
+	}, 24)
 	
 	str
 }
@@ -212,12 +209,12 @@ let computePi() = {
 	let k = 1
 	let precision = 140000
 
-	rep(precision, fun(i) -> {
+	rep(fun(i) -> {
 		pi <-
 			if (i % 2 = 0) pi + 4 / k
 			else pi - 4 / k
 		k <- k + 2
-	})
+	}, precision)
 	
 	pi
 }
@@ -226,11 +223,9 @@ let pi = computePi()
 printLn(pi)
 ensure(Math.floatEq(pi, Math.pi, 0.0001))
 
-## normalizing a 3D vector
-
-let length(v) = Math.sqrt(v[0] * v[0]
-	+ v[1] * v[1]
-	+ v[2] * v[2])
+## normalizing a 3D vector:
+let length(v) = Math.sqrt(square(v[0])
+	+ square(v[1]) + square(v[2]))
 
 let normalize(v) = {
 	let len = length(v)

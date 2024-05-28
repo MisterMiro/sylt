@@ -640,6 +640,12 @@ let stringLib() = {
 	ensure(String.join([1, "2", 34, "5"])
 		= "12345")
 		
+	## split
+	ensure(String.split("lol", "") = ["lol"])
+	ensure(String.split("lol", " ") = ["lol"])
+	ensure(String.split("abc,rst,xyz", ",")
+		= ["abc", "rst", "xyz"])
+		
 	## lower + upper + swapCase
 	let str = "MiXeD!"
 	ensure(String.lower(str) = "mixed!")
@@ -685,20 +691,21 @@ let stringLib() = {
 	str <- String.replaceAll(str, "e", "3")
 	str <- String.replaceAll(str, "t", "7")
 	ensure(str = "1337")
-}
-
-let fmtLib() = {
+	
 	## leftPad
-	ensure(Fmt.leftPad("test", 10, "-=")
+	ensure(String.leftPad("test", 10, "-=")
 		= "-=-=-=test")
 
 	## rightPad
-	ensure(Fmt.rightPad("test", 10, "*")
+	ensure(String.rightPad("test", 10, "*")
 		= "test******")
 	
-	## center
-	ensure(Fmt.centerPad("test", 10, "|")
+	## centerPad
+	ensure(String.centerPad("test", 10, "|")
 		= "|||test|||")
+		
+	## fmt
+	ensure(String.fmt("x=%1 + 2%") = "x=3")
 }
 
 let mathLib() = {
@@ -864,7 +871,6 @@ let tests = List.flatten([
 		fileLib,
 		listLib,
 		stringLib,
-		fmtLib,
 		mathLib,
 	],
 ])
@@ -881,7 +887,7 @@ List.forEach(tests, fun(test) ->
 		
 	} else {
 		print("  ")
-		print(Fmt.rightPad(
+		print(String.rightPad(
 			asString(test), 20, "."))
 		
 		## run it

@@ -628,10 +628,8 @@ let stringLib() = {
 	let str = "0123456789"
 	ensure(String.digits = str)
 	
-	## concat
-	let a = "abc"
-	let b = "123"
-	ensure(String.concat(a, b) = "abc123")
+	## length
+	ensure(String.length(String.digits) = 10)
 	
 	## chars + join
 	ensure(String.chars("Abc")
@@ -640,6 +638,11 @@ let stringLib() = {
 		= "Abc")
 	ensure(String.join([1, "2", 34, "5"])
 		= "12345")
+		
+	## concat
+	let a = "abc"
+	let b = "123"
+	ensure(String.concat(a, b) = "abc123")
 		
 	## lower + upper
 	let str = "MiXeD!"
@@ -687,6 +690,20 @@ let stringLib() = {
 	ensure(str = "1337")
 }
 
+let fmtLib() = {
+	## leftPad
+	ensure(Fmt.leftPad("test", 10, "-=")
+		= "-=-=-=test")
+
+	## rightPad
+	ensure(Fmt.rightPad("test", 10, "*")
+		= "test******")
+	
+	## center
+	ensure(Fmt.center("test", 10, "|")
+		= "|||test|||")
+}
+
 let mathLib() = {
 	## pi
 	ensure(Math.floatEq(
@@ -697,13 +714,14 @@ let mathLib() = {
 		Math.e, 2.718281, 0.00001))
 	
 	## floatEq
-	let zero = 0
 	let val = 0.005
 	let epsilon = 0.01
 	
-	ensure(Math.floatEq(zero, val, epsilon))
-	ensure(!Math.floatEq(zero, epsilon,
-		epsilon))
+	ensure(Math.floatEq(0, val, epsilon))
+	ensure(Math.floatEq(
+		0, epsilon - 0.0000001, epsilon))
+	ensure(!Math.floatEq(
+		0, epsilon, epsilon))
 	
 	## numSign
 	ensure(Math.numSign(-80) = -1)
@@ -727,7 +745,7 @@ let mathLib() = {
 		let power = Math.log(target, base)
 		let result = Math.pow(base, power)
 		ensure(Math.floatEq(
-			result, target, 0.00001))
+			result, target, 0.0000001))
 	}
 	
 	List.forEach(bases, fun(base) ->
@@ -783,34 +801,26 @@ let mathLib() = {
 		-> checkRounding(n))
 	
 	## rad + deg
-	ensure(
-		Math.floatEq(
-			Math.rad(1), 0.0175, 0.001))
-	ensure(
-		Math.floatEq(
-			Math.deg(1), 57.296, 0.001))
+	ensure(Math.floatEq(
+		Math.rad(1), 0.0175, 0.001))
+	ensure(Math.floatEq(
+		Math.deg(1), 57.296, 0.001))
 	
 	## sin + cos + tan
-	ensure(
-		Math.floatEq(
-			Math.sin(90), 0.8939, 0.001))
-	ensure(
-		Math.floatEq(
-			Math.cos(90), -0.4480, 0.001))
-	ensure(
-		Math.floatEq(
-			Math.tan(90), -1.9952, 0.001))
+	ensure(Math.floatEq(
+		Math.sin(90), 0.8939, 0.001))
+	ensure(Math.floatEq(
+		Math.cos(90), -0.4480, 0.001))
+	ensure(Math.floatEq(
+		Math.tan(90), -1.9952, 0.001))
 			
 	## asin + acos + atan
-	ensure(
-		Math.floatEq(
-			Math.asin(1), 1.5708, 0.001))
-	ensure(
-		Math.floatEq(
-			Math.acos(1), 0, 0.001))
-	ensure(
-		Math.floatEq(
-			Math.atan(1), 0.785398, 0.001))
+	ensure(Math.floatEq(
+		Math.asin(1), 1.5708, 0.001))
+	ensure(Math.floatEq(
+		Math.acos(1), 0, 0.001))
+	ensure(Math.floatEq(
+		Math.atan(1), 0.785398, 0.001))
 	
 	## factorial
 	ensure(Math.factorial(5) = 120)
@@ -859,6 +869,7 @@ let tests = List.flatten([
 		fileLib,
 		listLib,
 		stringLib,
+		fmtLib,
 		mathLib,
 	],
 ])
@@ -868,24 +879,18 @@ let n = 1
 ensure(n > 0)
 
 ## let's go!
-List.forEach(tests, fun(value) ->
-	if (typeOf(value) = "String") {
-		print(value)
+List.forEach(tests, fun(test) ->
+	if (typeOf(test) = "String") {
+		print(test)
 		printLn(":")
 		
 	} else {
-		let name = asString(value)
+		let name = asString(test)
 		print("  ")
-		print(name)
-		
-		## align
-		let width = 20
-		let dots = width - List.length(
-			String.chars(name))
-		rep(dots, fun(_) -> print("."))
+		print(Fmt.rightPad(name, 20, "."))
 		
 		## run it
-		rep(n, fun(_) -> value())
+		rep(n, fun(_) -> test())
 
 		printLn("OK")
 	}

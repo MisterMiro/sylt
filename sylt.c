@@ -519,6 +519,7 @@ typedef enum {
 	OP_PUSH_TRUE,
 	OP_PUSH_FALSE,
 	OP_PUSH_LIST,
+	OP_PUSH_DICT,
 	OP_PUSH_FUNC,
 	OP_POP,
 	OP_POP_HEAP,
@@ -581,6 +582,7 @@ static opinfo_t OPINFO[] = {
 	[OP_PUSH_TRUE] = {"pushTrue", 0, +1},
 	[OP_PUSH_FALSE] = {"pushFalse", 0, +1},
 	[OP_PUSH_LIST] = {"pushList", 1, +1},
+	[OP_PUSH_DICT] = {"pushDict", 1, +1},
 	[OP_PUSH_FUNC] = {"pushFunc", 1, +1},
 	[OP_POP] = {"pop", 0, -1},
 	[OP_POP_HEAP] = {"popHeap", 0, -1},
@@ -2390,6 +2392,23 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			push(wraplist(ls));
 			break;
 		}
+		case OP_PUSH_DICT: {
+			uint8_t len = read8() * 2;
+			dict_t* dc = dict_new(vm->ctx);
+			
+			push(wrapdict(dc)); /* GC */
+			for (int i = len; i > 0; i -= 2)
+				dict_set(dc,
+					getstring(peek(i)),
+					peek(i - 1),
+					vm->ctx);
+				
+			pop(); /* GC */
+			
+			shrink(len);
+			push(wrapdict(dc));
+			break;
+		}
 		case OP_PUSH_FUNC: {
 			gc_pause(vm->ctx);
 			
@@ -3104,7 +3123,7 @@ value_t stdfile_del(sylt_t* ctx) {
 
 /* == list lib == */
 
-/* returns the length of arg(0) */
+/* returns the number of items in the list */
 value_t stdlist_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return wrapnum(listarg(0)->len);
@@ -3114,6 +3133,15 @@ value_t stdlist_length(sylt_t* ctx) {
 value_t stdlist_is_empty(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return wrapbool(listarg(0)->len == 0);
+}
+
+/* removes all items from the list */
+value_t stdlist_clear(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_LIST);
+	list_t* ls = listarg(0);
+	while (ls->len > 0)
+		list_pop(ls, ctx);
+	return nil();
 }
 
 /* inserts a value at the given index */
@@ -3133,7 +3161,7 @@ value_t stdlist_del(sylt_t* ctx) {
 		listarg(0), numarg(1), ctx);
 }
 
-/* appends a value to the end of arg(0) */
+/* appends a value to the end of the list */
 value_t stdlist_push(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	list_push(listarg(0), arg(1), ctx);
@@ -3141,7 +3169,7 @@ value_t stdlist_push(sylt_t* ctx) {
 }
 
 /* removes and returns the last value of
- * arg(0), or nil if it was empty */
+ * the list, or nil if it was empty */
 value_t stdlist_pop(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return list_pop(listarg(0), ctx);
@@ -3177,7 +3205,7 @@ value_t stdlist_contains(sylt_t* ctx) {
 	return wrapbool(result);
 }
 
-/* reverses the items in the list */
+/* reverses the list */
 value_t stdlist_rev(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	
@@ -3202,9 +3230,8 @@ value_t stdlist_range(sylt_t* ctx) {
 	typecheck(ctx, arg(1), TYPE_NUM);
 	sylt_num_t min = numarg(0);
 	sylt_num_t max = numarg(1);
-	
 	list_t* ls = list_new(ctx);
-	for (int i = min; i < max; i++)
+	for (int64_t i = min; i < max; i++)
 		list_push(ls, wrapnum(i), ctx);
 	
 	return wraplist(ls);
@@ -3249,8 +3276,7 @@ value_t stddict_values(sylt_t* ctx) {
 			continue;
 		
 		list_push(values,
-			wrapstring(dc->items[i].val),
-			ctx);
+			dc->items[i].val, ctx);
 	}
 	
 	return wraplist(values);
@@ -3263,7 +3289,7 @@ value_t stdstring_length(sylt_t* ctx) {
 	return wrapnum(stringarg(0)->len);
 }
 
-/* returns all chars (bytes) in a string
+/* returns all chars (bytes) in the string
  * as a list */
 value_t stdstring_chars(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
@@ -3881,6 +3907,7 @@ void std_init(sylt_t* ctx) {
 		stdlist_length, 1);
 	std_addf(ctx, "isEmpty",
 		stdlist_is_empty, 1);
+	std_addf(ctx, "clear", stdlist_clear, 1);
 	std_addf(ctx, "add", stdlist_add, 3);
 	std_addf(ctx, "del", stdlist_del, 2);
 	std_addf(ctx, "push", stdlist_push, 2);
@@ -4020,6 +4047,8 @@ typedef enum {
 	T_LSQUARE,
 	T_RSQUARE,
 	T_COMMA,
+	T_COLON,
+	T_WAVE_LSQUARE,
 	T_EOF,
 } token_type_t;
 
@@ -4653,6 +4682,10 @@ token_t scan(comp_t* cmp) {
 	case '[': return token(T_LSQUARE);
 	case ']': return token(T_RSQUARE);
 	case ',': return token(T_COMMA);
+	case ':': return token(T_COLON);
+	case '~':
+		if (match('['))
+			return token(T_WAVE_LSQUARE);
 	case '\0': return token(T_EOF);
 	default: halt(cmp->ctx,
 		E_UNEXPECTEDCHAR(cmp->pos[-1]));
@@ -4721,6 +4754,7 @@ void expr(comp_t*, prec_t);
 void literal(comp_t*);
 void name(comp_t*);
 void list(comp_t*);
+void dict(comp_t*);
 void string(comp_t*);
 void number(comp_t*);
 void grouping(comp_t*);
@@ -4782,6 +4816,9 @@ static parserule_t RULES[] = {
 	[T_LSQUARE] = {list, index, PREC_UPOST},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
+	[T_COLON] = {NULL, NULL, PREC_NONE},
+	[T_WAVE_LSQUARE] =
+		{dict, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
 
@@ -4891,6 +4928,28 @@ void list(comp_t* cmp) {
 	eat(cmp, T_RSQUARE,
 		"unterminated list (expected ']')");
 	emit_unary(cmp, OP_PUSH_LIST, len);
+}
+
+/* parses a dict literal */
+void dict(comp_t* cmp) {
+	int len = 0;
+	while (!check(cmp, T_RSQUARE)
+		&& !check(cmp, T_EOF))
+	{
+		expr(cmp, PREC_OR); /* key */
+		eat(cmp, T_COLON,
+			"expected ':' after item key");
+		expr(cmp, PREC_OR); /* value */
+		
+		len++;
+		
+		if (!match(cmp, T_COMMA))
+			break;
+	}
+	
+	eat(cmp, T_RSQUARE,
+		"unterminated dict (expected ']')");
+	emit_unary(cmp, OP_PUSH_DICT, len);
 }
 
 /* parses a string literal */

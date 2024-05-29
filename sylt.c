@@ -96,11 +96,6 @@ static void dbg_print_flags(void) {
 	#undef pflag
 }
 
-/* == optimizations == */
-
-#define OPTZ_DEDUP_CONSTANTS 1
-#define OPTZ_SPECIAL_PUSHOPS 1
-
 /* == constant limits == */
 
 #define MAX_CODE (UINT16_MAX + 1)
@@ -271,8 +266,11 @@ void halt(sylt_t*, const char*, ...);
 #define E_UNEXPECTEDCHAR(c) \
 	"unexpected character '%c'", (c)
 #define E_TYPE(ex, got) \
-	"expected value of type %s, got %s", \
+	"expected %s, got %s", \
 	user_type_name(ex), user_type_name(got)
+#define E_INDEX_TYPE(got) \
+	"cannot use [] to index a %s", \
+	user_type_name(got)
 #define E_CONCAT_TYPE(a, b) \
 	"cannot concatenate %s with %s", \
 	user_type_name(a), user_type_name(b)
@@ -293,6 +291,9 @@ void halt(sylt_t*, const char*, ...);
 #define E_UNDEFINED(name) \
 	"undefined variable '%.*s'", \
 	(name->len), (name->bytes)
+#define E_KEY_NOT_FOUND(key) \
+	"key '%.*s' not found", \
+	(key->len), (key->bytes)
 #define E_DIVBYZERO \
 	"attempted division by zero"
 #define E_STACKOVERFLOW \
@@ -528,10 +529,10 @@ typedef enum {
 	OP_ADD_NAME,
 	OP_LOAD_NAME,
 	OP_STORE_NAME,
+	OP_LOAD_ITEM,
+	OP_STORE_ITEM,
 	OP_LOAD_UPVAL,
 	OP_STORE_UPVAL,
-	OP_LOAD_LIST,
-	OP_STORE_LIST,
 	OP_LOAD_RET,
 	OP_STORE_RET,
 	/* arithmetic */
@@ -589,10 +590,10 @@ static opinfo_t OPINFO[] = {
 	[OP_ADD_NAME] = {"addName", 1, -1},
 	[OP_LOAD_NAME] = {"loadName", 1, +1},
 	[OP_STORE_NAME] = {"storeName", 1, 0},
+	[OP_LOAD_ITEM] = {"loadItem", 0, -1},
+	[OP_STORE_ITEM] = {"storeItem", 0, -1},
 	[OP_LOAD_UPVAL] = {"loadUpval", 1, +1},
 	[OP_STORE_UPVAL] = {"storeUpval", 1, 0},
-	[OP_LOAD_LIST] = {"loadList", 0, -1},
-	[OP_STORE_LIST] = {"storeList", 0, -1},
 	[OP_LOAD_RET] = {"loadRet", 0, +1},
 	[OP_STORE_RET] = {"storeRet", 0, -1},
 	[OP_ADD] = {"add", 0, -1},
@@ -887,6 +888,7 @@ bool val_eq(value_t, value_t);
 /* these are useful even outside of the VM,
  * for making objects visible to the GC */
 
+void vm_ensure_stack(vm_t*, int);
 static inline void vm_push(
 	struct vm_s*, struct value_s);
 static inline value_t vm_pop(
@@ -895,6 +897,9 @@ static inline value_t vm_peek(
 	const struct vm_s*, int);
 static inline void vm_shrink(
 	struct vm_s*, int);
+	
+#define sylt_ensure_stack(ctx, n) \
+	vm_ensure_stack(ctx->vm, n)
 
 /* for pushing values on the stack */
 #define sylt_push(ctx, v) vm_push(ctx->vm, v)
@@ -1441,31 +1446,6 @@ uint32_t dict_calc_hash(
 	return hash;
 }
 
-void string_dprint(string_t*);
-string_t* val_tostring_opts(
-	value_t, bool, sylt_t*);
-
-void dbg_print_dict(dict_t* dc, sylt_t* ctx) {
-	sylt_dprintf("(len %ld, cap %ld) {\n",
-		dc->len, dc->cap);
-	
-	for (int i = 0; i < dc->cap; i++) {
-		item_t* item = &dc->items[i];
-		if (!item->key)
-			continue;
-		
-		sylt_dprintf("    ");
-		string_dprint(item->key);
-		sylt_dprintf(" = ");
-		string_t* val = val_tostring_opts(
-			item->val, true, ctx);
-		string_dprint(val);
-		sylt_dprintf("\n");
-	}
-	
-	sylt_dprintf("}\n");
-}
-
 /* == string == */
 
 void string_rehash(string_t*, sylt_t*);
@@ -1772,14 +1752,9 @@ bool val_eq(value_t a, value_t b);
 size_t func_write_data(
 	func_t* func, value_t val, sylt_t* ctx)
 {
-	#if OPTZ_DEDUP_CONSTANTS
-	/* check if a constant with the same
-	 * value already exists and if so
-	 * return its index */
 	for (size_t i = 0; i < func->ndata; i++)
 		if (val_eq(func->data[i], val))
 			return i;
-	#endif
 	
 	if (func->ndata >= MAX_DATA) {
 		halt(ctx, E_DATALIMIT);
@@ -1882,6 +1857,9 @@ bool val_eq(value_t a, value_t b) {
 	}
 }
 
+string_t* val_tostring_opts(
+	value_t, bool, sylt_t*);
+
 /* converts a value to a printable string */
 static string_t* val_tostring(
 	value_t val, sylt_t* ctx)
@@ -1934,7 +1912,49 @@ static string_t* val_tostring(
 		break;
 	}
 	case TYPE_DICT: {
-		str = string_lit("<Dict>", ctx);
+		sylt_pushstring(ctx,
+			string_lit("[", ctx));
+		
+		dict_t* dc = getdict(val);
+		//sylt_ensure_stack(ctx, dc->cap * 8);
+		
+		for (size_t i = 0; i < dc->cap; i++) {
+			if (!dc->items[i].key)
+				continue;
+				
+			if (val_eq(dc->items[i].val,
+				wrapdict(dc)))
+				continue;
+			
+			/* key */
+			sylt_pushstring(ctx,
+				dc->items[i].key);
+			sylt_concat(ctx);
+			
+			sylt_pushstring(ctx,
+				string_lit(" = ", ctx));
+			sylt_concat(ctx);
+			
+			/* value */
+			sylt_pushstring(ctx,
+				val_tostring_opts(
+					dc->items[i].val,
+					true,
+					ctx));
+			sylt_concat(ctx);
+			
+			if (i < dc->cap - 1) {
+				sylt_pushstring(ctx,
+					string_lit(", ", ctx));
+				sylt_concat(ctx);
+			}
+		}
+		
+		sylt_pushstring(ctx,
+			string_lit("]", ctx));
+		sylt_concat(ctx);
+		
+		str = sylt_popstring(ctx);
 		break;
 	}
 	case TYPE_STRING: {
@@ -2008,8 +2028,6 @@ void dbg_print_platform_info(void) {
 }
 
 /* == virtual machine == */
-
-void vm_ensure_stack(vm_t*, int);
 
 void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->stack = NULL;
@@ -2470,6 +2488,87 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				
 			break;
 		}
+		case OP_LOAD_ITEM: {
+			if (peek(1).tag == TYPE_LIST) {
+				typecheck(vm->ctx, peek(0),
+					TYPE_NUM);
+				
+				sylt_num_t index =
+					getnum(pop());
+				
+				list_t* ls = getlist(pop());
+				push(list_get(ls, index,
+					vm->ctx));
+			
+			} else if (peek(1).tag
+				== TYPE_DICT)
+			{
+				typecheck(vm->ctx, peek(0),
+					TYPE_STRING);
+				
+				string_t* key = getstring(
+					pop());
+				dict_t* dc = getdict(pop());
+				
+				value_t val;
+				bool found =
+					dict_get(dc, key, &val);
+				
+				if (!found) {
+					halt(vm->ctx,
+					E_KEY_NOT_FOUND(key));
+					unreachable();
+				}
+				
+				push(val);
+				
+			} else {
+				halt(vm->ctx, E_INDEX_TYPE(
+					peek(1).tag));
+				unreachable();
+			}
+			
+			break;
+		}
+		case OP_STORE_ITEM: {
+			value_t val = pop();
+			
+			if (peek(1).tag == TYPE_LIST) {
+				typecheck(vm->ctx, peek(0),
+					TYPE_NUM);
+		
+				sylt_num_t index =
+					getnum(pop());
+				
+				list_t* ls = getlist(pop());
+				list_set(ls, index, val,
+					vm->ctx);
+			
+				push(val);
+			
+			} else if (peek(1).tag
+				== TYPE_DICT)
+			{
+				typecheck(vm->ctx, peek(0),
+					TYPE_STRING);
+				
+				string_t* key = getstring(
+					pop());
+				
+				dict_t* dc = getdict(pop());
+				dict_set(dc, key, val,
+					vm->ctx);
+				
+				push(val);
+				
+			} else {
+				halt(vm->ctx, E_INDEX_TYPE(
+					peek(1).tag));
+				unreachable();
+			}
+			
+			break;
+		}
 		case OP_LOAD_UPVAL: {
 			value_t val = vm_load_upval(vm,
 				vm->fp->cls->upvals[read8()]);
@@ -2480,36 +2579,6 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			vm_store_upval(vm,
 				vm->fp->cls->upvals[read8()],
 				peek(0));
-			break;
-		}
-		case OP_LOAD_LIST: {
-			typecheck(
-				vm->ctx, peek(0), TYPE_NUM);
-			typecheck(
-				vm->ctx, peek(1), TYPE_LIST);
-				
-			sylt_num_t index = getnum(pop());
-			list_t* ls = getlist(pop());
-			
-			push(ls->items[list_index(
-				ls, index, vm->ctx)]);
-			break;
-		}
-		case OP_STORE_LIST: {
-			value_t val = pop();
-			
-			typecheck(
-				vm->ctx, peek(0), TYPE_NUM);
-			typecheck(
-				vm->ctx, peek(1), TYPE_LIST);
-				
-			sylt_num_t index = getnum(pop());
-			list_t* ls = getlist(pop());
-			
-			ls->items[list_index(
-				ls, index, vm->ctx)] = val;
-			
-			push(val);
 			break;
 		}
 		case OP_LOAD_RET: {
@@ -3739,6 +3808,8 @@ void std_init(sylt_t* ctx) {
 	std_add(ctx, "platform",	
 		wrapstring(string_lit(
 			get_platform(), ctx)));
+	std_add(ctx, "gdict",	
+		wrapdict(ctx->vm->gdict));
 	std_addf(ctx, "memUsage",
 		stdsys_mem_usage, 0);
 	std_addf(ctx, "peakMemUsage",
@@ -3898,9 +3969,7 @@ typedef enum {
  * tokens */
 typedef struct {
 	token_type_t tag;
-	/* lexeme */
 	string_t* lex;
-	/* line number */
 	uint32_t line;
 } token_t;
 
@@ -4117,7 +4186,6 @@ void emit_value(
 {
 	sylt_push(cmp->ctx, val); /* GC */
 	
-	#if OPTZ_SPECIAL_PUSHOPS
 	switch (val.tag) {
 	case TYPE_NIL: {
 		emit_nullary(cmp, OP_PUSH_NIL);
@@ -4133,7 +4201,6 @@ void emit_value(
 	}
 	default: break;
 	}
-	#endif
 	
 	size_t slot = func_write_data(
 		cmp->func, val, cmp->ctx);
@@ -4997,11 +5064,11 @@ void index(comp_t* cmp) {
 	
 	if (match(cmp, T_LT_MINUS)) {
 		expr(cmp, PREC_ASSIGN);
-		emit_nullary(cmp, OP_STORE_LIST);
+		emit_nullary(cmp, OP_STORE_ITEM);
 		return;
 	}
 	
-	emit_nullary(cmp, OP_LOAD_LIST);
+	emit_nullary(cmp, OP_LOAD_ITEM);
 }
 
 string_t* load_file(const char*, sylt_t*);

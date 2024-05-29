@@ -1915,11 +1915,10 @@ static string_t* val_tostring(
 	}
 	case TYPE_DICT: {
 		sylt_pushstring(ctx,
-			string_lit("[", ctx));
+			string_lit("[|", ctx));
 		
 		dict_t* dc = getdict(val);
-		//sylt_ensure_stack(ctx, dc->cap * 8);
-		
+		size_t n = 0;
 		for (size_t i = 0; i < dc->cap; i++) {
 			if (!dc->items[i].key)
 				continue;
@@ -1934,7 +1933,7 @@ static string_t* val_tostring(
 			sylt_concat(ctx);
 			
 			sylt_pushstring(ctx,
-				string_lit(" = ", ctx));
+				string_lit(": ", ctx));
 			sylt_concat(ctx);
 			
 			/* value */
@@ -1945,15 +1944,17 @@ static string_t* val_tostring(
 					ctx));
 			sylt_concat(ctx);
 			
-			if (i < dc->cap - 1) {
+			if (n < dc->len - 1) {
 				sylt_pushstring(ctx,
 					string_lit(", ", ctx));
 				sylt_concat(ctx);
 			}
+			
+			n++;
 		}
 		
 		sylt_pushstring(ctx,
-			string_lit("]", ctx));
+			string_lit("|]", ctx));
 		sylt_concat(ctx);
 		
 		str = sylt_popstring(ctx);
@@ -2393,7 +2394,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			break;
 		}
 		case OP_PUSH_DICT: {
-			uint8_t len = read8() * 2;
+			uint8_t len = read8();
 			dict_t* dc = dict_new(vm->ctx);
 			
 			push(wrapdict(dc)); /* GC */
@@ -2402,7 +2403,6 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 					getstring(peek(i)),
 					peek(i - 1),
 					vm->ctx);
-				
 			pop(); /* GC */
 			
 			shrink(len);
@@ -4046,9 +4046,10 @@ typedef enum {
 	T_RCURLY,
 	T_LSQUARE,
 	T_RSQUARE,
+	T_LSQUARE_PIPE,
+	T_PIPE_RSQUARE,
 	T_COMMA,
 	T_COLON,
-	T_WAVE_LSQUARE,
 	T_EOF,
 } token_type_t;
 
@@ -4679,13 +4680,16 @@ token_t scan(comp_t* cmp) {
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
 	case '}': return token(T_RCURLY);
-	case '[': return token(T_LSQUARE);
+	case '[': 
+		if (match('|'))
+			return token(T_LSQUARE_PIPE);
+		return token(T_LSQUARE);
 	case ']': return token(T_RSQUARE);
+	case '|': 
+		if (match(']'))
+			return token(T_PIPE_RSQUARE);
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
-	case '~':
-		if (match('['))
-			return token(T_WAVE_LSQUARE);
 	case '\0': return token(T_EOF);
 	default: halt(cmp->ctx,
 		E_UNEXPECTEDCHAR(cmp->pos[-1]));
@@ -4815,10 +4819,12 @@ static parserule_t RULES[] = {
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
 	[T_LSQUARE] = {list, index, PREC_UPOST},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
+	[T_LSQUARE_PIPE] = 
+		{dict, NULL, PREC_UPOST},
+	[T_PIPE_RSQUARE] =
+		{NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
-	[T_WAVE_LSQUARE] =
-		{dict, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
 
@@ -4926,14 +4932,14 @@ void list(comp_t* cmp) {
 	}
 	
 	eat(cmp, T_RSQUARE,
-		"unterminated list (expected ']')");
+		"unterminated list, expected ']'");
 	emit_unary(cmp, OP_PUSH_LIST, len);
 }
 
-/* parses a dict literal */
+/* parses a dictionary literal */
 void dict(comp_t* cmp) {
 	int len = 0;
-	while (!check(cmp, T_RSQUARE)
+	while (!check(cmp, T_PIPE_RSQUARE)
 		&& !check(cmp, T_EOF))
 	{
 		expr(cmp, PREC_OR); /* key */
@@ -4947,9 +4953,9 @@ void dict(comp_t* cmp) {
 			break;
 	}
 	
-	eat(cmp, T_RSQUARE,
-		"unterminated dict (expected ']')");
-	emit_unary(cmp, OP_PUSH_DICT, len);
+	eat(cmp, T_PIPE_RSQUARE,
+		"unterminated dict, expected '|]'");
+	emit_unary(cmp, OP_PUSH_DICT, len * 2);
 }
 
 /* parses a string literal */

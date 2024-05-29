@@ -13,7 +13,7 @@ let isOdd(n) = n % 2 = 1
 
 let twice(n) = n * 2
 let half(n) = n / 2
-let square(n) = n * n
+let squared(n) = n * n
 
 let add(a, b) = a + b
 let sub(a, b) = a - b
@@ -32,22 +32,24 @@ let rep(f, n) = {
 ## List      |
 ## ===========
 
-let List.iter(f, list) =
+let impl = {
+
+let iter(f, list) =
 	rep(fun(i) -> f(i, list[i]),
 		List.length(list))
 
-let List.forEach(f, list) =
+let forEach(f, list) =
 	rep(fun(i) -> f(list[i]),
 		List.length(list))
 
-let List.map(f, list) = {
+let map(f, list) = {
 	let mapped = []
 	List.forEach(fun(value) ->
 		List.push(mapped, f(value)), list)
 	mapped
 }
 
-let List.filter(f, list) = {
+let filter(f, list) = {
 	let filtered = []
 	List.forEach(fun(value) ->
 		if (f(value))
@@ -55,21 +57,21 @@ let List.filter(f, list) = {
 	filtered
 }
 
-let List.fold(f, init, list) = {
+let fold(f, init, list) = {
 	let folded = init
 	List.forEach(fun(value) ->
 		folded <- f(folded, value), list)
 	folded
 }
 
-let List.sum(list) =
+let sum(list) =
 	List.fold(add, 0, list)
 
-let List.average(list) =
+let average(list) =
 	if (List.isEmpty(list)) 0
 	else List.sum(list) / List.length(list)
 	
-let List.mean(list) = 
+let mean(list) = 
 	if (isOdd(List.length(list)))
 		list[List.length(list) / 2]
 	else
@@ -77,7 +79,7 @@ let List.mean(list) =
 			list[List.length(list) / 2 - 1],
 			list[List.length(list) / 2]])
 
-let List.flatten(list) = {
+let flatten(list) = {
 	let flat = []
 	List.forEach(fun(item) ->
 		if (typeOf(item) = "List")
@@ -87,7 +89,7 @@ let List.flatten(list) = {
 	flat
 }
 
-let List.dedup(list) = {
+let dedup(list) = {
 	let deduped = []
 	List.forEach(fun(item) ->
 		if (!List.contains(deduped, item))
@@ -95,18 +97,35 @@ let List.dedup(list) = {
 	deduped
 }
 
-let List.any(f, list) =
-	List.fold(fun(any, val) ->
-		any or f(val), false, list)
+let any(f, list) =
+	List.fold(fun(any, value) ->
+		any or f(value), false, list)
 
-let List.all(f, list) =
-	List.fold(fun(all, val) ->
-		all and f(val), true, list)
-		
+let all(f, list) =
+	List.fold(fun(all, value) ->
+		all and f(value), true, list)
+
+gdict["List"]["iter"] <- iter
+gdict["List"]["forEach"] <- forEach
+gdict["List"]["map"] <- map
+gdict["List"]["filter"] <- filter
+gdict["List"]["fold"] <- fold
+gdict["List"]["sum"] <- sum
+gdict["List"]["average"] <- average
+gdict["List"]["mean"] <- mean
+gdict["List"]["flatten"] <- flatten
+gdict["List"]["dedup"] <- dedup
+gdict["List"]["any"] <- any
+gdict["List"]["all"] <- all
+
+}
+
 ## String    |
 ## ===========
 
-let String.leftPad(str, w, ch) = {
+let impl = {
+
+let leftPad(str, w, ch) = {
 	let n = (w - String.length(str))
 		/ String.length(ch)
 	
@@ -115,7 +134,7 @@ let String.leftPad(str, w, ch) = {
 	text ++ str
 }
 
-let String.rightPad(str, w, ch) = {
+let rightPad(str, w, ch) = {
 	let n = (w - String.length(str))
 		/ String.length(ch)
 	
@@ -124,7 +143,7 @@ let String.rightPad(str, w, ch) = {
 	text
 }
 
-let String.centerPad(str, w, ch) = {
+let centerPad(str, w, ch) = {
 	let n = (w - String.length(str))
 		/ String.length(ch)
 	
@@ -135,7 +154,7 @@ let String.centerPad(str, w, ch) = {
 	text
 }
 
-let String.fmt(str) = {
+let fmt(str) = {
 	let chars = String.chars(str)
 	let text = ""
 	let expr = ""
@@ -175,9 +194,22 @@ let String.fmt(str) = {
 	text
 }
 
+gdict["String"]["leftPad"] <- leftPad
+gdict["String"]["rightPad"] <- rightPad
+gdict["String"]["centerPad"] <- centerPad
+gdict["String"]["fmt"] <- fmt
+
+}
+
 ## Math      |
 ## ===========
 
-let Math.factorial(n) =
-	if (n >= 1) n * Math.factorial(n - 1)
-	else 1
+let impl = {
+
+let factorial(n) =
+	if (n < 1) 1
+	else n * factorial(n - 1)
+	
+gdict["Math"]["factorial"] <- factorial
+
+}

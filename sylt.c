@@ -2865,6 +2865,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 #define boolarg(n) getbool(arg(n))
 #define numarg(n) getnum(arg(n))
 #define listarg(n) getlist(arg(n))
+#define dictarg(n) getdict(arg(n))
 #define stringarg(n) getstring(arg(n))
 #define closurearg(n) getclosure(arg(n))
 
@@ -3207,6 +3208,52 @@ value_t stdlist_range(sylt_t* ctx) {
 		list_push(ls, wrapnum(i), ctx);
 	
 	return wraplist(ls);
+}
+
+/* == dict lib == */
+
+value_t stddict_length(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_DICT);
+	return wrapnum(dictarg(0)->len);
+}
+
+value_t stddict_is_empty(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_DICT);
+	return wrapbool(dictarg(0)->len == 0);
+}
+
+value_t stddict_keys(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_DICT);
+	dict_t* dc = dictarg(0);
+	list_t* keys = list_new(ctx);
+	
+	for (size_t i = 0; i < dc->cap; i++) {
+		if (!dc->items[i].key)
+			continue;
+		
+		list_push(keys,
+			wrapstring(dc->items[i].key),
+			ctx);
+	}
+	
+	return wraplist(keys);
+}
+
+value_t stddict_values(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_DICT);
+	dict_t* dc = dictarg(0);
+	list_t* values = list_new(ctx);
+	
+	for (size_t i = 0; i < dc->cap; i++) {
+		if (!dc->items[i].key)
+			continue;
+		
+		list_push(values,
+			wrapstring(dc->items[i].val),
+			ctx);
+	}
+	
+	return wraplist(values);
 }
 
 /* == string lib == */
@@ -3848,6 +3895,17 @@ void std_init(sylt_t* ctx) {
 		stdlist_rev, 1);
 	std_addf(ctx, "range",
 		stdlist_range, 2);
+	
+	/* dict */
+	std_setlib(ctx, "Dict");
+	std_addf(ctx, "length",
+		stddict_length, 1);
+	std_addf(ctx, "isEmpty",
+		stddict_is_empty, 1);
+	std_addf(ctx, "keys",
+		stddict_keys, 1);
+	std_addf(ctx, "values",
+		stddict_values, 1);
 	
 	/* string */
 	std_setlib(ctx, "String");

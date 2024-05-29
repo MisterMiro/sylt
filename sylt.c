@@ -3788,15 +3788,28 @@ value_t stdmath_seed_rand(sylt_t* ctx) {
 }
 
 static string_t* lib_name = NULL;
+static dict_t* lib_dict = NULL;
 
 void std_setlib(sylt_t* ctx, const char* lib)
 {
 	if (strlen(lib) == 0) {
 		lib_name = NULL;
+		lib_dict = NULL;
 		return;
 	}
 	
 	lib_name = string_lit(lib, ctx);
+	lib_dict = dict_new(ctx);
+}
+
+void std_add(sylt_t*, const char*, value_t);
+
+void std_addlib(sylt_t* ctx) {
+	if (!lib_name)
+		return;
+	
+	dict_set(ctx->vm->gdict,
+		lib_name, wrapdict(lib_dict), ctx);
 }
 
 /* adds a value to the standard library */
@@ -3805,25 +3818,16 @@ void std_add(
 	const char* name_lit,
 	value_t val)
 {
-	string_t* sym_name = string_lit(
+	string_t* name = string_lit(
 		name_lit, ctx);
 	
-	string_t* name = NULL;
-	if (lib_name) {
-		sylt_pushstring(ctx, lib_name);
-		sylt_pushstring(ctx,
-			string_lit(".", ctx));
-		sylt_concat(ctx);
-		
-		sylt_pushstring(ctx, sym_name);
-		sylt_concat(ctx);
-		name = sylt_popstring(ctx);
-		
-	} else {
-		name = sym_name;
-	}
-		
-	dict_set(ctx->vm->gdict, name, val, ctx);
+	dict_t* dict;
+	if (lib_dict)
+		dict = lib_dict;
+	else
+		dict = ctx->vm->gdict;
+	
+	dict_set(dict, name, val, ctx);
 }
 
 /* adds a function to the standard library */
@@ -3860,6 +3864,8 @@ void std_init(sylt_t* ctx) {
 	
 	/* prelude */
 	std_setlib(ctx, "");
+	std_add(ctx, "gdict",	
+		wrapdict(ctx->vm->gdict));
 	std_addf(ctx, "print", std_print, 1);
 	std_addf(ctx, "printLn", std_print_ln, 1);
 	std_addf(ctx, "readIn", std_read_in, 0);
@@ -3872,6 +3878,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "unreachable",
 		std_unreachable, 0);
 	std_addf(ctx, "eval", std_eval, 1);
+	std_addlib(ctx);
 		
 	/* sys */
 	std_setlib(ctx, "Sys");
@@ -3881,8 +3888,6 @@ void std_init(sylt_t* ctx) {
 	std_add(ctx, "platform",	
 		wrapstring(string_lit(
 			get_platform(), ctx)));
-	std_add(ctx, "gdict",	
-		wrapdict(ctx->vm->gdict));
 	std_addf(ctx, "memUsage",
 		stdsys_mem_usage, 0);
 	std_addf(ctx, "peakMemUsage",
@@ -3891,6 +3896,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "time", stdsys_time, 0);
 	std_addf(ctx, "cpuTime",
 		stdsys_cpu_time, 0);
+	std_addlib(ctx);
 		
 	/* file */
 	std_setlib(ctx, "File");
@@ -3900,6 +3906,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "read", stdfile_read, 2);
 	std_addf(ctx, "size", stdfile_size, 1);
 	std_addf(ctx, "del", stdfile_del, 1);
+	std_addlib(ctx);
 	
 	/* list */
 	std_setlib(ctx, "List");
@@ -3922,6 +3929,7 @@ void std_init(sylt_t* ctx) {
 		stdlist_rev, 1);
 	std_addf(ctx, "range",
 		stdlist_range, 2);
+	std_addlib(ctx);
 	
 	/* dict */
 	std_setlib(ctx, "Dict");
@@ -3933,6 +3941,7 @@ void std_init(sylt_t* ctx) {
 		stddict_keys, 1);
 	std_addf(ctx, "values",
 		stddict_values, 1);
+	std_addlib(ctx);
 	
 	/* string */
 	std_setlib(ctx, "String");
@@ -3969,6 +3978,7 @@ void std_init(sylt_t* ctx) {
 		stdstring_trim, 1);
 	std_addf(ctx, "replaceAll",
 		stdstring_replace_all, 3);
+	std_addlib(ctx);
 	
 	/* math */
 	std_setlib(ctx, "Math");
@@ -4000,6 +4010,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "rand", stdmath_rand, 2);
 	std_addf(ctx, "seedRand",
 		stdmath_seed_rand, 1);
+	std_addlib(ctx);
 	
 	/* parts of the stdlib are implemented 
 	 * in sylt */
@@ -4050,6 +4061,7 @@ typedef enum {
 	T_PIPE_RSQUARE,
 	T_COMMA,
 	T_COLON,
+	T_DOT,
 	T_EOF,
 } token_type_t;
 
@@ -4552,11 +4564,10 @@ token_t scan(comp_t* cmp) {
 		return token(T_EOF);
 	
 	/* symbol name or keyword */
-	if (isalpha(peek()) || is('_')
-		|| is('.')) {
+	if (isalpha(peek()) || is('_')) {
 		
 		while (isalnum(peek()) ||
-			is('_') || is('.') || is('/'))
+			is('_') || is('/'))
 			step();
 		
 		size_t len = cmp->pos - start;
@@ -4690,6 +4701,7 @@ token_t scan(comp_t* cmp) {
 			return token(T_PIPE_RSQUARE);
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
+	case '.': return token(T_DOT);
 	case '\0': return token(T_EOF);
 	default: halt(cmp->ctx,
 		E_UNEXPECTEDCHAR(cmp->pos[-1]));
@@ -4766,6 +4778,7 @@ void unary(comp_t*);
 void binary(comp_t*);
 void call(comp_t*);
 void index(comp_t*);
+void dot(comp_t*);
 void using(comp_t*);
 void let(comp_t*);
 void fun(comp_t*);
@@ -4825,6 +4838,7 @@ static parserule_t RULES[] = {
 		{NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
+	[T_DOT] = {NULL, dot, PREC_UPOST},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
 
@@ -5191,6 +5205,14 @@ void index(comp_t* cmp) {
 		return;
 	}
 	
+	emit_nullary(cmp, OP_LOAD_ITEM);
+}
+
+void dot(comp_t* cmp) {
+	eat(cmp, T_NAME,
+		"expected name after '.'");
+	string_t* name = cmp->prev.lex;
+	emit_value(cmp, wrapstring(name));
 	emit_nullary(cmp, OP_LOAD_ITEM);
 }
 

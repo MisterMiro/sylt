@@ -61,7 +61,7 @@
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 1
+#define DBG_GC_EVERY_ALLOC 0
 
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
@@ -2994,14 +2994,46 @@ value_t std_eval(sylt_t* ctx) {
 	return result;
 }
 
-/* == sys lib == */
+/* == system lib == */
 
-value_t stdsys_mem_usage(sylt_t* ctx) {
-	return wrapnum(ctx->mem.bytes);
+value_t stdsys_mem_info(sylt_t* ctx) {
+	dict_t* dc = dict_new(ctx);
+	
+	dict_set(dc,
+		string_lit("memUse", ctx),
+		wrapnum(ctx->mem.bytes),
+		ctx);
+	
+	dict_set(dc,
+		string_lit("topMemUse", ctx),
+		wrapnum(ctx->mem.highest),
+		ctx);
+		
+	dict_set(dc,
+		string_lit("gcCycles", ctx),
+		wrapnum(ctx->mem.gc.cycles),
+		ctx);
+		
+	dict_set(dc,
+		string_lit("nextGC", ctx),
+		wrapnum(ctx->mem.gc.trigger),
+		ctx);
+		
+	return wrapdict(dc);
 }
 
-value_t stdsys_peak_mem_usage(sylt_t* ctx) {
-	return wrapnum(ctx->mem.highest);
+value_t stdsys_mem_info_str(sylt_t* ctx) {
+	double cur = ctx->mem.bytes
+		/ 1024.0 / 1024.0;
+	
+	return wrapstring(string_fmt(ctx,
+		"mem: %.4g/%.4g MB, %ld GC cycles, "
+		"next at %.4g MB",
+		cur,
+		ctx->mem.highest / 1024.0 / 1024.0,
+		ctx->mem.gc.cycles,
+		ctx->mem.gc.trigger
+			/ 1024.0 / 1024.0));
 }
 
 /* unconditionally halts program execution
@@ -3014,111 +3046,29 @@ value_t stdsys_halt(sylt_t* ctx) {
 }
 
 value_t stdsys_time(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	string_t* fmt = stringarg(0);
+	
+	time_t timer;
+    char buffer[64];
+    struct tm* tm_info;
+    
+    timer = time(NULL);
+    tm_info = localtime(&timer);
+    strftime(buffer, 64,
+    	(const char*)fmt->bytes, tm_info);
+    
+    string_t* str = string_lit(buffer, ctx);
+    return wrapstring(str);
+}
+
+value_t stdsys_timestamp(sylt_t* ctx) {
 	return wrapnum(time(NULL));
 }
 
-value_t stdsys_cpu_time(sylt_t* ctx) {
+value_t stdsys_cpu_clock(sylt_t* ctx) {
 	return wrapnum(
 		(double)clock() / CLOCKS_PER_SEC);
-}
-
-/* == file lib == */
-
-/* opens a file for reading or writing,
- * returning a handle */
-value_t stdfile_open(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
-	
-	string_t* path = stringarg(0);
-	string_t* mode = stringarg(1);
-	
-	int handle = -1;
-	for (size_t i = 0; i < MAX_FILES; i++)
-		if (!ctx->vm->files[i]) {
-			handle = i;
-			break;
-		}
-	
-	if (handle == -1)
-		halt(ctx, E_OPENFAILED(path));
-	
-	ctx->vm->files[handle] = fopen(
-		(const char*)path->bytes,
-		(const char*)mode->bytes);
-	return wrapnum(handle);
-}
-
-/* closes a handle returned by File.open */
-value_t stdfile_close(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-		
-	fclose(fp);
-	return nil();
-}
-
-/* writes a value to an open file */
-value_t stdfile_write(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-	
-	string_t* str = val_tostring(
-		arg(1), ctx);
-	
-	for (size_t i = 0; i < str->len; i++)
-		putc(str->bytes[i], fp);
-	
-	return nil();
-}
-
-/* returns a string containig n bytes read
- * from file */
-value_t stdfile_read(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
-	
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-	
-	int64_t n = (int64_t)numarg(1);
-	string_t* str = string_new(NULL, n, ctx);
-	fread(str->bytes, 1, n, fp);
-	string_rehash(str, ctx);
-	return wrapstring(str);
-}
-
-/* returns the size (in bytes) of an open
- * file */
-value_t stdfile_size(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-	
-	fseek(fp, 0, SEEK_END);
-	size_t size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-	return wrapnum(size);
-}
-
-/* deletes a file */
-value_t stdfile_del(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	string_t* path = stringarg(0);
-	remove((char*)path->bytes);
-	return nil();
 }
 
 /* == list lib == */
@@ -3787,10 +3737,110 @@ value_t stdmath_seed_rand(sylt_t* ctx) {
 	return nil();
 }
 
+/* == file lib == */
+
+/* opens a file for reading or writing,
+ * returning a handle */
+value_t stdfile_open(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	
+	string_t* path = stringarg(0);
+	string_t* mode = stringarg(1);
+	
+	int handle = -1;
+	for (size_t i = 0; i < MAX_FILES; i++)
+		if (!ctx->vm->files[i]) {
+			handle = i;
+			break;
+		}
+	
+	if (handle == -1)
+		halt(ctx, E_OPENFAILED(path));
+	
+	ctx->vm->files[handle] = fopen(
+		(const char*)path->bytes,
+		(const char*)mode->bytes);
+	return wrapnum(handle);
+}
+
+/* closes a handle returned by File.open */
+value_t stdfile_close(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+		
+	fclose(fp);
+	return nil();
+}
+
+/* writes a value to an open file */
+value_t stdfile_write(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	string_t* str = val_tostring(
+		arg(1), ctx);
+	
+	for (size_t i = 0; i < str->len; i++)
+		putc(str->bytes[i], fp);
+	
+	return nil();
+}
+
+/* returns a string containig n bytes read
+ * from file */
+value_t stdfile_read(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	int64_t n = (int64_t)numarg(1);
+	string_t* str = string_new(NULL, n, ctx);
+	fread(str->bytes, 1, n, fp);
+	string_rehash(str, ctx);
+	return wrapstring(str);
+}
+
+/* returns the size (in bytes) of an open
+ * file */
+value_t stdfile_size(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	fseek(fp, 0, SEEK_END);
+	size_t size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	return wrapnum(size);
+}
+
+/* deletes a file */
+value_t stdfile_del(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	string_t* path = stringarg(0);
+	remove((char*)path->bytes);
+	return nil();
+}
+
 static string_t* lib_name = NULL;
 static dict_t* lib_dict = NULL;
 
-void std_setlib(sylt_t* ctx, const char* lib)
+void std_setlib(
+	sylt_t* ctx, const char* lib)
 {
 	if (strlen(lib) == 0) {
 		lib_name = NULL;
@@ -3879,25 +3929,7 @@ void std_init(sylt_t* ctx) {
 		std_unreachable, 0);
 	std_addf(ctx, "eval", std_eval, 1);
 	std_addlib(ctx);
-		
-	/* sys */
-	std_setlib(ctx, "Sys");
-	std_add(ctx, "version",	
-		wrapstring(string_lit(
-			SYLT_VERSION_STR, ctx)));
-	std_add(ctx, "platform",	
-		wrapstring(string_lit(
-			get_platform(), ctx)));
-	std_addf(ctx, "memUsage",
-		stdsys_mem_usage, 0);
-	std_addf(ctx, "peakMemUsage",
-		stdsys_peak_mem_usage, 0);
-	std_addf(ctx, "halt", stdsys_halt, 1);
-	std_addf(ctx, "time", stdsys_time, 0);
-	std_addf(ctx, "cpuTime",
-		stdsys_cpu_time, 0);
-	std_addlib(ctx);
-		
+	
 	/* file */
 	std_setlib(ctx, "File");
 	std_addf(ctx, "open", stdfile_open, 2);
@@ -3907,7 +3939,27 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "size", stdfile_size, 1);
 	std_addf(ctx, "del", stdfile_del, 1);
 	std_addlib(ctx);
-	
+		
+	/* system */
+	std_setlib(ctx, "System");
+	std_add(ctx, "version",	
+		wrapstring(string_lit(
+			SYLT_VERSION_STR, ctx)));
+	std_add(ctx, "platform",	
+		wrapstring(string_lit(
+			get_platform(), ctx)));
+	std_addf(ctx, "memInfo",
+		stdsys_mem_info, 0);
+	std_addf(ctx, "memInfoStr",
+		stdsys_mem_info_str, 0);
+	std_addf(ctx, "halt", stdsys_halt, 1);
+	std_addf(ctx, "time", stdsys_time, 1);
+	std_addf(ctx, "timestamp",
+		stdsys_timestamp, 0);
+	std_addf(ctx, "cpuClock",
+		stdsys_cpu_clock, 0);
+	std_addlib(ctx);
+		
 	/* list */
 	std_setlib(ctx, "List");
 	std_addf(ctx, "length",

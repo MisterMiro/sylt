@@ -5,53 +5,53 @@ A dynamic scripting language inspired mainly by Lua, Rust, and F#. The implement
 
 
 A quick example:
-`## prints all even numbers between 1 and 10
+## prints all even numbers between 1 and 10
 let numbers = List.range(0, 10)
 let even = List.filter(isEven, numbers)
-printLn(even)`
+printLn(even)
 
 
 
 The following types are implemented:
-`Nil - no value
+Nil - no value
 Bool - boolean type
 Num - numeric type, backed by a float or double
 List - a dynamic array
 String - an array of UTF-8 bytes
 Dict - a dictionary/HashMap
-Func - a callable function`
+Func - a callable function
 
 
 
 These are the operators:
 Arithmetic:
-`+ addition 
++ addition 
 - subtraction 
 * multiplication 
 / division
 % remainder of the division of A and B
-- (prefix) negates a value`
+- (prefix) negates a value
 
 Comparison:
-`<  A less than B?
+<  A less than B?
 <= A less than or equal to B?
 > A greater than B?
->= A greater than or equal to B?`
+>= A greater than or equal to B?
 
 Equality:
-`= A equal to B?
+= A equal to B?
 != A not equal to B?
 ! (prefix) inverse of boolean expression
-`
+
 
 Special:
-`++ for concatenating lists or strings
-`
+++ for concatenating lists or strings
+
 
 
 
 Standard library:
-`Prelude: 
+Prelude: 
 Dict gdict - A dictionary containing all global variables, mainly intended for debugging
 
 Nil print(value) - Prints a value to stdout
@@ -229,4 +229,4 @@ Num atan(x) - Returns the arc-tangent of x
 Num rand(min, max) - Returns a random value between min and max
 
 Num seedRand(x) - Sets the seed of the random number generator used by rand()
-`
+

@@ -905,6 +905,10 @@ static inline void vm_shrink(
 
 /* for pushing values on the stack */
 #define sylt_push(ctx, v) vm_push(ctx->vm, v)
+#define sylt_pushnil(ctx) \
+	sylt_push(ctx, nil())
+#define sylt_pushbool(ctx, v) \
+	sylt_push(ctx, wrapbool(v))
 #define sylt_pushnum(ctx, v) \
 	sylt_push(ctx, wrapnum(v))
 #define sylt_pushlist(ctx, v) \
@@ -920,7 +924,11 @@ static inline void vm_shrink(
 
 /* for popping values off the stack */
 #define sylt_pop(ctx) vm_pop(ctx->vm)
-#define sylt_popnum(ctx, v) \
+#define sylt_popnil(ctx) \
+	sylt_pop(ctx)
+#define sylt_popbool(ctx) \
+	getbool(sylt_pop(ctx))
+#define sylt_popnum(ctx) \
 	getnum(sylt_pop(ctx))
 #define sylt_poplist(ctx) \
 	getlist(sylt_pop(ctx))
@@ -933,6 +941,8 @@ static inline void vm_shrink(
 
 /* for peeking values down the stack */
 #define sylt_peek(ctx, n) vm_peek(ctx->vm, n)
+#define sylt_peekbool(ctx, n) \
+	getbool(sylt_peek(ctx, n))
 #define sylt_peeknum(ctx, n) \
 	getnum(sylt_peek(ctx, n))
 #define sylt_peeklist(ctx, n) \
@@ -1125,7 +1135,6 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 
 /* == list == */
 
-/* creates an empty list */
 list_t* list_new(sylt_t* ctx) {
 	list_t* ls = (list_t*)obj_new(
 		sizeof(list_t), TYPE_LIST, ctx);
@@ -1188,6 +1197,8 @@ value_t list_get(
 	return ls->items[index];
 }
 
+/* sets the value at index n, errors if out
+ * of bounds */
 void list_set(
 	list_t* ls,
 	int index,
@@ -1214,7 +1225,6 @@ void list_insert(
 	ls->len++;
 	
 	index = list_index(ls, index, ctx);
-	
 	for (int i = ls->len - 1; i > index; i--)
 		ls->items[i] = ls->items[i - 1];
 	ls->items[index] = val;
@@ -1228,7 +1238,6 @@ value_t list_delete(
 {
 	index = list_index(ls, index, ctx);
 	value_t val = ls->items[index];
-	
 	for (int i = index; i < ls->len - 1; i++)
 		ls->items[i] = ls->items[i + 1];
 	
@@ -1239,7 +1248,6 @@ value_t list_delete(
 		nextpow2(ls->len - 1),
 		ctx);
 	ls->len--;
-	
 	return val;
 }
 
@@ -1293,7 +1301,6 @@ size_t list_count(
 
 #define DICT_MAX_LOAD 0.75
 
-/* creates a new dictionary */
 dict_t* dict_new(sylt_t* ctx) {
 	dict_t* dc = (dict_t*)obj_new(
 		sizeof(dict_t), TYPE_DICT, ctx);
@@ -1335,16 +1342,30 @@ item_t* dict_find(
 	}
 }
 
+/* retrieves a value from the dictionary */
+value_t* dict_get(
+	const dict_t* dc, const string_t* key)
+{
+	if (dc->len == 0)
+		return NULL;
+		
+	item_t* item = dict_find(
+		key, dc->items, dc->cap);
+	
+	if (!item->key)
+		return NULL;
+	
+	return &item->val;
+}
+
 /* sets the capacity and reallocates the 
  * backing array */
-void dict_setcap(
+void dict_set_cap(
 	dict_t* dc, size_t cap, sylt_t* ctx)
 {
-	/* allocate a new array */
 	item_t* items = arr_alloc(
 		items, item_t, cap, ctx);
 	
-	/* zero out */
 	for (size_t i = 0; i < cap; i++) {
 		items[i].key = NULL;
 		items[i].val = nil();
@@ -1381,7 +1402,7 @@ bool dict_set(
 	size_t cap = dc->cap * DICT_MAX_LOAD;
 	if (dc->len + 1 > cap) {
 		int new_cap = nextpow2(dc->cap + 1);
-		dict_setcap(dc, new_cap, ctx);
+		dict_set_cap(dc, new_cap, ctx);
 	}
 	
 	item_t* item = dict_find(
@@ -1396,25 +1417,6 @@ bool dict_set(
 	return is_new;
 }
 
-/* retrieves a value from the dictionary */
-bool dict_get(
-	const dict_t* dc,
-	const string_t* key,
-	value_t* val)
-{
-	if (dc->len == 0)
-		return false;
-		
-	item_t* item = dict_find(
-		key, dc->items, dc->cap);
-	if (!item->key)
-		return false;
-	
-	if (val)
-		*val = item->val;
-	return true;
-}
-
 void dict_copy(
 	dict_t* dst,
 	const dict_t* src,
@@ -1427,7 +1429,7 @@ void dict_copy(
 			continue;
 		
 		bool exists = !overwrite && dict_get(
-			dst, item->key, NULL);
+			dst, item->key);
 		if (exists)
 			continue;
 		
@@ -1452,7 +1454,6 @@ uint32_t dict_calc_hash(
 
 void string_rehash(string_t*, sylt_t*);
 
-/* creates a new string */
 string_t* string_new(
 	uint8_t* bytes, size_t len, sylt_t* ctx)
 {
@@ -2478,18 +2479,16 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 		case OP_LOAD_NAME: {
 			string_t* name = getstring(
 				readval());
+			value_t* val = dict_get(
+				vm->gdict, name);
 				
-			value_t load;
-			bool found = dict_get(
-				vm->gdict, name, &load);
-				
-			if (!found) {
+			if (!val) {
 				halt(vm->ctx,
 					E_UNDEFINED(name));
 				unreachable();
 			}
 			
-			push(load);
+			push(*val);
 			break;
 		}
 		case OP_STORE_NAME: {
@@ -2529,17 +2528,16 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 					pop());
 				dict_t* dc = getdict(pop());
 				
-				value_t val;
-				bool found =
-					dict_get(dc, key, &val);
+				value_t* val =
+					dict_get(dc, key);
 				
-				if (!found) {
+				if (!val) {
 					halt(vm->ctx,
-					E_KEY_NOT_FOUND(key));
+						E_KEY_NOT_FOUND(key));
 					unreachable();
-				}
+				}	
 				
-				push(val);
+				push(*val);
 				
 			} else {
 				halt(vm->ctx, E_INDEX_TYPE(
@@ -2922,7 +2920,7 @@ value_t std_read_in(sylt_t* ctx) {
 
 /* returns the string representation of
  * a given value */
-value_t std_as_string(sylt_t* ctx) {
+value_t std_to_string(sylt_t* ctx) {
 	string_t* str =
 		val_tostring(arg(0), ctx);
 	return wrapstring(str);
@@ -2930,7 +2928,7 @@ value_t std_as_string(sylt_t* ctx) {
 
 /* returns x converted to a number, or 0 if 
  * conversion failed */
-value_t std_as_num(sylt_t* ctx) {
+value_t std_to_num(sylt_t* ctx) {
 	sylt_num_t num;
 	
 	switch (arg(0).tag) {
@@ -2944,6 +2942,25 @@ value_t std_as_num(sylt_t* ctx) {
 	}
 	
 	return wrapnum(num);
+}
+
+/* returns true if a is nearly equal
+ * to b, within a tolerance of epsilon */
+value_t std_float_eq(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	typecheck(ctx, arg(2), TYPE_NUM);
+	
+	sylt_num_t a = numarg(0);
+	sylt_num_t b = numarg(1);
+	if (a == b)
+		return wrapbool(true);
+	
+	sylt_num_t epsilon = getnum(arg(2));
+	sylt_num_t diff =
+		num_func(fabsf, fabs)(a - b);
+	
+	return wrapbool(diff < epsilon);
 }
 
 /* returns the type of arg(0) as a string */
@@ -2994,30 +3011,118 @@ value_t std_eval(sylt_t* ctx) {
 	return result;
 }
 
+/* == file lib == */
+
+/* opens a file for reading or writing,
+ * returning a handle */
+value_t stdfile_open(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	
+	string_t* path = stringarg(0);
+	string_t* mode = stringarg(1);
+	
+	int handle = -1;
+	for (size_t i = 0; i < MAX_FILES; i++)
+		if (!ctx->vm->files[i]) {
+			handle = i;
+			break;
+		}
+	
+	if (handle == -1)
+		halt(ctx, E_OPENFAILED(path));
+	
+	ctx->vm->files[handle] = fopen(
+		(const char*)path->bytes,
+		(const char*)mode->bytes);
+	return wrapnum(handle);
+}
+
+/* closes a handle returned by File.open */
+value_t stdfile_close(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+		
+	fclose(fp);
+	return nil();
+}
+
+/* writes a value to an open file */
+value_t stdfile_write(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	string_t* str = val_tostring(
+		arg(1), ctx);
+	
+	for (size_t i = 0; i < str->len; i++)
+		putc(str->bytes[i], fp);
+	
+	return nil();
+}
+
+/* returns a string containig n bytes read
+ * from file */
+value_t stdfile_read(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	int64_t n = (int64_t)numarg(1);
+	string_t* str = string_new(NULL, n, ctx);
+	fread(str->bytes, 1, n, fp);
+	string_rehash(str, ctx);
+	return wrapstring(str);
+}
+
+/* returns the size (in bytes) of an open
+ * file */
+value_t stdfile_size(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	fseek(fp, 0, SEEK_END);
+	size_t size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	return wrapnum(size);
+}
+
+/* deletes a file */
+value_t stdfile_del(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	string_t* path = stringarg(0);
+	remove((char*)path->bytes);
+	return nil();
+}
+
 /* == system lib == */
 
 value_t stdsys_mem_info(sylt_t* ctx) {
 	dict_t* dc = dict_new(ctx);
 	
-	dict_set(dc,
-		string_lit("memUse", ctx),
-		wrapnum(ctx->mem.bytes),
-		ctx);
-	
-	dict_set(dc,
-		string_lit("topMemUse", ctx),
-		wrapnum(ctx->mem.highest),
-		ctx);
-		
-	dict_set(dc,
-		string_lit("gcCycles", ctx),
-		wrapnum(ctx->mem.gc.cycles),
-		ctx);
-		
-	dict_set(dc,
-		string_lit("nextGC", ctx),
-		wrapnum(ctx->mem.gc.trigger),
-		ctx);
+	dict_set(dc, string_lit("memUse", ctx),
+		wrapnum(ctx->mem.bytes), ctx);
+	dict_set(dc, string_lit("topMemUse", ctx),
+		wrapnum(ctx->mem.highest), ctx);
+	dict_set(dc, string_lit("gcCycles", ctx),
+		wrapnum(ctx->mem.gc.cycles), ctx);
+	dict_set(dc, string_lit("nextGC", ctx),
+		wrapnum(ctx->mem.gc.trigger), ctx);
 		
 	return wrapdict(dc);
 }
@@ -3034,6 +3139,31 @@ value_t stdsys_mem_info_str(sylt_t* ctx) {
 		ctx->mem.gc.cycles,
 		ctx->mem.gc.trigger
 			/ 1024.0 / 1024.0));
+}
+
+value_t stdsys_mem_sizes(sylt_t* ctx) {
+	dict_t* dc = dict_new(ctx);
+	
+	dict_set(dc, string_lit("char", ctx),
+		wrapnum(sizeof(char)), ctx);
+	dict_set(dc, string_lit("bool", ctx),
+		wrapnum(sizeof(bool)), ctx);
+	dict_set(dc, string_lit("int", ctx),
+		wrapnum(sizeof(int)), ctx);
+	dict_set(dc, string_lit("long", ctx),
+		wrapnum(sizeof(long)), ctx);
+	dict_set(dc, string_lit("value_t", ctx),
+		wrapnum(sizeof(value_t)), ctx);
+	dict_set(dc, string_lit("list_t", ctx),
+		wrapnum(sizeof(list_t)), ctx);
+	dict_set(dc, string_lit("dict_t", ctx),
+		wrapnum(sizeof(dict_t)), ctx);
+	dict_set(dc, string_lit("string_t", ctx),
+		wrapnum(sizeof(string_t)), ctx);
+	dict_set(dc, string_lit("func_t", ctx),
+		wrapnum(sizeof(func_t)), ctx);
+	
+	return wrapdict(dc);
 }
 
 /* unconditionally halts program execution
@@ -3500,25 +3630,6 @@ value_t stdstring_replace_all(sylt_t* ctx) {
 
 /* == math lib == */
 
-/* returns true if a is nearly equal
- * to b, within a tolerance of epsilon */
-value_t stdmath_float_eq(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
-	typecheck(ctx, arg(2), TYPE_NUM);
-	
-	sylt_num_t a = numarg(0);
-	sylt_num_t b = numarg(1);
-	if (a == b)
-		return wrapbool(true);
-	
-	sylt_num_t epsilon = getnum(arg(2));
-	sylt_num_t diff =
-		num_func(fabsf, fabs)(a - b);
-	
-	return wrapbool(diff < epsilon);
-}
-
 /* returns -1 if x is negative, 0 if it's
  * zero, and 1 if positive */
 value_t stdmath_num_sign(sylt_t* ctx) {
@@ -3737,105 +3848,6 @@ value_t stdmath_seed_rand(sylt_t* ctx) {
 	return nil();
 }
 
-/* == file lib == */
-
-/* opens a file for reading or writing,
- * returning a handle */
-value_t stdfile_open(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
-	
-	string_t* path = stringarg(0);
-	string_t* mode = stringarg(1);
-	
-	int handle = -1;
-	for (size_t i = 0; i < MAX_FILES; i++)
-		if (!ctx->vm->files[i]) {
-			handle = i;
-			break;
-		}
-	
-	if (handle == -1)
-		halt(ctx, E_OPENFAILED(path));
-	
-	ctx->vm->files[handle] = fopen(
-		(const char*)path->bytes,
-		(const char*)mode->bytes);
-	return wrapnum(handle);
-}
-
-/* closes a handle returned by File.open */
-value_t stdfile_close(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-		
-	fclose(fp);
-	return nil();
-}
-
-/* writes a value to an open file */
-value_t stdfile_write(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-	
-	string_t* str = val_tostring(
-		arg(1), ctx);
-	
-	for (size_t i = 0; i < str->len; i++)
-		putc(str->bytes[i], fp);
-	
-	return nil();
-}
-
-/* returns a string containig n bytes read
- * from file */
-value_t stdfile_read(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
-	
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-	
-	int64_t n = (int64_t)numarg(1);
-	string_t* str = string_new(NULL, n, ctx);
-	fread(str->bytes, 1, n, fp);
-	string_rehash(str, ctx);
-	return wrapstring(str);
-}
-
-/* returns the size (in bytes) of an open
- * file */
-value_t stdfile_size(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-	
-	fseek(fp, 0, SEEK_END);
-	size_t size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-	return wrapnum(size);
-}
-
-/* deletes a file */
-value_t stdfile_del(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	string_t* path = stringarg(0);
-	remove((char*)path->bytes);
-	return nil();
-}
-
 static string_t* lib_name = NULL;
 static dict_t* lib_dict = NULL;
 
@@ -3865,11 +3877,11 @@ void std_addlib(sylt_t* ctx) {
 /* adds a value to the standard library */
 void std_add(
 	sylt_t* ctx,
-	const char* name_lit,
+	const char* name,
 	value_t val)
 {
-	string_t* name = string_lit(
-		name_lit, ctx);
+	string_t* name_str = string_lit(
+		name, ctx);
 	
 	dict_t* dict;
 	if (lib_dict)
@@ -3877,7 +3889,7 @@ void std_add(
 	else
 		dict = ctx->vm->gdict;
 	
-	dict_set(dict, name, val, ctx);
+	dict_set(dict, name_str, val, ctx);
 }
 
 /* adds a function to the standard library */
@@ -3919,9 +3931,11 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "print", std_print, 1);
 	std_addf(ctx, "printLn", std_print_ln, 1);
 	std_addf(ctx, "readIn", std_read_in, 0);
-	std_addf(ctx, "asString",
-		std_as_string, 1);
-	std_addf(ctx, "asNum", std_as_num, 1);
+	std_addf(ctx, "toString",
+		std_to_string, 1);
+	std_addf(ctx, "toNum", std_to_num, 1);
+	std_addf(ctx, "floatEq",
+		std_float_eq, 3);
 	std_addf(ctx, "typeOf", std_type_of, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
@@ -3952,6 +3966,8 @@ void std_init(sylt_t* ctx) {
 		stdsys_mem_info, 0);
 	std_addf(ctx, "memInfoStr",
 		stdsys_mem_info_str, 0);
+	std_addf(ctx, "memSizes",
+		stdsys_mem_sizes, 0);
 	std_addf(ctx, "halt", stdsys_halt, 1);
 	std_addf(ctx, "time", stdsys_time, 1);
 	std_addf(ctx, "timestamp",
@@ -4036,8 +4052,6 @@ void std_init(sylt_t* ctx) {
 	std_setlib(ctx, "Math");
 	std_add(ctx, "pi", wrapnum(M_PI));
 	std_add(ctx, "e", wrapnum(M_E));
-	std_addf(ctx, "floatEq",
-		stdmath_float_eq, 3);
 	std_addf(ctx, "numSign",
 		stdmath_num_sign, 1);
 	std_addf(ctx, "abs", stdmath_abs, 1);
@@ -4657,20 +4671,10 @@ token_t scan(comp_t* cmp) {
 	
 	/* string literal */
 	if (is('"')) {
-		//string_t* str = string_new(
-		//	NULL, 0, cmp->ctx);
-		//sylt_pushstring(cmp->ctx, str);
-		
-		//string_push(str, *step(), cmp->ctx);
 		step();
 		while (!is('"') && !eof()) {
 			step();
-			//string_push(str, *step(),
-			//	cmp->ctx);
-			
-			/* don't terminate the string if
-			 * we find a '\"', unless the
-			 * backslash is part of a '\\' */
+
 			bool ignore_close = is('"')
 				&& cmp->pos - start >= 2
 				&& (cmp->pos[-1] == '\\'
@@ -4678,23 +4682,12 @@ token_t scan(comp_t* cmp) {
 					
 			if (ignore_close)
 				step();
-				//string_push(str, *step(),
-				//	cmp->ctx);
 		}
 		
 		if (eof())
 			halt(cmp->ctx, E_UNTERMSTRING);
 		
 		step();
-		//string_push(str, *step(), cmp->ctx);
-		
-		//string_print(str);
-		
-		/*token_t tok;
-		tok.tag = T_STRING;
-		tok.lex = sylt_popstring(cmp->ctx);
-		tok.line = cmp->line;
-		return tok;*/
 		return token(T_STRING);
 	}
 	
@@ -6054,6 +6047,5 @@ int main(int argc, char *argv[]) {
 		sylt_xfile(ctx, argv[path]);
 	
 	sylt_free(ctx);
-	
 	return EXIT_SUCCESS;
 }

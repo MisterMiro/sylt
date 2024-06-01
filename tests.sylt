@@ -344,6 +344,13 @@ let lists() = {
 	ensure(list = [3, 3, 3])
 }
 
+let dicts() = {
+	let dict = [|"a": 1, "b": 2, "c": 3|]
+	
+	## dot access
+	ensure(dict["a"] = dict.a)
+}
+
 let functions() = {
 	## empty body returns nil
 	let empty() = {}
@@ -424,25 +431,25 @@ let whileLoop() = {
 }
 
 let preludeLib() = {
-	## asString
-	ensure(asString(nil) = "nil")
-	ensure(asString(true) = "true"
-		and asString(false) = "false")
-	ensure(asString(707) = "707")
-	ensure(asString(["bananas", 18, true])
+	## toString
+	ensure(toString(nil) = "nil")
+	ensure(toString(true) = "true"
+		and toString(false) = "false")
+	ensure(toString(707) = "707")
+	ensure(toString(["bananas", 18, true])
 		= "[\"bananas\", 18, true]")
-	ensure(asString(printLn) = "printLn")
+	ensure(toString(printLn) = "printLn")
 	
-	## asNum
-	ensure(asNum(nil) = 0)
-	ensure(asNum(true) = 1)
-	ensure(asNum(false) = 0)
-	ensure(asNum(112) = 112)
-	ensure(asNum("1337.25") = 1337.25)
-	ensure(asNum("") = 0)
-	ensure(asNum("error") = 0)
-	ensure(asNum([1, 2, 4]) = 0)
-	ensure(asNum(fun(_) -> {}) = 0)
+	## toNum
+	ensure(toNum(nil) = 0)
+	ensure(toNum(true) = 1)
+	ensure(toNum(false) = 0)
+	ensure(toNum(112) = 112)
+	ensure(toNum("1337.25") = 1337.25)
+	ensure(toNum("") = 0)
+	ensure(toNum("error") = 0)
+	ensure(toNum([1, 2, 4]) = 0)
+	ensure(toNum(fun(_) -> {}) = 0)
 	
 	## typeOf
 	ensure(typeOf(nil) = "Nil")
@@ -629,17 +636,17 @@ let listLib() = {
 }
 
 let dictLib() = {
-	let dict = ~[
+	let dict = [|
 		"door": "window",
 		"car": "helicopter",
 		"box": "pyramid",
-	]
+	|]
 	
 	## length
 	ensure(Dict.length(dict) = 3)
 	
 	## isEmpty
-	ensure(Dict.isEmpty(~[]))
+	ensure(Dict.isEmpty([||]))
 	ensure(!Dict.isEmpty(dict))
 	
 	## keys
@@ -741,21 +748,21 @@ let stringLib() = {
 
 let mathLib() = {
 	## pi
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.pi, 3.141592, 0.00001))
 	
 	## euler's number
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.e, 2.718281, 0.00001))
 	
 	## floatEq
 	let val = 0.005
 	let epsilon = 0.01
 	
-	ensure(Math.floatEq(0, val, epsilon))
-	ensure(Math.floatEq(
+	ensure(floatEq(0, val, epsilon))
+	ensure(floatEq(
 		0, epsilon - 0.0000001, epsilon))
-	ensure(!Math.floatEq(
+	ensure(!floatEq(
 		0, epsilon, epsilon))
 	
 	## numSign
@@ -779,7 +786,7 @@ let mathLib() = {
 	let testLog(base, target) = {
 		let power = Math.log(target, base)
 		let result = Math.pow(base, power)
-		ensure(Math.floatEq(
+		ensure(floatEq(
 			result, target, 0.0000001))
 	}
 	
@@ -835,26 +842,42 @@ let mathLib() = {
 	List.forEach(checkRounding, [-1, 0, 1])
 	
 	## rad + deg
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.rad(1), 0.0175, 0.001))
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.deg(1), 57.296, 0.001))
 	
 	## sin + cos + tan
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.sin(90), 0.8939, 0.001))
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.cos(90), -0.4480, 0.001))
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.tan(90), -1.9952, 0.001))
 			
 	## asin + acos + atan
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.asin(1), 1.5708, 0.001))
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.acos(1), 0, 0.001))
-	ensure(Math.floatEq(
+	ensure(floatEq(
 		Math.atan(1), 0.785398, 0.001))
+		
+	## sinh + cosh + tanh
+	ensure(floatEq(
+		Math.sinh(1), 1.1752, 0.001))
+	ensure(floatEq(
+		Math.cosh(1), 1.5430, 0.001))
+	ensure(floatEq(
+		Math.tanh(1), 0.7615, 0.001))
+	
+	## asinh + acosh + atanh
+	ensure(floatEq(
+		Math.asinh(0.8), 0.7326, 0.001))
+	ensure(floatEq(
+		Math.acosh(1.2), 0.6223, 0.001))
+	ensure(floatEq(
+		Math.atanh(0.8), 1.0986, 0.001))
 	
 	## factorial
 	ensure(Math.factorial(5) = 120)
@@ -864,7 +887,7 @@ let mathLib() = {
 
 let tests = List.flatten([
 	"Parsing",	## category name
-	[			## functions to test
+	[			 ## functions to test
 		names,
 		strings,
 		numbers,
@@ -891,6 +914,7 @@ let tests = List.flatten([
 		variables,
 		blocks,
 		lists,
+		dicts,
 		functions,
 		ifElse,
 		whileLoop,
@@ -906,6 +930,8 @@ let tests = List.flatten([
 	],
 ])
 
+printLn(List.length(tests))
+
 ## number of times to run each test
 let n = 1
 ensure(n > 0)
@@ -919,7 +945,7 @@ List.forEach(fun(test) ->
 	} else {
 		print("  ")
 		print(String.rightPad(
-			asString(test), 20, "."))
+			toString(test), 20, "."))
 		
 		## run it
 		rep(fun(_) -> test(), n)

@@ -1,8 +1,6 @@
 ## this program prints its own source code
 
-let lines = String.split(
-	System.src().text, "\n")
-
+let lines = String.split(System.src().text, "\n")
 List.iter(fun(i, code) -> {
 	let line = toString(i + 1)
 	
@@ -10,5 +8,3 @@ List.iter(fun(i, code) -> {
 	print(" ")
 	printLn(code)
 }, lines)
-
-printLn(System.src())

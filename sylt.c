@@ -245,25 +245,25 @@ bool sylt_xfile(sylt_t* ctx,
 
 void halt(sylt_t*, const char*, ...);
 
-#define E_OUTOFMEM \
+#define E_OUT_OF_MEM \
 	"out of memory"
-#define E_CODELIMIT \
+#define E_CODE_LIMIT \
 	"bytecode limit of %d reached", MAX_CODE
-#define E_DATALIMIT \
+#define E_DATA_LIMIT \
 	"data limit of %d reached", MAX_DATA
-#define E_STACKLIMIT \
+#define E_STACK_LIMIT \
 	"stack limit of %d reached", MAX_STACK
-#define E_LINELIMIT \
+#define E_LINE_LIMIT \
 	"line limit of %d reached", MAX_LINES
-#define E_JUMPLIMIT \
+#define E_JUMP_LIMIT \
 	"jump distance too far (>%d)", MAX_JUMP
-#define E_EMPTYPATH \
+#define E_EMPTY_PATH \
 	"no file path specified"
-#define E_OPENFAILED(path) \
+#define E_OPEN_FAILED(path) \
 	"failed to open '%s'", (path)
 #define E_INVALID_HANDLE(handle) \
 	"invalid file handle: %d", (handle)
-#define E_UNEXPECTEDCHAR(c) \
+#define E_UNEXPECTED_CHAR(c) \
 	"unexpected character '%c'", (c)
 #define E_TYPE(ex, got) \
 	"expected %s, got %s", \
@@ -274,18 +274,18 @@ void halt(sylt_t*, const char*, ...);
 #define E_CONCAT_TYPE(a, b) \
 	"cannot concatenate %s with %s", \
 	user_type_name(a), user_type_name(b)
-#define E_ESCAPESEQ(code) \
+#define E_ESCAPE_SEQ(code) \
 	"unknown escape sequence '\\%c'", \
 	(code)
-#define E_UNTERMSTRING \
+#define E_UNTERM_STRING \
 	"unterminated string literal"
-#define E_TOOMANYPARAMS \
+#define E_TOO_MANY_PARAMS \
 	"too many parameters; limit is %d", \
 	(MAX_PARAMS)
-#define E_TOOMANYARGS \
+#define E_TOO_MANY_ARGS \
 	"too many arguments; limit is %d", \
 	(MAX_PARAMS)
-#define E_TOOMANYUPVALUES \
+#define E_TOO_MANY_UPVALUES \
 	"too many upvalues; max is %d", \
 	(MAX_UPVALUES)
 #define E_UNDEFINED(name) \
@@ -294,14 +294,14 @@ void halt(sylt_t*, const char*, ...);
 #define E_KEY_NOT_FOUND(key) \
 	"key '%.*s' not found", \
 	(key->len), (key->bytes)
-#define E_DIVBYZERO \
+#define E_DIV_BY_ZERO \
 	"attempted division by zero"
-#define E_STACKOVERFLOW \
+#define E_STACK_OVERFLOW \
 	"call stack overflow"
 #define E_INDEX(len, index) \
 	"index out of range, len: %d, i=%d", \
 	(len), (index)
-#define E_WRONGARGC(name, need, got) \
+#define E_WRONG_ARGC(name, need, got) \
 	"%.*s takes %d argument%s but got %d", \
 	(int)name->len, name->bytes, \
 	(need), ((need) == 1 ? "" : "s"), (got)
@@ -481,7 +481,7 @@ void* ptr_resize(
 	
 	void* np = realloc(p, ns);
 	if (!np) {
-		halt(ctx, E_OUTOFMEM);
+		halt(ctx, E_OUT_OF_MEM);
 	    unreachable();
 	}
 	
@@ -1064,7 +1064,7 @@ void obj_mark(obj_t* obj, sylt_t* ctx) {
 			* ctx->mem.gc.nmarked) + 1);
 	
 	if (!ctx->mem.gc.marked) {
-		halt(ctx, E_OUTOFMEM);
+		halt(ctx, E_OUT_OF_MEM);
 		unreachable();
 	}
 	
@@ -1722,12 +1722,12 @@ void func_write(
 	sylt_t* ctx)
 {
 	if (func->ncode >= MAX_CODE) {
-		halt(ctx, E_CODELIMIT);
+		halt(ctx, E_CODE_LIMIT);
 		unreachable();
 	}
 	
 	if (func->nlines >= MAX_LINES) {
-		halt(ctx, E_LINELIMIT);
+		halt(ctx, E_LINE_LIMIT);
 		unreachable();
 	}
 	
@@ -1760,7 +1760,7 @@ size_t func_write_data(
 			return i;
 	
 	if (func->ndata >= MAX_DATA) {
-		halt(ctx, E_DATALIMIT);
+		halt(ctx, E_DATA_LIMIT);
 		unreachable();
 	}
 	
@@ -2646,7 +2646,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			sylt_num_t a = getnum(pop());
 			
 			if (b == 0.0f) {
-				halt(vm->ctx, E_DIVBYZERO);
+				halt(vm->ctx, E_DIV_BY_ZERO);
 				unreachable();
 			}
 			
@@ -2662,7 +2662,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			sylt_num_t a = getnum(pop());
 			
 			if (b == 0.0f) {
-				halt(vm->ctx, E_DIVBYZERO);
+				halt(vm->ctx, E_DIV_BY_ZERO);
 				unreachable();
 			}
 		
@@ -2815,7 +2815,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 	const func_t* func = cls->func;
 				
 	if (func->params != argc) {
-		halt(vm->ctx, E_WRONGARGC(
+		halt(vm->ctx, E_WRONG_ARGC(
 			func->name,
 			func->params,
 			argc));
@@ -2842,7 +2842,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 			
 	if (vm->nframes == MAX_CFRAMES) {
 		halt(vm->ctx,
-			E_STACKOVERFLOW, MAX_CFRAMES);
+			E_STACK_OVERFLOW, MAX_CFRAMES);
 		unreachable();
 	}
 			
@@ -3030,7 +3030,7 @@ value_t stdfile_open(sylt_t* ctx) {
 		}
 	
 	if (handle == -1)
-		halt(ctx, E_OPENFAILED(path));
+		halt(ctx, E_OPEN_FAILED(path));
 	
 	ctx->vm->files[handle] = fopen(
 		(const char*)path->bytes,
@@ -3828,6 +3828,48 @@ value_t stdmath_atan(sylt_t* ctx) {
 		num_func(atanf, atan)(numarg(0)));
 }
 
+/* returns the hyperbolic sine of x */
+value_t stdmath_sinh(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(sinhf, sinh)(numarg(0)));
+}
+
+/* returns the hyperbolic cosine of x */
+value_t stdmath_cosh(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(coshf, cosh)(numarg(0)));
+}
+
+/* returns the hyperbolic tangent of x */
+value_t stdmath_tanh(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(tanhf, tanh)(numarg(0)));
+}
+
+/* returns the hyperbolic arc-sine of x */
+value_t stdmath_asinh(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(asinhf, asinh)(numarg(0)));
+}
+
+/* returns the hyperbolic arc-cosine of x */
+value_t stdmath_acosh(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(acoshf, acosh)(numarg(0)));
+}
+
+/* returns the hyperbolic arc-tangent of x */
+value_t stdmath_atanh(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return wrapnum(
+		num_func(atanhf, atanh)(numarg(0)));
+}
+
 /* generates a random number in the
  * provided range */
 value_t stdmath_rand(sylt_t* ctx) {
@@ -4073,6 +4115,12 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "asin", stdmath_asin, 1);
 	std_addf(ctx, "acos", stdmath_acos, 1);
 	std_addf(ctx, "atan", stdmath_atan, 1);
+	std_addf(ctx, "sinh", stdmath_sinh, 1);
+	std_addf(ctx, "cosh", stdmath_cosh, 1);
+	std_addf(ctx, "tanh", stdmath_tanh, 1);
+	std_addf(ctx, "asinh", stdmath_asinh, 1);
+	std_addf(ctx, "acosh", stdmath_acosh, 1);
+	std_addf(ctx, "atanh", stdmath_atanh, 1);
 	std_addf(ctx, "rand", stdmath_rand, 2);
 	std_addf(ctx, "seedRand",
 		stdmath_seed_rand, 1);
@@ -4286,7 +4334,7 @@ void comp_simstack(comp_t* cmp, int n) {
 	//assert(cmp->curslots >= 0);
 	
 	if (cmp->curslots > MAX_STACK) {
-		halt(cmp->ctx, E_STACKLIMIT);
+		halt(cmp->ctx, E_STACK_LIMIT);
 		unreachable();
 	}
 	
@@ -4397,7 +4445,7 @@ void patch_jump(comp_t* cmp, int addr) {
 	int dist =
 		cmp->func->ncode - addr - 2;
 	if (dist > MAX_JUMP) {
-		halt(cmp->ctx, E_JUMPLIMIT);
+		halt(cmp->ctx, E_JUMP_LIMIT);
 		return;
 	}
 	
@@ -4415,7 +4463,7 @@ void emit_loop(comp_t* cmp, int addr) {
 	int dist =
 		cmp->func->ncode - addr + 2;
 	if (dist > MAX_JUMP) {
-		halt(cmp->ctx, E_JUMPLIMIT);
+		halt(cmp->ctx, E_JUMP_LIMIT);
 		return;
 	}
 	
@@ -4488,7 +4536,7 @@ int add_upvalue(
 	}
 	
 	if (n == MAX_UPVALUES) {
-		halt(cmp->ctx, E_TOOMANYUPVALUES);
+		halt(cmp->ctx, E_TOO_MANY_UPVALUES);
 		unreachable();
 	}
 	
@@ -4685,7 +4733,7 @@ token_t scan(comp_t* cmp) {
 		}
 		
 		if (eof())
-			halt(cmp->ctx, E_UNTERMSTRING);
+			halt(cmp->ctx, E_UNTERM_STRING);
 		
 		step();
 		return token(T_STRING);
@@ -4749,7 +4797,7 @@ token_t scan(comp_t* cmp) {
 	case '.': return token(T_DOT);
 	case '\0': return token(T_EOF);
 	default: halt(cmp->ctx,
-		E_UNEXPECTEDCHAR(cmp->pos[-1]));
+		E_UNEXPECTED_CHAR(cmp->pos[-1]));
 	}
 	
 	unreachable();
@@ -5096,7 +5144,7 @@ void string(comp_t* cmp) {
 			break;
 		default:
 			halt(cmp->ctx,
-				E_ESCAPESEQ(code));
+				E_ESCAPE_SEQ(code));
 		}
 			
 		read += seqlen;
@@ -5223,7 +5271,7 @@ void call(comp_t* cmp) {
 		&& !check(cmp, T_EOF))
 	{
 		if (argc >= MAX_PARAMS) {
-			halt(cmp->ctx, E_TOOMANYARGS);
+			halt(cmp->ctx, E_TOO_MANY_ARGS);
 			unreachable();
 		}
 			
@@ -5393,7 +5441,7 @@ void parse_func(
 		&& !check(&fcmp, T_EOF))
 	{
 		if (fcmp.func->params >= MAX_PARAMS) {
-			halt(fcmp.ctx, E_TOOMANYPARAMS);
+			halt(fcmp.ctx, E_TOO_MANY_PARAMS);
 			unreachable();
 		}
 			
@@ -5753,13 +5801,13 @@ string_t* load_file(
 	const char* path, sylt_t* ctx)
 {
 	if (!path) {
-		halt(ctx, E_EMPTYPATH);
+		halt(ctx, E_EMPTY_PATH);
 		unreachable();
 	}
 	
 	FILE* fp = fopen(path, "rb");
 	if (!fp) {
-		halt(ctx, E_OPENFAILED(path));
+		halt(ctx, E_OPEN_FAILED(path));
 		unreachable();
 	}
 	
@@ -5775,7 +5823,6 @@ string_t* load_file(
 	fread(str->bytes, 1, len, fp);
 	fclose(fp);
 	
-	str->bytes[len] = '\0';
 	string_rehash(str, ctx);
 	return str;
 }

@@ -1,0 +1,14 @@
+## this program prints its own source code
+
+let lines = String.split(
+	System.src().text, "\n")
+
+List.iter(fun(i, code) -> {
+	let line = toString(i + 1)
+	
+	print(String.rightPad(line, 5, " "))
+	print(" ")
+	printLn(code)
+}, lines)
+
+printLn(System.src())

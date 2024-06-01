@@ -1,0 +1,6 @@
+## prints all even numbers in the specified
+## range
+
+let numbers = List.range(0, 10)
+List.filter(isEven, numbers)
+printLn(numbers)

@@ -2,5 +2,5 @@
 ## range
 
 let numbers = List.range(0, 10)
-List.filter(isEven, numbers)
+numbers <- List.filter(isEven, numbers)
 printLn(numbers)

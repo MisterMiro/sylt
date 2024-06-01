@@ -67,11 +67,8 @@
 #define DBG_PRINT_GC_STATE 0
 #define DBG_PRINT_TOKENS 0
 #define DBG_PRINT_NAMES 0
-#define DBG_PRINT_CODE 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
-#define DBG_PRINT_MEM_STATS 0
-#define DBG_PRINT_PLATFORM_INFO 0
 
 /* prints all debug flags that are set */
 static void dbg_print_flags(void) {
@@ -87,11 +84,8 @@ static void dbg_print_flags(void) {
 	pflag(DBG_PRINT_GC_STATE);
 	pflag(DBG_PRINT_TOKENS);
 	pflag(DBG_PRINT_NAMES);
-	pflag(DBG_PRINT_CODE);
 	pflag(DBG_PRINT_DATA);
 	pflag(DBG_PRINT_STACK);
-	pflag(DBG_PRINT_MEM_STATS);
-	pflag(DBG_PRINT_PLATFORM_INFO);
 			
 	#undef pflag
 }
@@ -135,17 +129,14 @@ typedef enum {
 	SYLT_STATE_ALLOC,
 	/* context initialized */
 	SYLT_STATE_INIT,
-	
 	/* compiling input */
 	SYLT_STATE_COMPILING,
 	/* done compiling */
 	SYLT_STATE_COMPILED,
-	
 	/* executing a program */
 	SYLT_STATE_EXEC,
 	/* execution finished */
 	SYLT_STATE_DONE,
-	
 	/* sylt_free() called */
 	SYLT_STATE_FREEING,
 	/* context freed; all pointers invalid */
@@ -212,6 +203,8 @@ typedef struct {
 	struct vm_s* vm;
 	struct comp_s* cmp;
 	mem_t mem;
+	bool interact_mode;
+	bool disassemble;
 } sylt_t;
 
 /* longjmp destination on error.
@@ -224,7 +217,6 @@ static void set_state(
 	sylt_t* ctx, sylt_state_t state)
 {
 	ctx->state = state;
-	
 	#if DBG_PRINT_SYLT_STATE
 	sylt_dprintf("[%p: %s]\n",
 		ctx, SYLT_STATE_NAME[state]);
@@ -2011,26 +2003,6 @@ void val_print(
 	string_print(str);
 }
 
-void dbg_print_platform_info(void) {
-	#if DBG_PRINT_PLATFORM_INFO
-	sylt_dprintf("[platform]\n");
-	
-	#define psize(t) \
-		sylt_dprintf("  sizeof(%s) = %ld\n", \
-			#t, sizeof(t))
-	
-	psize(value_t);
-	psize(bool);
-	psize(sylt_num_t);
-	psize(list_t);
-	psize(dict_t);
-	psize(string_t);
-	psize(func_t);
-	
-	#undef psize
-	#endif
-}
-
 /* == virtual machine == */
 
 void vm_init(vm_t* vm, sylt_t* ctx) {
@@ -2063,6 +2035,16 @@ void vm_free(vm_t* vm) {
 			fclose(vm->files[i]);
 }
 
+size_t vm_address(const vm_t* vm) {
+	return (size_t)(vm->fp->ip - 1
+		- vm->fp->func->code);
+}
+
+uint32_t vm_line(const vm_t* vm) {
+	return vm->fp->func->lines[
+		vm_address(vm)];
+}
+
 /* VM macros */
 #define read8() *vm->fp->ip++
 #define read16() \
@@ -2078,27 +2060,12 @@ void vm_free(vm_t* vm) {
 #define func_stack() \
 	(vm->stack + vm->fp->offs)
 
-void dbg_print_mem_stats(sylt_t* ctx) {
-	#if DBG_PRINT_MEM_STATS
-	sylt_dprintf(
-		"[memory]\n"
-		"- leaked: %ld bytes\n"
-		"- top usage: %ld bytes (%g MB)\n"
-		"- allocations: %ld (%ld objects)\n"
-		"- gc cycles: %ld\n",
-		ctx->mem.bytes - sizeof(sylt_t),
-		ctx->mem.highest,
-		ctx->mem.highest / 1024.0f / 1024.0f,
-		ctx->mem.count,
-		ctx->mem.objcount,
-		ctx->mem.gc.cycles);
-	#endif
-}
-
 void dbg_print_header(
 	const vm_t* vm, const closure_t* cls)
 {
-	#if DBG_PRINT_CODE
+	if (!vm->ctx->disassemble)
+		return;
+	
 	const func_t* func = cls->func;
 	
 	sylt_dprintf("\n-> ");
@@ -2148,17 +2115,15 @@ void dbg_print_header(
 	for (int i = 0; i < 40; i++)
 		sylt_dprintf("-");
 	sylt_dprintf("\n");
-	#endif
 }
 
 void dbg_print_instruction(
 	const vm_t* vm, const func_t* func)
 {
-	#if DBG_PRINT_CODE
-	op_t op = vm->fp->ip[-1];
-	size_t addr =
-		(size_t)
-			(vm->fp->ip - 1 - func->code);
+	if (!vm->ctx->disassemble)
+		return;
+	
+	size_t addr = vm_address(vm);
 	sylt_dprintf("  %05ld", addr);
 	
 	/* line number */
@@ -2169,7 +2134,8 @@ void dbg_print_instruction(
 		sylt_dprintf(" %-4d ", line);
 	else
 		sylt_dprintf(" |    ");
-		
+	
+	uint8_t op = vm->fp->ip[-1];
 	const char* name = OPINFO[op].name;
 	sylt_dprintf("%-19s", name);
 		
@@ -2181,7 +2147,6 @@ void dbg_print_instruction(
 	}
 		
 	sylt_dprintf("\n");
-	#endif
 }
 
 void dbg_print_stack(
@@ -2483,6 +2448,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				vm->gdict, name);
 				
 			if (!val) {
+				push(nil());
 				halt(vm->ctx,
 					E_UNDEFINED(name));
 				unreachable();
@@ -2499,6 +2465,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				name, peek(0), vm->ctx);
 				
 			if (is_new) {
+				push(nil());
 				halt(vm->ctx,
 					E_UNDEFINED(name));
 				unreachable();
@@ -2532,6 +2499,7 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 					dict_get(dc, key);
 				
 				if (!val) {
+					push(nil());
 					halt(vm->ctx,
 						E_KEY_NOT_FOUND(key));
 					unreachable();
@@ -2777,10 +2745,10 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			break;
 		}
 		case OP_RET: {
-			value_t retval = pop();
+			value_t ret = pop();
 			vm_close_upvals(vm, vm->fp->offs);
 			vm->sp = func_stack() - 1;
-			push(retval);
+			push(ret);
 			
 			vm->nframes--;
 			vm->fp =
@@ -2832,9 +2800,8 @@ void sylt_call(sylt_t* ctx, int argc) {
 		shrink(argc + 1);
 		push(result);
 				
-		#if DBG_PRINT_CODE
-		sylt_dprintf("\n");
-		#endif
+		if (ctx->disassemble)
+			sylt_dprintf("\n");
 				
 		gc_resume(vm->ctx);
 		return; /* early return */
@@ -2888,25 +2855,18 @@ void sylt_call(sylt_t* ctx, int argc) {
 
 /* == prelude lib == */
 
-/* prints arg(0) to the standard output
- * and flushes the stream  */
 value_t std_print(sylt_t* ctx) {
 	val_print(arg(0), false, ctx);
 	fflush(stdout);
 	return nil();
 }
 
-/* prints arg(0) to the standard output,
- * followed by a newline (\n) character
- * (which flushes the stream automatically) */
 value_t std_print_ln(sylt_t* ctx) {
 	val_print(arg(0), false, ctx);
 	sylt_printf("\n");
 	return nil();
 }
 
-/* reads console input into a string and 
- * returns it */
 value_t std_read_in(sylt_t* ctx) {
 	char buffer[8192];
 	fgets(buffer, 8192, stdin);
@@ -2918,16 +2878,12 @@ value_t std_read_in(sylt_t* ctx) {
 		string_lit(buffer, ctx));
 }
 
-/* returns the string representation of
- * a given value */
 value_t std_to_string(sylt_t* ctx) {
 	string_t* str =
 		val_tostring(arg(0), ctx);
 	return wrapstring(str);
 }
 
-/* returns x converted to a number, or 0 if 
- * conversion failed */
 value_t std_to_num(sylt_t* ctx) {
 	sylt_num_t num;
 	
@@ -2944,8 +2900,6 @@ value_t std_to_num(sylt_t* ctx) {
 	return wrapnum(num);
 }
 
-/* returns true if a is nearly equal
- * to b, within a tolerance of epsilon */
 value_t std_float_eq(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -2963,14 +2917,11 @@ value_t std_float_eq(sylt_t* ctx) {
 	return wrapbool(diff < epsilon);
 }
 
-/* returns the type of arg(0) as a string */
 value_t std_type_of(sylt_t* ctx) {
 	return wrapstring(string_lit(
 		user_type_name(arg(0).tag), ctx));
 }
 
-/* meant for debug builds, halts the VM with
- * an error if arg(0) evaluates to false */
 value_t std_ensure(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_BOOL);
 	if (!boolarg(0)) {
@@ -2981,20 +2932,16 @@ value_t std_ensure(sylt_t* ctx) {
 	return arg(0);
 }
 
-/* marks a code path not yet implemented */
 value_t std_todo(sylt_t* ctx) {
 	halt(ctx, E_TODO_REACHED);
 	return nil();
 }
 
-/* marks a code path unreachable */
 value_t std_unreachable(sylt_t* ctx) {
 	halt(ctx, E_UNREACHABLE_REACHED);
 	return nil();
 }
 
-/* evaluates a string containing sylt code
- * and returns the result */
 value_t std_eval(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	
@@ -3013,8 +2960,6 @@ value_t std_eval(sylt_t* ctx) {
 
 /* == file lib == */
 
-/* opens a file for reading or writing,
- * returning a handle */
 value_t stdfile_open(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_STRING);
@@ -3038,7 +2983,6 @@ value_t stdfile_open(sylt_t* ctx) {
 	return wrapnum(handle);
 }
 
-/* closes a handle returned by File.open */
 value_t stdfile_close(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	int64_t handle = (int64_t)numarg(0);
@@ -3050,7 +2994,6 @@ value_t stdfile_close(sylt_t* ctx) {
 	return nil();
 }
 
-/* writes a value to an open file */
 value_t stdfile_write(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	
@@ -3068,8 +3011,6 @@ value_t stdfile_write(sylt_t* ctx) {
 	return nil();
 }
 
-/* returns a string containig n bytes read
- * from file */
 value_t stdfile_read(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3086,8 +3027,6 @@ value_t stdfile_read(sylt_t* ctx) {
 	return wrapstring(str);
 }
 
-/* returns the size (in bytes) of an open
- * file */
 value_t stdfile_size(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	
@@ -3102,7 +3041,6 @@ value_t stdfile_size(sylt_t* ctx) {
 	return wrapnum(size);
 }
 
-/* deletes a file */
 value_t stdfile_del(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* path = stringarg(0);
@@ -3114,7 +3052,6 @@ value_t stdfile_del(sylt_t* ctx) {
 
 value_t stdsys_mem_info(sylt_t* ctx) {
 	dict_t* dc = dict_new(ctx);
-	
 	dict_set(dc, string_lit("memUse", ctx),
 		wrapnum(ctx->mem.bytes), ctx);
 	dict_set(dc, string_lit("topMemUse", ctx),
@@ -3123,7 +3060,6 @@ value_t stdsys_mem_info(sylt_t* ctx) {
 		wrapnum(ctx->mem.gc.cycles), ctx);
 	dict_set(dc, string_lit("nextGC", ctx),
 		wrapnum(ctx->mem.gc.trigger), ctx);
-		
 	return wrapdict(dc);
 }
 
@@ -3141,9 +3077,25 @@ value_t stdsys_mem_info_str(sylt_t* ctx) {
 			/ 1024.0 / 1024.0));
 }
 
+value_t stdsys_src(sylt_t* ctx) {
+	dict_t* dc = dict_new(ctx);
+	dict_set(dc,string_lit("text", ctx),
+		wrapstring(ctx->vm->fp->func->src),
+		ctx);
+	dict_set(dc, string_lit("name", ctx),
+		wrapstring(ctx->vm->fp->func->name),
+		ctx);
+	dict_set(dc, string_lit("path", ctx),
+		wrapstring(ctx->vm->fp->func->path),
+		ctx);
+	dict_set(dc, string_lit("line", ctx),
+		wrapnum(vm_line(ctx->vm)),
+		ctx);
+	return wrapdict(dc);
+}
+
 value_t stdsys_mem_sizes(sylt_t* ctx) {
 	dict_t* dc = dict_new(ctx);
-	
 	dict_set(dc, string_lit("char", ctx),
 		wrapnum(sizeof(char)), ctx);
 	dict_set(dc, string_lit("bool", ctx),
@@ -3152,6 +3104,8 @@ value_t stdsys_mem_sizes(sylt_t* ctx) {
 		wrapnum(sizeof(int)), ctx);
 	dict_set(dc, string_lit("long", ctx),
 		wrapnum(sizeof(long)), ctx);
+	dict_set(dc, string_lit("size_t", ctx),
+		wrapnum(sizeof(size_t)), ctx);
 	dict_set(dc, string_lit("value_t", ctx),
 		wrapnum(sizeof(value_t)), ctx);
 	dict_set(dc, string_lit("list_t", ctx),
@@ -3162,12 +3116,13 @@ value_t stdsys_mem_sizes(sylt_t* ctx) {
 		wrapnum(sizeof(string_t)), ctx);
 	dict_set(dc, string_lit("func_t", ctx),
 		wrapnum(sizeof(func_t)), ctx);
-	
+	dict_set(dc, string_lit("closure_t", ctx),
+		wrapnum(sizeof(closure_t)), ctx);
+	dict_set(dc, string_lit("upvalue_t", ctx),
+		wrapnum(sizeof(upvalue_t)), ctx);
 	return wrapdict(dc);
 }
 
-/* unconditionally halts program execution
- * with an error message */
 value_t stdsys_halt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	halt(ctx,
@@ -3203,19 +3158,16 @@ value_t stdsys_cpu_clock(sylt_t* ctx) {
 
 /* == list lib == */
 
-/* returns the number of items in the list */
 value_t stdlist_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return wrapnum(listarg(0)->len);
 }
 
-/* returns true if the list is empty */
 value_t stdlist_is_empty(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return wrapbool(listarg(0)->len == 0);
 }
 
-/* removes all items from the list */
 value_t stdlist_clear(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	list_t* ls = listarg(0);
@@ -3224,7 +3176,6 @@ value_t stdlist_clear(sylt_t* ctx) {
 	return nil();
 }
 
-/* inserts a value at the given index */
 value_t stdlist_add(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3233,7 +3184,6 @@ value_t stdlist_add(sylt_t* ctx) {
 	return nil();
 }
 
-/* deletes the value at the given index */
 value_t stdlist_del(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3241,34 +3191,27 @@ value_t stdlist_del(sylt_t* ctx) {
 		listarg(0), numarg(1), ctx);
 }
 
-/* appends a value to the end of the list */
 value_t stdlist_push(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	list_push(listarg(0), arg(1), ctx);
 	return nil();
 }
 
-/* removes and returns the last value of
- * the list, or nil if it was empty */
 value_t stdlist_pop(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return list_pop(listarg(0), ctx);
 }
 
-/* returns the first item in the list */
 value_t stdlist_first(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return list_get(listarg(0), 0, ctx);
 }
 
-/* returns the last item in the list */
 value_t stdlist_last(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	return list_get(listarg(0), -1, ctx);
 }
 
-/* returns the number of times a value
- * appears in the list */
 value_t stdlist_count(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	size_t result = list_count(
@@ -3276,8 +3219,6 @@ value_t stdlist_count(sylt_t* ctx) {
 	return wrapnum(result);
 }
 
-/* returns true if the list contains a
- * given value */
 value_t stdlist_contains(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	bool result = list_count(
@@ -3285,7 +3226,6 @@ value_t stdlist_contains(sylt_t* ctx) {
 	return wrapbool(result);
 }
 
-/* reverses the list */
 value_t stdlist_rev(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	
@@ -3303,8 +3243,6 @@ value_t stdlist_rev(sylt_t* ctx) {
 	return wraplist(new_ls);
 }
 
-/* returns a list containing a range of 
- * numbers */
 value_t stdlist_range(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3369,8 +3307,6 @@ value_t stdstring_length(sylt_t* ctx) {
 	return wrapnum(stringarg(0)->len);
 }
 
-/* returns all chars (bytes) in the string
- * as a list */
 value_t stdstring_chars(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* str = stringarg(0);
@@ -3385,8 +3321,6 @@ value_t stdstring_chars(sylt_t* ctx) {
 	return wraplist(ls);
 }
 
-/* takes a list of values and builds a string
- * from them */
 value_t stdstring_join(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	
@@ -3450,7 +3384,6 @@ value_t stdstring_split(sylt_t* ctx) {
 	return wraplist(parts);
 }
 
-/* returns str converted to lowercase */
 value_t stdstring_lower(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	
@@ -3468,7 +3401,6 @@ value_t stdstring_lower(sylt_t* ctx) {
 	return wrapstring(copy);
 }
 
-/* returns str converted to uppercase */
 value_t stdstring_upper(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	
@@ -3485,8 +3417,6 @@ value_t stdstring_upper(sylt_t* ctx) {
 	return wrapstring(copy);
 }
 
-/* converts lowrcase letters to uppercase
- * and vice versa */
 value_t stdstring_swap_case(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	
@@ -3505,8 +3435,6 @@ value_t stdstring_swap_case(sylt_t* ctx) {
 	return wrapstring(copy);
 }
 
-/* returns true if the string starts with 
- * another string */
 value_t stdstring_starts_with(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_STRING);
@@ -3517,8 +3445,6 @@ value_t stdstring_starts_with(sylt_t* ctx) {
 		str, other));
 }
 
-/* returns true if the string ends with 
- * another string */
 value_t stdstring_ends_with(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_STRING);
@@ -3529,7 +3455,6 @@ value_t stdstring_ends_with(sylt_t* ctx) {
 		str, other));
 }
 
-/* strips leading whitespace */
 value_t stdstring_trim_start(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* src = stringarg(0);
@@ -3552,7 +3477,6 @@ value_t stdstring_trim_start(sylt_t* ctx) {
 	return wrapstring(dst);
 }
 
-/* strips trailing whitespace */
 value_t stdstring_trim_end(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* src = stringarg(0);
@@ -3576,7 +3500,6 @@ value_t stdstring_trim_end(sylt_t* ctx) {
 	return wrapstring(dst);
 }
 
-/* strips leading and trailing whitespace */
 value_t stdstring_trim(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	value_t res = stdstring_trim_end(ctx);
@@ -3584,8 +3507,6 @@ value_t stdstring_trim(sylt_t* ctx) {
 	return res;
 }
 
-/* replaces all occurrences of the substring
- * 'find' with 'replace' */
 value_t stdstring_replace_all(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_STRING);
@@ -3630,8 +3551,6 @@ value_t stdstring_replace_all(sylt_t* ctx) {
 
 /* == math lib == */
 
-/* returns -1 if x is negative, 0 if it's
- * zero, and 1 if positive */
 value_t stdmath_num_sign(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t x = numarg(0);
@@ -3642,7 +3561,6 @@ value_t stdmath_num_sign(sylt_t* ctx) {
 	return wrapnum(1);
 }
 
-/* returns the absolute value of x */
 value_t stdmath_abs(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
@@ -3650,9 +3568,6 @@ value_t stdmath_abs(sylt_t* ctx) {
 	return wrapnum(result);
 }
 
-/* returns the exponent to which base
- * needs to be raised in order to 
- * produce x */
 value_t stdmath_log(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3682,7 +3597,6 @@ value_t stdmath_log(sylt_t* ctx) {
 	return wrapnum(result);
 }
 
-/* returns base raised to the power of exp */
 value_t stdmath_pow(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3694,7 +3608,6 @@ value_t stdmath_pow(sylt_t* ctx) {
 	return wrapnum(result);
 }
 
-/* returns the square root of x */
 value_t stdmath_sqrt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
@@ -3702,7 +3615,6 @@ value_t stdmath_sqrt(sylt_t* ctx) {
 	return wrapnum(result);
 }
 
-/* returns the smaller value of a and b */
 value_t stdmath_min(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3711,7 +3623,6 @@ value_t stdmath_min(sylt_t* ctx) {
 			: numarg(1));
 }
 
-/* returns the larger value of a and b */
 value_t stdmath_max(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3720,7 +3631,6 @@ value_t stdmath_max(sylt_t* ctx) {
 			: numarg(1));
 }
 
-/* clamps x between lo and hi */
 value_t stdmath_clamp(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3736,8 +3646,6 @@ value_t stdmath_clamp(sylt_t* ctx) {
 	return wrapnum(x);
 }
 
-/* linearly interpolates between a and b
- * based on t */
 value_t stdmath_lerp(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3750,128 +3658,106 @@ value_t stdmath_lerp(sylt_t* ctx) {
 	return wrapnum(res);
 }
 
-/* returns n rounded towards -infinity */
 value_t stdmath_floor(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(floorf, floor)(numarg(0)));
 }
 
-/* returns n rounded towards +infinity */
 value_t stdmath_ceil(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(ceilf, ceil)(numarg(0)));
 }
 
-/* returns the nearest integer value to x, 
- * rounding halfway cases away from zero */
 value_t stdmath_round(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(roundf, round)(numarg(0)));
 }
 
-/* returns x converted from degrees to
- * radians */
 value_t stdmath_rad(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * M_PI / 180.0);
 }
 
-/* returns x converted from radians to
- * degrees */
 value_t stdmath_deg(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(numarg(0) * 180.0 / M_PI);
 }
 
-/* returns the sine of x */
 value_t stdmath_sin(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(sinf, sin)(numarg(0)));
 }
 
-/* returns the cosine of x */
 value_t stdmath_cos(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(cosf, cos)(numarg(0)));
 }
 
-/* returns the tangent of x */
 value_t stdmath_tan(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(tanf, tan)(numarg(0)));
 }
 
-/* returns the arcsine of x */
 value_t stdmath_asin(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(asinf, asin)(numarg(0)));
 }
 
-/* returns the arccosine of x */
 value_t stdmath_acos(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(acosf, acos)(numarg(0)));
 }
 
-/* returns the arctangent of x */
 value_t stdmath_atan(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(atanf, atan)(numarg(0)));
 }
 
-/* returns the hyperbolic sine of x */
 value_t stdmath_sinh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(sinhf, sinh)(numarg(0)));
 }
 
-/* returns the hyperbolic cosine of x */
 value_t stdmath_cosh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(coshf, cosh)(numarg(0)));
 }
 
-/* returns the hyperbolic tangent of x */
 value_t stdmath_tanh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(tanhf, tanh)(numarg(0)));
 }
 
-/* returns the hyperbolic arc-sine of x */
 value_t stdmath_asinh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(asinhf, asinh)(numarg(0)));
 }
 
-/* returns the hyperbolic arc-cosine of x */
 value_t stdmath_acosh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(acoshf, acosh)(numarg(0)));
 }
 
-/* returns the hyperbolic arc-tangent of x */
 value_t stdmath_atanh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return wrapnum(
 		num_func(atanhf, atanh)(numarg(0)));
 }
 
-/* generates a random number in the
- * provided range */
 value_t stdmath_rand(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3882,8 +3768,6 @@ value_t stdmath_rand(sylt_t* ctx) {
     return wrapnum(min + r * (max - min));
 }
 
-/* sets the seed of the random number
- * generator */
 value_t stdmath_seed_rand(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	srand(numarg(0));
@@ -4010,6 +3894,8 @@ void std_init(sylt_t* ctx) {
 		stdsys_mem_info_str, 0);
 	std_addf(ctx, "memSizes",
 		stdsys_mem_sizes, 0);
+	std_addf(ctx, "src",
+		stdsys_src, 0);
 	std_addf(ctx, "halt", stdsys_halt, 1);
 	std_addf(ctx, "time", stdsys_time, 1);
 	std_addf(ctx, "timestamp",
@@ -5656,12 +5542,11 @@ void gc_mark(
 	#endif
 	
 	gc_set_state(ctx, GC_STATE_MARK);
-	
-	/* mark root objects */
 	gc_mark_vm(ctx);
 	gc_mark_compiler(ctx);
 	gc_trace_refs(ctx);
 	
+	/* TODO */
 	gc_free(ctx->mem.gc.marked);
 	ctx->mem.gc.marked = NULL;
 	ctx->mem.gc.nmarked = 0;
@@ -5852,20 +5737,22 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		break;
 	}
 	case SYLT_STATE_EXEC: {
-		const vm_t* vm = ctx->vm;
-		const func_t* func = vm->fp->func;
-		uint32_t line = func->lines[
-			vm->fp->ip - func->code - 1];
-		
 		sylt_eprintf(" in ");
-		string_eprint(func->path);
-		sylt_eprintf(":%d", line);
+		string_eprint(
+			ctx->vm->fp->func->path);
+		sylt_eprintf(":%d", vm_line(ctx->vm));
 		break;
 	}
 	}
 	
 	sylt_eprintf(": %s\n", msg);
 	longjmp(err_jump, 1);
+}
+
+void sylt_handle_halt(sylt_t** ctx) {
+	gc_resume(*ctx);
+	/*sylt_free(*ctx);
+	*ctx = sylt_new();*/
 }
 
 sylt_t* sylt_new(void) {
@@ -5889,6 +5776,9 @@ sylt_t* sylt_new(void) {
 	ctx->mem.gc.trigger = GC_INIT_THRESHOLD;
 	ctx->mem.gc.cycles = 0;
 	ctx->mem.gc.pause_depth = 0;
+	
+	ctx->interact_mode = false;
+	ctx->disassemble = false;
 	
 	set_state(ctx, SYLT_STATE_INIT);
 	vm_init(ctx->vm, ctx);
@@ -5927,10 +5817,8 @@ void sylt_free(sylt_t* ctx) {
 		ctx->cmp = NULL;
 	}
 	
-	dbg_print_mem_stats(ctx);
-	assert(ctx->mem.gc.pause_depth == 0);
-	
 	/* ensure that no memory was leaked */
+	assert(ctx->mem.gc.pause_depth == 0);
 	ptrdiff_t bytesleft =
 		ctx->mem.bytes - sizeof(sylt_t);
 	if (bytesleft)
@@ -5947,7 +5835,6 @@ void compile_and_run(
 {
 	set_state(ctx, SYLT_STATE_COMPILING);
 	comp_load(cmp);
-	gc_pause(ctx);
 	
 	/* scan initial token for lookahead */
 	cmp->prev.line = 1;
@@ -5955,15 +5842,30 @@ void compile_and_run(
 	
 	/* parse the entire source */
 	while (!check(cmp, T_EOF)) {
+		int index;
+		if (ctx->interact_mode) {
+			index = func_write_data(
+				cmp->func,
+				wrapstring(string_lit(
+					"printLn", cmp->ctx)),
+				cmp->ctx);
+			emit_unary(cmp, OP_LOAD_NAME,
+				index);
+		}
+		
 		expr(cmp, ANY_PREC);
-		if (cmp->cur.tag != T_EOF)
+		
+		if (ctx->interact_mode) {
+			emit_unary(cmp, OP_CALL, 1);
+			emit_nullary(cmp, OP_POP);
+			
+		} else if (cmp->cur.tag != T_EOF)
 			emit_nullary(cmp, OP_POP);
 	}
 	
 	emit_nullary(cmp, OP_RET);
 	
 	set_state(ctx, SYLT_STATE_COMPILED);
-	gc_resume(ctx);
 	
 	/* load program */
 	sylt_pushclosure(ctx,
@@ -5983,9 +5885,7 @@ bool sylt_xstring(
 		return false;
 		
 	if (setjmp(err_jump)) {
-		gc_resume(ctx);
-		sylt_free(ctx);
-		ctx = sylt_new();
+		sylt_handle_halt(&ctx);
 		return false;
 	}
 	
@@ -6008,9 +5908,7 @@ bool sylt_xfile(
 		return false;
 	
 	if (setjmp(err_jump)) {
-		gc_resume(ctx);
-		sylt_free(ctx);
-		ctx = sylt_new();
+		sylt_handle_halt(&ctx);
 		return false;
 	}
 	
@@ -6022,6 +5920,19 @@ bool sylt_xfile(
 	
 	compile_and_run(ctx, ctx->cmp);
 	return true;
+}
+
+void sylt_interact(sylt_t* ctx) {
+	ctx->interact_mode = true;
+	sylt_printf("%s\n", SYLT_VERSION_STR);
+	
+	while (true) {
+		sylt_printf(">> ");
+		string_t* input = getstring(
+			std_read_in(ctx));
+		sylt_xstring(ctx,
+			(char*)input->bytes);
+	}
 }
 
 void run_tests(sylt_t* ctx) {
@@ -6042,9 +5953,9 @@ void print_usage(void) {
 	sylt_printf(
 		"usage: sylt [path|flag(s)]\n");
 	sylt_printf("available flags:\n");
-	sylt_printf("-help    shows this\n");
-	sylt_printf("-version prints version\n");
-	sylt_printf("-test    runs tests\n");
+	sylt_printf("-help  shows this\n");
+	sylt_printf("-test  runs tests\n");
+	sylt_printf("-d     disassemble\n");
 }
 
 void print_version(void) {
@@ -6053,13 +5964,6 @@ void print_version(void) {
 
 int main(int argc, char *argv[]) {
 	dbg_print_flags();
-	dbg_print_platform_info();
-	
-	if (argc == 1) {
-		print_usage();
-		return EXIT_FAILURE;
-	}
-	
 	sylt_t* ctx = sylt_new();
 	
 	int path = -1;
@@ -6075,16 +5979,16 @@ int main(int argc, char *argv[]) {
 			print_usage();
 			
 		} else if (string_eq(arg,
-			string_lit("-version", ctx))) {
-			print_version();
-			
-		} else if (string_eq(arg,
 			string_lit("-test", ctx))) {
 			run_tests(ctx);
 			
+		} else if (string_eq(arg,
+			string_lit("-d", ctx))) {
+			ctx->disassemble = true;
+			
 		} else {
 			sylt_eprintf(
-				"unknown flag '%s'\n",
+				"unknown flag: %s\n",
 				argv[i]);
 			print_usage();
 		}
@@ -6092,6 +5996,8 @@ int main(int argc, char *argv[]) {
 	
 	if (path != -1)
 		sylt_xfile(ctx, argv[path]);
+	else
+		sylt_interact(ctx);
 	
 	sylt_free(ctx);
 	return EXIT_SUCCESS;

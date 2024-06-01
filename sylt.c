@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <setjmp.h>
+#include <stddef.h>
 #include <ctype.h>
 #include <math.h>
 #include <time.h>
@@ -1314,6 +1315,37 @@ void dict_free(dict_t* dc, sylt_t* ctx) {
 bool string_eq(
 	const string_t* a, const string_t* b);
 
+/* returns true if the two dicts are equal */
+bool dict_eq(
+	const dict_t* a, const dict_t* b)
+{
+	if (!a || !b)
+		return false;
+	
+	if (a == b)
+		return true;
+		
+	if (a->len != b->len)
+		return false;
+		
+	if (a->cap != b->cap)
+		return false;
+	
+	for (size_t i = 0; i < a->cap; i++) {
+		if (!string_eq(
+			a->items[i].key,
+			b->items[i].key))
+			return false;
+		
+		if (!val_eq(
+			a->items[i].val,
+			b->items[i].val))
+			return false;
+	}
+		
+	return true;
+}
+
 /* finds an entry in a dictionary from
  * a string key value */
 item_t* dict_find(
@@ -1840,7 +1872,8 @@ bool val_eq(value_t a, value_t b) {
 		return list_eq(
 			getlist(a), getlist(b));
 	case TYPE_DICT:
-		return getobj(a) == getobj(b);
+		return dict_eq(
+			getdict(a), getdict(b));
 	case TYPE_STRING:
 		return string_eq(
 			getstring(a), getstring(b));
@@ -3551,6 +3584,14 @@ value_t stdstring_replace_all(sylt_t* ctx) {
 
 /* == math lib == */
 
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433832795
+#endif
+
+#ifndef M_E
+#define M_E 2.7182818284590452353602874713526
+#endif
+
 value_t stdmath_num_sign(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t x = numarg(0);
@@ -3780,24 +3821,26 @@ static dict_t* lib_dict = NULL;
 void std_setlib(
 	sylt_t* ctx, const char* lib)
 {
-	if (strlen(lib) == 0) {
-		lib_name = NULL;
-		lib_dict = NULL;
-		return;
-	}
-	
-	lib_name = string_lit(lib, ctx);
 	lib_dict = dict_new(ctx);
+	
+	if (strlen(lib) == 0)
+		lib_name = NULL;
+	else
+		lib_name = string_lit(lib, ctx);
 }
 
 void std_add(sylt_t*, const char*, value_t);
 
 void std_addlib(sylt_t* ctx) {
-	if (!lib_name)
+	if (!lib_name) {
 		return;
+		lib_name = string_lit("Prelude", ctx);
+	}
 	
 	dict_set(ctx->vm->gdict,
-		lib_name, wrapdict(lib_dict), ctx);
+		lib_name,
+		wrapdict(lib_dict),
+		ctx);
 }
 
 /* adds a value to the standard library */
@@ -3808,14 +3851,12 @@ void std_add(
 {
 	string_t* name_str = string_lit(
 		name, ctx);
+	dict_set(lib_dict, name_str, val, ctx);
 	
-	dict_t* dict;
-	if (lib_dict)
-		dict = lib_dict;
-	else
-		dict = ctx->vm->gdict;
-	
-	dict_set(dict, name_str, val, ctx);
+	/* for prelude library */
+	if (!lib_name)
+		dict_set(ctx->vm->gdict,
+			name_str, val, ctx);
 }
 
 /* adds a function to the standard library */
@@ -5749,10 +5790,10 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	longjmp(err_jump, 1);
 }
 
-void sylt_handle_halt(sylt_t** ctx) {
-	gc_resume(*ctx);
-	/*sylt_free(*ctx);
-	*ctx = sylt_new();*/
+void sylt_handle_halt(sylt_t* ctx) {
+	gc_resume(ctx);
+	ctx->vm->nframes = 0;
+	ctx->vm->sp = ctx->vm->stack;
 }
 
 sylt_t* sylt_new(void) {
@@ -5885,7 +5926,7 @@ bool sylt_xstring(
 		return false;
 		
 	if (setjmp(err_jump)) {
-		sylt_handle_halt(&ctx);
+		sylt_handle_halt(ctx);
 		return false;
 	}
 	
@@ -5908,7 +5949,7 @@ bool sylt_xfile(
 		return false;
 	
 	if (setjmp(err_jump)) {
-		sylt_handle_halt(&ctx);
+		sylt_handle_halt(ctx);
 		return false;
 	}
 	

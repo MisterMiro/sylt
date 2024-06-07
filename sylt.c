@@ -62,7 +62,7 @@
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 0
+#define DBG_GC_EVERY_ALLOC 1
 
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
@@ -465,6 +465,8 @@ void* ptr_resize(
 		sylt_dprintf(
 			"        %+ld to %s in %s:%d\n",
 			ns - os, p_name, func_name, line);
+	#else
+	(void)p_name;
 	#endif
 	
 	if (ns == 0) {
@@ -883,7 +885,7 @@ bool val_eq(value_t, value_t);
 /* these are useful even outside of the VM,
  * for making objects visible to the GC */
 
-void vm_ensure_stack(vm_t*, int);
+void vm_ensure_stack(vm_t*, size_t);
 static inline void vm_push(
 	struct vm_s*, struct value_s);
 static inline value_t vm_pop(
@@ -956,7 +958,6 @@ static inline void vm_shrink(
 void dbg_print_obj_mem(
 	obj_t* obj, bool freed)
 {
-	#if DBG_PRINT_GC_STATE
 	if (!obj)
 		return;
 	
@@ -964,7 +965,6 @@ void dbg_print_obj_mem(
 		(freed) ? "-" : "+",
 		TYPE_NAMES[obj->tag],
 		obj);
-	#endif
 }
 
 /* allocates a generic object */
@@ -987,7 +987,9 @@ obj_t* obj_new_impl(
 	ctx->mem.objs = obj;
 	ctx->mem.objcount++;
 	
+	#if DBG_PRINT_GC_STATE
 	dbg_print_obj_mem(obj, false);
+	#endif
 	return obj;
 }
 
@@ -1009,7 +1011,10 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 		return;
 		
 	assert(isheaptype(obj->tag));
+	
+	#if DBG_PRINT_GC_STATE
 	dbg_print_obj_mem(obj, true);
+	#endif
 	
 	switch (obj->tag) {
 	case TYPE_LIST: {
@@ -1173,7 +1178,8 @@ size_t list_index(
 	if (index < 0)
 		index = ls->len + index;
 	
-	if (ls->len == 0 || index > ls->len - 1) {
+	if (ls->len == 0 ||
+		index > (int)ls->len - 1) {
 		halt(ctx, E_INDEX(ls->len, index));
 		unreachable();
 	}
@@ -1231,7 +1237,8 @@ value_t list_delete(
 {
 	index = list_index(ls, index, ctx);
 	value_t val = ls->items[index];
-	for (int i = index; i < ls->len - 1; i++)
+	for (int i = index; i <
+		(int)ls->len - 1; i++)
 		ls->items[i] = ls->items[i + 1];
 	
 	ls->items = arr_resize(
@@ -1467,7 +1474,7 @@ uint32_t dict_calc_hash(
 	const uint8_t* bytes, size_t len)
 {
 	uint32_t hash = 2166136261u;
-	for (int i = 0; i < len; i++) {
+	for (size_t i = 0; i < len; i++) {
 		hash ^= bytes[i];
 		hash *= 16777619;
 	}
@@ -1540,6 +1547,8 @@ string_t* string_fmt(
 void string_rehash(
 	string_t* str, sylt_t* ctx)
 {
+	(void)ctx;
+	
 	/* add null terminator */
 	if (str->bytes[str->len] != '\0')
 		str->bytes[str->len] = '\0';
@@ -2150,9 +2159,7 @@ void dbg_print_header(
 	sylt_dprintf("\n");
 }
 
-void dbg_print_instruction(
-	const vm_t* vm, const func_t* func)
-{
+void dbg_print_instruction(const vm_t* vm) {
 	if (!vm->ctx->disassemble)
 		return;
 	
@@ -2185,7 +2192,6 @@ void dbg_print_instruction(
 void dbg_print_stack(
 	const vm_t* vm, const func_t* func)
 {
-	#if DBG_PRINT_STACK
 	const int maxvals = 5;
 	
 	/* don't print first iteration */
@@ -2216,7 +2222,6 @@ void dbg_print_stack(
 	
 	sylt_dprintf(" ]\n");
 	gc_resume(vm->ctx);
-	#endif
 }
 
 /* pushes a value on the stack */
@@ -2280,7 +2285,7 @@ void vm_store_upval(
 /* captures a stack variable into an
  * upvalue */
 upvalue_t* vm_cap_upval(
-	vm_t* vm, size_t index)
+	vm_t* vm, int index)
 {
 	/* check if there already exists an
 	 * upvalue for the given index */
@@ -2312,7 +2317,7 @@ upvalue_t* vm_cap_upval(
 /* closes any upvalues pointing at or above
  * the provided stack index */
 void vm_close_upvals(
-	vm_t* vm, size_t last)
+	vm_t* vm, int last)
 {
 	while (vm->openups &&
 		vm->openups->index >= last)
@@ -2326,7 +2331,9 @@ void vm_close_upvals(
 }
 
 /* grows the stack if necessary */
-void vm_ensure_stack(vm_t* vm, int needed) {
+void vm_ensure_stack(
+	vm_t* vm, size_t needed)
+{
 	needed += SYLT_EXTRA_STACK;
 	if (vm->maxstack >= needed)
 		return;
@@ -2355,10 +2362,12 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 	for (;;) {
 		uint8_t op = read8();
 		
+		#if DBG_PRINT_STACK
 		dbg_print_stack(vm,
 			vm->fp->func);
-		dbg_print_instruction(vm,
-			vm->fp->func);
+		#endif
+		
+		dbg_print_instruction(vm);
 		
 		switch (op) {
 		/* == stack == */
@@ -2481,7 +2490,6 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				vm->gdict, name);
 				
 			if (!val) {
-				push(nil());
 				halt(vm->ctx,
 					E_UNDEFINED(name));
 				unreachable();
@@ -2498,7 +2506,6 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 				name, peek(0), vm->ctx);
 				
 			if (is_new) {
-				push(nil());
 				halt(vm->ctx,
 					E_UNDEFINED(name));
 				unreachable();
@@ -3096,20 +3103,6 @@ value_t stdsys_mem_info(sylt_t* ctx) {
 	return wrapdict(dc);
 }
 
-value_t stdsys_mem_info_str(sylt_t* ctx) {
-	double cur = ctx->mem.bytes
-		/ 1024.0 / 1024.0;
-	
-	return wrapstring(string_fmt(ctx,
-		"mem: %.4g/%.4g MB, %ld GC cycles, "
-		"next at %.4g MB",
-		cur,
-		ctx->mem.highest / 1024.0 / 1024.0,
-		ctx->mem.gc.cycles,
-		ctx->mem.gc.trigger
-			/ 1024.0 / 1024.0));
-}
-
 value_t stdsys_src(sylt_t* ctx) {
 	dict_t* dc = dict_new(ctx);
 	dict_set(dc,string_lit("text", ctx),
@@ -3181,10 +3174,12 @@ value_t stdsys_time(sylt_t* ctx) {
 }
 
 value_t stdsys_timestamp(sylt_t* ctx) {
+	(void)ctx;
 	return wrapnum(time(NULL));
 }
 
 value_t stdsys_cpu_clock(sylt_t* ctx) {
+	(void)ctx;
 	return wrapnum(
 		(double)clock() / CLOCKS_PER_SEC);
 }
@@ -3345,7 +3340,7 @@ value_t stdstring_chars(sylt_t* ctx) {
 	string_t* str = stringarg(0);
 	list_t* ls = list_new(ctx);
 	
-	for (int i = 0; i < str->len; i++) {
+	for (size_t i = 0; i < str->len; i++) {
 		string_t* ch = string_new(
 			&str->bytes[i], 1, ctx);
 		list_push(ls, wrapstring(ch), ctx);
@@ -3361,7 +3356,7 @@ value_t stdstring_join(sylt_t* ctx) {
 	string_t* str = string_new(NULL, 0, ctx);
 	sylt_pushstring(ctx, str);
 	
-	for (int i = 0; i < ls->len; i++) {
+	for (size_t i = 0; i < ls->len; i++) {
 		string_t* val_str = val_tostring(
 			ls->items[i], ctx);
 		
@@ -3931,8 +3926,6 @@ void std_init(sylt_t* ctx) {
 			get_platform(), ctx)));
 	std_addf(ctx, "memInfo",
 		stdsys_mem_info, 0);
-	std_addf(ctx, "memInfoStr",
-		stdsys_mem_info_str, 0);
 	std_addf(ctx, "memSizes",
 		stdsys_mem_sizes, 0);
 	std_addf(ctx, "src",
@@ -4266,7 +4259,7 @@ void comp_simstack(comp_t* cmp, int n) {
 	}
 	
 	/* record the largest stack size */
-	if (cmp->curslots > cmp->func->slots)
+	if (cmp->curslots > (int)cmp->func->slots)
 		cmp->func->slots = cmp->curslots;
 }
 
@@ -4570,10 +4563,7 @@ void comp_close_scope(comp_t* cmp) {
 	(eof() ? '\0' : cmp->pos[1])
 #define is(c) (peek() == (c))
 #define next_is(c) (peek_next() == (c))
-#define eof() \
-	((uint8_t*)cmp->pos - \
-		cmp->func->src->bytes \
-		>= cmp->func->src->len)
+#define eof() is('\0')
 #define match(c) \
 	((!eof() && is(c)) ? \
 		step(), true : false)
@@ -5017,7 +5007,7 @@ void string(comp_t* cmp) {
 		}
 		
 		char code = src[read + 1];
-		int seqlen =
+		size_t seqlen =
 			(code == 'x') ? 4 : 2;
 			
 		switch (code) {
@@ -5401,7 +5391,7 @@ void parse_func(
 	emit_value(cmp, wrapfunc(func));
 	
 	/* write arguments to OP_PUSHFUNC */
-	for (size_t i = 0;
+	for (int i = 0;
 		i < func->upvalues; i++)
 	{
 		cmp_upvalue_t* upval =
@@ -5580,6 +5570,8 @@ void gc_mark(
 	sylt_dprintf(
 		"     gc @ %s:%d, ",
 		func_name, line);
+	#else
+	(void)func_name, (void)line;
 	#endif
 	
 	gc_set_state(ctx, GC_STATE_MARK);
@@ -5635,7 +5627,8 @@ void gc_mark_compiler(sylt_t* ctx) {
 		obj_mark((obj_t*)cmp->func->src, ctx);
 		obj_mark((obj_t*)cmp->prev.lex, ctx);
 		obj_mark((obj_t*)cmp->cur.lex, ctx);
-		for (int i = 0; i < cmp->nsyms; i++)
+		for (size_t i = 0;
+			i < cmp->nsyms; i++)
 			obj_mark(
 				(obj_t*)cmp->syms[i].name,
 				ctx);
@@ -5790,10 +5783,19 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	longjmp(err_jump, 1);
 }
 
-void sylt_handle_halt(sylt_t* ctx) {
-	gc_resume(ctx);
-	ctx->vm->nframes = 0;
-	ctx->vm->sp = ctx->vm->stack;
+void sylt_handle_halt(sylt_t** ctx) {
+	gc_resume(*ctx);
+	sylt_free(*ctx);
+	*ctx = sylt_new();
+	
+	//ctx->vm->sp = ctx->vm->stack
+	//	+ ctx->vm->fp->offs;
+	
+	/*if (ctx->vm->nframes > 0) {
+		ctx->vm->nframes--;
+		ctx->vm->fp = &ctx->vm->frames[
+			ctx->vm->nframes - 1];
+	}*/
 }
 
 sylt_t* sylt_new(void) {
@@ -5926,7 +5928,7 @@ bool sylt_xstring(
 		return false;
 		
 	if (setjmp(err_jump)) {
-		sylt_handle_halt(ctx);
+		sylt_handle_halt(&ctx);
 		return false;
 	}
 	
@@ -5949,7 +5951,7 @@ bool sylt_xfile(
 		return false;
 	
 	if (setjmp(err_jump)) {
-		sylt_handle_halt(ctx);
+		sylt_handle_halt(&ctx);
 		return false;
 	}
 	

@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <setjmp.h>
-#include <stddef.h>
 #include <ctype.h>
 #include <math.h>
 #include <time.h>
@@ -204,7 +204,6 @@ typedef struct {
 	struct vm_s* vm;
 	struct comp_s* cmp;
 	mem_t mem;
-	bool interact_mode;
 	bool disassemble;
 } sylt_t;
 
@@ -588,7 +587,7 @@ static opinfo_t OPINFO[] = {
 	[OP_LOAD_NAME] = {"loadName", 1, +1},
 	[OP_STORE_NAME] = {"storeName", 1, 0},
 	[OP_LOAD_ITEM] = {"loadItem", 0, -1},
-	[OP_STORE_ITEM] = {"storeItem", 0, -1},
+	[OP_STORE_ITEM] = {"storeItem", 0, -2},
 	[OP_LOAD_UPVAL] = {"loadUpval", 1, +1},
 	[OP_STORE_UPVAL] = {"storeUpval", 1, 0},
 	[OP_LOAD_RET] = {"loadRet", 0, +1},
@@ -4204,12 +4203,11 @@ void comp_free(comp_t* cmp) {
 		cmp->ctx);
 }
 
-void comp_load(comp_t* cmp) {
-	string_t* name =
-		sylt_peekstring(cmp->ctx, 0);
-	string_t* src =
-		sylt_peekstring(cmp->ctx, 1);
-	
+void comp_load(
+	comp_t* cmp,
+	string_t* src,
+	string_t* name)
+{
 	cmp->func = func_new(cmp->ctx, name, src);
 	if (cmp->parent) {
 		/* parent_name/ */
@@ -4229,11 +4227,11 @@ void comp_load(comp_t* cmp) {
 	
 	cmp->pos = (char*)cmp->func->src->bytes;
 	cmp->line = 1;
-	list_push(cmp->included,
-		wrapstring(name), cmp->ctx);
 	
-	/* src and name */
-	sylt_shrink(cmp->ctx, 2);
+	if (list_count(cmp->included,
+		wrapstring(name)) == 0)
+		list_push(cmp->included,
+			wrapstring(name), cmp->ctx);
 }
 
 void comp_copy_parse_state(
@@ -5227,7 +5225,11 @@ void dot(comp_t* cmp) {
 }
 
 string_t* load_file(const char*, sylt_t*);
-void compile_and_run(sylt_t*, comp_t*);
+void compile_and_run(
+	sylt_t*,
+	string_t*,
+	string_t*,
+	comp_t*);
 
 /* parses a using expression */
 void using(comp_t* cmp) {
@@ -5259,11 +5261,12 @@ void using(comp_t* cmp) {
 	comp_init(&import, NULL, NULL, cmp->ctx);
 	import.included = cmp->included;
 	
-	sylt_pushstring(cmp->ctx, load_file(
-		(const char*)path->bytes, cmp->ctx));
-	sylt_pushstring(cmp->ctx, path);
-	
-	compile_and_run(cmp->ctx, &import);
+	compile_and_run(cmp->ctx,
+		load_file(
+			(const char*)path->bytes,
+			cmp->ctx),
+		path,
+		&import);
 }
 
 void parse_func(comp_t*, string_t*);
@@ -5338,15 +5341,12 @@ void parse_func(
 		name = string_lit("_", cmp->ctx);
 		is_lambda = true;
 	}
-		
-	sylt_pushstring(cmp->ctx, cmp->func->src);
-	sylt_pushstring(cmp->ctx, name);
 	
 	/* setup a new compiler instance
 	* in order to parse the function */
 	comp_t fcmp;
 	comp_init(&fcmp, cmp, NULL, cmp->ctx);
-	comp_load(&fcmp);
+	comp_load(&fcmp, cmp->func->src, name);
 	comp_copy_parse_state(&fcmp, cmp);
 	fcmp.depth = cmp->depth;
 	cmp->child = &fcmp;
@@ -5820,7 +5820,6 @@ sylt_t* sylt_new(void) {
 	ctx->mem.gc.cycles = 0;
 	ctx->mem.gc.pause_depth = 0;
 	
-	ctx->interact_mode = false;
 	ctx->disassemble = false;
 	
 	set_state(ctx, SYLT_STATE_INIT);
@@ -5874,40 +5873,26 @@ void sylt_free(sylt_t* ctx) {
 }
 
 void compile_and_run(
-	sylt_t* ctx, comp_t* cmp)
+	sylt_t* ctx,
+	string_t* src,
+	string_t* name,
+	comp_t* cmp)
 {
 	set_state(ctx, SYLT_STATE_COMPILING);
-	comp_load(cmp);
+	comp_load(cmp, src, name);
 	
 	/* scan initial token for lookahead */
-	cmp->prev.line = 1;
+	cmp->prev.line = 1; /* hack */
 	cmp->cur = scan(cmp);
 	
 	/* parse the entire source */
 	while (!check(cmp, T_EOF)) {
-		int index;
-		if (ctx->interact_mode) {
-			index = func_write_data(
-				cmp->func,
-				wrapstring(string_lit(
-					"printLn", cmp->ctx)),
-				cmp->ctx);
-			emit_unary(cmp, OP_LOAD_NAME,
-				index);
-		}
-		
 		expr(cmp, ANY_PREC);
-		
-		if (ctx->interact_mode) {
-			emit_unary(cmp, OP_CALL, 1);
-			emit_nullary(cmp, OP_POP);
-			
-		} else if (cmp->cur.tag != T_EOF)
+		if (cmp->cur.tag != T_EOF)
 			emit_nullary(cmp, OP_POP);
 	}
 	
 	emit_nullary(cmp, OP_RET);
-	
 	set_state(ctx, SYLT_STATE_COMPILED);
 	
 	/* load program */
@@ -5932,13 +5917,10 @@ bool sylt_xstring(
 		return false;
 	}
 	
-	/* push the source code + program name */
-	sylt_pushstring(ctx,
-		string_lit(src, ctx));
-	sylt_pushstring(ctx,
-		string_lit("<input>", ctx));
-	
-	compile_and_run(ctx, ctx->cmp);
+	compile_and_run(ctx,
+		string_lit(src, ctx),
+		string_lit("<input>", ctx),
+	ctx->cmp);
 	return true;
 }
 
@@ -5955,27 +5937,12 @@ bool sylt_xfile(
 		return false;
 	}
 	
-	/* push the source code + file name */
-	sylt_pushstring(ctx,
-		load_file(path, ctx));
-	sylt_pushstring(ctx,
-		string_lit(path, ctx));
+	compile_and_run(ctx,
+		load_file(path, ctx),
+		string_lit(path, ctx),
+		ctx->cmp);
 	
-	compile_and_run(ctx, ctx->cmp);
 	return true;
-}
-
-void sylt_interact(sylt_t* ctx) {
-	ctx->interact_mode = true;
-	sylt_printf("%s\n", SYLT_VERSION_STR);
-	
-	while (true) {
-		sylt_printf(">> ");
-		string_t* input = getstring(
-			std_read_in(ctx));
-		sylt_xstring(ctx,
-			(char*)input->bytes);
-	}
 }
 
 void run_tests(sylt_t* ctx) {
@@ -6037,10 +6004,12 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	
-	if (path != -1)
-		sylt_xfile(ctx, argv[path]);
-	else
-		sylt_interact(ctx);
+	if (path == -1) {
+		print_usage();
+		return EXIT_FAILURE;
+	}
+
+	sylt_xfile(ctx, argv[path]);
 	
 	sylt_free(ctx);
 	return EXIT_SUCCESS;

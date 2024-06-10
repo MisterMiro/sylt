@@ -3366,7 +3366,7 @@ value_t stdstring_join(sylt_t* ctx) {
 		str = sylt_popstring(ctx);
 	}
 	
-	sylt_popstring(ctx);
+	sylt_pop(ctx);
 	return wrapstring(str);
 }
 
@@ -4707,6 +4707,7 @@ token_t scan(comp_t* cmp) {
 	case '|': 
 		if (match(']'))
 			return token(T_PIPE_RSQUARE);
+		break;
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
 	case '.': return token(T_DOT);
@@ -5758,8 +5759,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	sylt_eprintf("error");
 	
 	/* print file and line if available */
-	int state = (ctx) ? ctx->state : -1;
-	switch (state) {
+	switch (ctx->state) {
 	case SYLT_STATE_COMPILING: {
 		comp_t* cmp = ctx->cmp;
 		while (cmp->child)
@@ -5777,6 +5777,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		sylt_eprintf(":%d", vm_line(ctx->vm));
 		break;
 	}
+	default: unreachable();
 	}
 	
 	sylt_eprintf(": %s\n", msg);

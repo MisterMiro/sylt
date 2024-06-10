@@ -1,0 +1,19 @@
+body {
+    margin: 0px;
+    padding: 0px; 
+    outline: none;
+    border: 0px;
+
+    font-family: Verdana, sans-serif;
+}
+
+.header {
+    background: black;
+    color: white;
+    padding: 0px;
+}
+
+textarea {
+    width: 400px;
+    height: 300px;
+}

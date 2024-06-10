@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>sylt</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="header">
+        <a href="/">sylt</a>
+    </div>
+    <div class="page">
+        <form method="POST">
+            <textarea name="code"></textarea>
+            <input type="submit">
+        </form>
+
+        <textarea readonly>{{ output }}</textarea>
+    </div>
+</body>
+</html>

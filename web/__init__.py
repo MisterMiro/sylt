@@ -16,7 +16,7 @@ def my_form_post():
     code = request.form["code"]
 
     # save the code to a temporary file
-    path = "input.sylt"
+    path = "web/tmp/input.sylt"
     with open(path, "w", encoding="utf-8") as file:
         file.write(code)
 

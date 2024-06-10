@@ -18,10 +18,13 @@
     </div>
 
     <!-- list of demo programs -->
-    {% for demo in demos %}
-        <a href="/?load_demo={{ demo }}">{{ demo }}</a>
-        <br>
-    {% endfor %}
+    <div class="demos">
+        <p>Example programs:</p>
+        {% for demo in demos %}
+            <a href="/?load_demo={{ demo[0] }}">{{ demo[1] }}</a>
+            <br>
+        {% endfor %}
+    </div>
 
     <div class="page">
         <!-- code input -->

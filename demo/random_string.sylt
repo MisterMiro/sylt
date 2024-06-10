@@ -1,10 +1,11 @@
-## this program generates a string consisting of a
-## random series of letters and digits
+## this program generates a string consisting of a random series of letters and digits
 
 let length = 12
-
 let str = ""
 let chars = String.chars(String.alpha ++ String.digits)
+
+Math.seedRand(System.timestamp())
+
 rep(fun(_) -> {
 	let n = Math.rand(0, List.length(chars))
 	str <- str ++ chars[n]

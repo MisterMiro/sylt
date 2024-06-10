@@ -1,5 +1,4 @@
-## prints all even numbers in the specified
-## range
+## prints all even numbers in the given range
 
 let numbers = List.range(0, 10)
 numbers <- List.filter(isEven, numbers)

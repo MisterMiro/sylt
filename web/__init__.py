@@ -7,8 +7,16 @@ app = Flask(__name__)
 
 sylt_binary = "./sylt_bin"
 
+def prettify_demo_name(file):
+    return file.replace("_", " ").replace(".sylt", "").title()
+
 def get_demo_list():
-    return listdir("demo/")
+    filenames = listdir("demo/")
+
+    demos = []
+    for file in filenames:
+        demos.append((file, prettify_demo_name(file)))
+    return demos
 
 def get_demo_code(file):
     demo = None
@@ -44,6 +52,5 @@ def index_run_code():
     output = sylt.communicate()[0].decode(sys.stdout.encoding)
 
     demos = get_demo_list()
-    demo = get_demo_code(request.args.get("load_demo"))
-
+    demo = code
     return render_template("index.html", demos=demos, demo=demo, output=output)

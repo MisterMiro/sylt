@@ -1,9 +1,12 @@
 ## this program prints its own source code
 
-let lines = String.split(System.src().text, "\n")
+let source_code = System.src().text
+
+## split the source into a list of lines so we can add line numbers
+let lines = String.split(source_code, "\n")
+
 List.iter(fun(i, code) -> {
 	let line = toString(i + 1)
-	
 	print(String.rightPad(line, 5, " "))
 	print(" ")
 	printLn(code)

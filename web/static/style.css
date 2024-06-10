@@ -8,7 +8,7 @@ body {
 }
 
 .header {
-    background: rgb(68, 74, 193);
+    background: linear-gradient(rgb(68, 74, 193), rgb(36, 41, 131));
     color: white;
     padding: 0px;
 }
@@ -26,7 +26,7 @@ body {
 textarea {
     background: black;
     color: white;
-    width: 768px;
+    width: 1024px;
     height: 256px;
     font-family: 'Courier New', Courier, monospace;
 }

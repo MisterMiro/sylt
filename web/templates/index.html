@@ -5,17 +5,34 @@
     <title>sylt</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- for GitHub icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
     <div class="header">
         <a href="/">sylt</a>
+        <a href="https://github.com/MisterMiro/sylt/" target="_blank">
+            <i class="fa fa-github"></i>
+        </a>
     </div>
+
+    <!-- list of demo programs -->
+    {% for demo in demos %}
+        <a href="/?load_demo={{ demo }}">{{ demo }}</a>
+        <br>
+    {% endfor %}
+
     <div class="page">
+        <!-- code input -->
         <form method="POST">
-            <textarea name="code"></textarea>
-            <input type="submit">
+            <textarea name="code" wrap="off" placeholder="printLn(&quot;Hello, World!&quot;)">{% if demo: %}{{ demo }}{% endif %}</textarea>
+            <input type="checkbox" id="disassemble" name="disassemble">
+            <label for="disassemble">Show bytecode</label>
+            <input type="submit" value="Run code">
         </form>
 
+        <!-- program output -->
         <textarea readonly>{{ output }}</textarea>
     </div>
 </body>

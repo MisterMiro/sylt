@@ -2110,13 +2110,10 @@ void dbg_print_header(
 	const func_t* func = cls->func;
 	
 	sylt_dprintf("\n-> ");
-	sylt_dprintf("%-29.*s",
-		(int)func->name->len,
-		func->name->bytes);
 	string_dprint(func->path);
-	sylt_dprintf("\n");
+	sylt_dprintf(" ");
 	
-	sylt_dprintf("depth %d/%d, ",
+	sylt_dprintf("(%d/%d), ",
 		(int)vm->nframes, MAX_CFRAMES);
 	
 	size_t used = vm->sp - vm->stack;
@@ -2152,10 +2149,7 @@ void dbg_print_header(
 	sylt_dprintf(
 		"  addr  line opcode             "
 		"hex\n");
-	sylt_dprintf("  ");
-	for (int i = 0; i < 40; i++)
-		sylt_dprintf("-");
-	sylt_dprintf("\n");
+	sylt_dprintf("  \n");
 }
 
 void dbg_print_instruction(const vm_t* vm) {
@@ -5964,8 +5958,9 @@ void print_usage(void) {
 	sylt_printf(
 		"usage: sylt [path|flag(s)]\n");
 	sylt_printf("available flags:\n");
-	sylt_printf("-help  shows this\n");
-	sylt_printf("-test  runs tests\n");
+	sylt_printf("-help  show this\n");
+	sylt_printf("-test  run tests\n");
+	sylt_printf("-v     print version\n");
 	sylt_printf("-d     disassemble\n");
 }
 
@@ -5993,6 +5988,10 @@ int main(int argc, char *argv[]) {
 			string_lit("-test", ctx))) {
 			run_tests(ctx);
 			
+		} else if (string_eq(arg,
+			string_lit("-v", ctx))) {
+			print_version();
+		
 		} else if (string_eq(arg,
 			string_lit("-d", ctx))) {
 			ctx->disassemble = true;

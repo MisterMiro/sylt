@@ -1534,7 +1534,7 @@ string_t* string_fmt(
 	string_t* str = string_new(
 		NULL, len, ctx);
 	vsnprintf((char*)str->bytes,
-		len + 1, fmt, args);
+		len, fmt, args);
 	string_rehash(str, ctx);
 	
 	va_end(args);
@@ -3333,7 +3333,7 @@ value_t stdstring_length(sylt_t* ctx) {
 
 value_t stdstring_is_empty(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	return wrapnum(stringarg(0)->len == 0);
+	return wrapbool(stringarg(0)->len == 0);
 }
 
 value_t stdstring_chars(sylt_t* ctx) {

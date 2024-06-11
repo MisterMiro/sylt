@@ -1,0 +1,15 @@
+## given a list of size n-1 such that it only contains distinct integers in the range of 1 to n,
+## return the missing item
+
+let numbers = [1, 2, 3, 5]
+let missing = nil
+
+rep(fun(index) -> {
+    let num = numbers[index]
+    let next = numbers[index + 1]
+
+    if (next > num + 1)
+        missing <- num + 1
+}, List.length(numbers) - 1)
+
+printLn(missing)

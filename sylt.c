@@ -2196,6 +2196,11 @@ void dbg_print_instruction(const vm_t* vm) {
 		val_dprint(data, true, -1, vm->ctx);
 		break;
 	}
+	case OP_PUSH_FUNC: {
+		value_t func = vm->fp->func->data[arg0];
+		val_dprint(func, true, -1, vm->ctx);
+		break;
+	}
 	case OP_LOAD: {
 		value_t val = func_stack()[arg0];
 		val_dprint(val, true, -1, vm->ctx);
@@ -2237,6 +2242,25 @@ void dbg_print_instruction(const vm_t* vm) {
 				(int)name->len, name->bytes);
 			val_dprint(val, true, -1, vm->ctx);
 		}
+		break;
+	}
+	case OP_LOAD_ITEM: {
+		value_t collection = vm->sp[-2];
+		if (collection.tag == TYPE_LIST && vm->sp[-1].tag == TYPE_NUM) {
+			list_t* ls = getlist(collection);
+			value_t val = list_get(ls, getnum(vm->sp[-1]), vm->ctx);
+			val_dprint(val, true, -1, vm->ctx);
+		
+		} else if (collection.tag == TYPE_DICT && vm->sp[-1].tag == TYPE_STRING) {
+			dict_t* dc = getdict(collection);
+			value_t* val = dict_get(dc, getstring(vm->sp[-1]));
+			
+			if (!val) {
+				sylt_dprintf("<not found>");
+			} else {
+				val_dprint(*val, true, -1, vm->ctx);
+			}
+		} 
 		break;
 	}
 	}

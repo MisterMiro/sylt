@@ -55,7 +55,7 @@ def index_run_code():
     disassemble = request.form.get("disassemble")
 
     # save the code to a temporary file
-    path = "web/tmp/input.sylt"
+    path = "web/tmp/" + request.host
     with open(path, "w", encoding="utf-8") as file:
         file.write(code)
 

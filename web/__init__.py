@@ -5,52 +5,57 @@ from os import listdir
 
 app = Flask(__name__)
 
-sylt_binary = "./sylt_bin"
+sylt_binary = "sylt_bin"
+sylt_demos = "demo/"
 
+# converts 'example_file.sylt' to 'Example File'
 def prettify_demo_name(file):
     return file.replace("_", " ").replace(".sylt", "").title()
 
+# returns a list of all demos
 def get_demo_list():
-    filenames = listdir("demo/")
-
     demos = []
-    for file in filenames:
+    for file in listdir(sylt_demos):
         demos.append((file, prettify_demo_name(file)))
     return demos
 
-def get_demo_code(file):
+# loads the source code of a demo from file
+def load_demo_code(file):
     demo = None
     if (file):
-        with open("demo/" + file, "r") as file:
+        with open(sylt_demos + file, "r") as file:
             demo = file.read()
     return demo
 
+# launches a sylt instance and returns the output from stdout
+def run_sylt_binary(args):
+    cmd = ["./" + sylt_binary] + args
+    sylt_process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    return sylt_process.communicate()[0].decode(sys.stdout.encoding)
+
+# main page
 @app.route("/", methods=["GET"])
 def index():
-    demo = get_demo_code(request.args.get("load_demo"))
-    return render_template("index.html", demos=get_demo_list(), demo=demo)
+    demo = load_demo_code(request.args.get("load_demo"))
+    return render_template("index.html", demos=get_demo_list(), code=demo)
 
+# main page after submitting code to run
 @app.route("/", methods=["POST"])
 def index_run_code():
     # get the source code from the input box
     code = request.form["code"]
-    #disassemble = request.form["disassemble"]
-    disassemble = False
+    disassemble = request.form.get("disassemble")
 
     # save the code to a temporary file
     path = "web/tmp/input.sylt"
     with open(path, "w", encoding="utf-8") as file:
         file.write(code)
 
-    # set flags
-    cmd = [sylt_binary, path, "-v"]
+    # launch sylt instance
+    args = [path, "-v"]
     if (disassemble):
-        cmd.append("-d")
-
-    # run the sylt CLI and get its output
-    sylt = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output = sylt.communicate()[0].decode(sys.stdout.encoding)
+        args.append("-d")
+    output = run_sylt_binary(args)    
 
     demos = get_demo_list()
-    demo = code
-    return render_template("index.html", demos=demos, demo=demo, output=output)
+    return render_template("index.html", demos=demos, code=code, disassemble=disassemble, output=output)

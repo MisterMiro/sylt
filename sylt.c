@@ -2149,7 +2149,9 @@ void dbg_print_header(
 	sylt_dprintf(
 		"  addr  line opcode             "
 		"hex\n");
-	sylt_dprintf("  \n");
+	for (int i = 0; i < 40; i++)
+		sylt_dprintf("-");
+	sylt_dprintf("\n");
 }
 
 void dbg_print_instruction(const vm_t* vm) {
@@ -2385,9 +2387,10 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			list_t* ls = list_new(vm->ctx);
 			
 			push(wraplist(ls)); /* GC */
-			for (int i = len; i > 0; i--)
+			for (int i = len; i > 0; i--) {
 				list_push(
 					ls, peek(i), vm->ctx);
+			}
 			pop(); /* GC */
 			
 			shrink(len);
@@ -4041,7 +4044,7 @@ void std_init(sylt_t* ctx) {
 	
 	/* parts of the stdlib are implemented 
 	 * in sylt */
-	sylt_xfile(ctx, SYLT_STDLIB_PATH);
+	//sylt_xfile(ctx, SYLT_STDLIB_PATH);
 	
 	gc_resume(ctx);
 }
@@ -4336,7 +4339,7 @@ void emit_value(
 	} else {
 		emit_unary(cmp, OP_PUSH, slot);
 	}
-	
+
 	sylt_pop(cmp->ctx); /* GC */
 }
 

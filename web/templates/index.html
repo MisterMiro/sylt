@@ -17,26 +17,36 @@
         </a>
     </div>
 
-    <!-- list of demo programs -->
-    <div class="demos">
-        <p>Example programs:</p>
-        {% for demo in demos %}
-            <a href="/?load_demo={{ demo[0] }}">{{ demo[1] }}</a>
-            <br>
-        {% endfor %}
-    </div>
+    <div class="wrapper">
 
-    <div class="page">
-        <!-- code input -->
-        <form method="POST">
-            <textarea name="code" wrap="off" placeholder="printLn(&quot;Hello, World!&quot;)">{% if demo: %}{{ demo }}{% endif %}</textarea>
-            <input type="checkbox" id="disassemble" name="disassemble">
-            <label for="disassemble">Show bytecode</label>
-            <input type="submit" value="Run code">
-        </form>
+        <!-- list of demo programs -->
+        <div class="demos">
+            <p>Example programs:</p>
+            {% for demo in demos %}
+                <a href="/?load_demo={{ demo[0] }}">{{ demo[1] }}</a>
+                <br>
+            {% endfor %}
+        </div>
 
-        <!-- program output -->
-        <textarea readonly>{{ output }}</textarea>
+        <div class="page">
+            <!-- code input -->
+            <form method="POST">
+                <textarea name="code" wrap="off" placeholder="printLn(&quot;Hello, World!&quot;)">{% if code: %}{{ code }}{% endif %}</textarea>
+                <br>
+                <input type="submit" value="Run code">
+
+                {% if disassemble: %}
+                    <input type="checkbox" id="disassemble" name="disassemble" checked>
+                {% else %}
+                    <input type="checkbox" id="disassemble" name="disassemble">
+                {% endif %}
+                <label for="disassemble">Show bytecode</label>
+            </form>
+
+            <!-- program output -->
+            <textarea readonly placeholder="Program output...">{{ output }}</textarea>
+        </div>
+
     </div>
 </body>
 </html>

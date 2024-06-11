@@ -13,4 +13,4 @@ rep(fun(num) -> {
         output <- toString(num)
 
     printLn(output)
-}, 99)
+}, 100)

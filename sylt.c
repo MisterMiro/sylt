@@ -3299,7 +3299,7 @@ value_t stdlist_range(sylt_t* ctx) {
 	sylt_num_t min = numarg(0);
 	sylt_num_t max = numarg(1);
 	list_t* ls = list_new(ctx);
-	for (int64_t i = min; i < max; i++)
+	for (int64_t i = min; i <= max; i++)
 		list_push(ls, wrapnum(i), ctx);
 	
 	return wraplist(ls);

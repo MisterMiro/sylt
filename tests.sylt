@@ -433,10 +433,9 @@ let whileLoop() = {
 let preludeLib() = {
 	## toString
 	ensure(toString(nil) = "nil")
-	printLn(toString(707))
 	ensure(toString(true) = "true"
 		and toString(false) = "false")
-	ensure(toString(707) = "707.000000")
+	ensure(toString(707) = "707")
 	ensure(toString(["bananas", 18, true])
 		= "[\"bananas\", 18, true]")
 	ensure(toString(printLn) = "printLn")

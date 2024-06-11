@@ -1525,7 +1525,16 @@ string_t* string_lit(
 string_t* string_fmt(
 	sylt_t* ctx, const char* fmt, ...)
 {
+	uint8_t buffer[2048];
 	va_list args;
+	va_start(args, fmt);
+	vsnprintf((char*)buffer, 2048, fmt, args);
+	va_end(args);
+
+	string_t* str = string_new(buffer, strlen((char*)buffer), ctx);
+	return str;
+	
+	/*va_list args;
 	va_start(args, fmt);
 
 	size_t len = vsnprintf(NULL, 0, fmt, args);
@@ -1534,7 +1543,7 @@ string_t* string_fmt(
 	string_rehash(str, ctx);
 
 	va_end(args);
-	return str;
+	return str;*/
 }
 
 /* must be called whenever the contents

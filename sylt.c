@@ -1525,13 +1525,15 @@ string_t* string_lit(
 string_t* string_fmt(
 	sylt_t* ctx, const char* fmt, ...)
 {
-	uint8_t buffer[64];
 	va_list args;
 	va_start(args, fmt);
-	vsnprintf((char*)buffer, 64, fmt, args);
-	va_end(args);
 
-	string_t* str = string_new(buffer, strlen((char*)buffer), ctx);
+	size_t len = vsnprintf(NULL, 0, fmt, args);
+	string_t* str = string_new(NULL, len, ctx);
+	vsnprintf((char*)str->bytes, len, fmt, args);
+	string_rehash(str, ctx);
+
+	va_end(args);
 	return str;
 }
 
@@ -1907,7 +1909,7 @@ static string_t* val_tostring(
 	}
 	case TYPE_NUM: {
 		str = string_fmt(
-			ctx, "%g", getnum(val));
+			ctx, "%.8g", getnum(val));
 		break;
 	}
 	case TYPE_LIST: {
@@ -2026,12 +2028,24 @@ string_t* val_tostring_opts(
 /* prints a value to stdout */
 void val_print(
 	value_t val,
-	bool quotestr,
+	bool quote_string,
 	sylt_t* ctx)
 {
 	string_t* str = val_tostring_opts(
-		val, quotestr, ctx);
+		val, quote_string, ctx);
 	string_print(str);
+}
+
+void val_dprint(
+	value_t val,
+	bool quote_string,
+	int max_length,
+	sylt_t* ctx)
+{
+	(void)max_length;
+	string_t* str = val_tostring_opts(
+		val, quote_string, ctx);
+	sylt_dprintf("%.*s", (int)str->len, str->bytes);
 }
 
 /* == virtual machine == */
@@ -2160,22 +2174,34 @@ void dbg_print_instruction(const vm_t* vm) {
 	else
 		sylt_dprintf(" |    ");
 	
+	/* name */
 	uint8_t op = vm->fp->ip[-1];
 	const char* name = OPINFO[op].name;
 	sylt_dprintf("%-19s", name);
 	
+	/* extra information */
 	uint8_t arg0 = *vm->fp->ip;
 	switch (op) {
 	case OP_PUSH: {
 		value_t data = vm->fp->func->data[arg0];
-		string_t* str = val_tostring_opts(data, false, vm->ctx);
-		sylt_dprintf("%.*s", (int)str->len, str->bytes);
+		val_dprint(data, true, -1, vm->ctx);
 		break;
 	}
 	case OP_LOAD: {
 		value_t val = func_stack()[arg0];
-		string_t* str = val_tostring_opts(val, true, vm->ctx);
-		sylt_dprintf("%.*s", (int)str->len, str->bytes);
+		val_dprint(val, true, -1, vm->ctx);
+		break;
+	}
+	case OP_ADD_NAME: {
+		value_t data = vm->fp->func->data[arg0];
+		if (data.tag == TYPE_STRING) {
+			string_t* name = getstring(data);
+			value_t val = vm->sp[-1];
+			
+			sylt_dprintf("%.*s = ",
+				(int)name->len, name->bytes);
+			val_dprint(val, true, -1, vm->ctx);
+		}
 		break;
 	}
 	case OP_LOAD_NAME: {
@@ -2185,12 +2211,9 @@ void dbg_print_instruction(const vm_t* vm) {
 			value_t* val = dict_get(vm->gdict, name);
 
 			if (val) {
-				string_t* valstr = val_tostring_opts(
-					*val, true, vm->ctx);
-				
-				sylt_dprintf("\"%.*s\" -> %.*s",
-					(int)name->len, name->bytes,
-					(int)valstr->len, valstr->bytes);
+				sylt_dprintf("\"%.*s\" -> ",
+					(int)name->len, name->bytes);
+				val_dprint(*val, true, -1, vm->ctx);
 			}
 		}
 		break;
@@ -2200,12 +2223,10 @@ void dbg_print_instruction(const vm_t* vm) {
 		if (data.tag == TYPE_STRING) {
 			string_t* name = getstring(data);
 			value_t val = vm->sp[-1];
-			string_t* valstr = val_tostring_opts(
-				val, false, vm->ctx);
 			
-			sylt_dprintf("%.*s <- %.*s",
-				(int)name->len, name->bytes,
-				(int)valstr->len, valstr->bytes);
+			sylt_dprintf("%.*s <- ",
+				(int)name->len, name->bytes);
+			val_dprint(val, true, -1, vm->ctx);
 		}
 		break;
 	}
@@ -3562,7 +3583,7 @@ value_t stdstring_trim(sylt_t* ctx) {
 	return res;
 }
 
-value_t stdstring_replace_all(sylt_t* ctx) {
+value_t stdstring_replace(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_STRING);
 	typecheck(ctx, arg(2), TYPE_STRING);
@@ -4035,8 +4056,8 @@ void std_init(sylt_t* ctx) {
 		stdstring_trim_end, 1);
 	std_addf(ctx, "trim",
 		stdstring_trim, 1);
-	std_addf(ctx, "replaceAll",
-		stdstring_replace_all, 3);
+	std_addf(ctx, "replace",
+		stdstring_replace, 3);
 	std_addlib(ctx);
 	
 	/* math */
@@ -6024,10 +6045,10 @@ int main(int argc, char *argv[]) {
 			ctx->disassemble = true;
 			
 		} else {
+			print_usage();
 			sylt_eprintf(
 				"unknown flag: %s\n",
 				argv[i]);
-			print_usage();
 		}
 	}
 	

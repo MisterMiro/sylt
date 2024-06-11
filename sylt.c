@@ -1498,7 +1498,6 @@ string_t* string_new(
 	if (bytes)
 		memcpy(str->bytes, bytes, len);
 	
-	str->bytes[len] = '\0';
 	str->len = len;
 	string_rehash(str, ctx);
 	return sylt_popstring(ctx);
@@ -1526,18 +1525,13 @@ string_t* string_lit(
 string_t* string_fmt(
 	sylt_t* ctx, const char* fmt, ...)
 {
+	uint8_t buffer[64];
 	va_list args;
 	va_start(args, fmt);
-	size_t len = vsnprintf(
-		NULL, 0, fmt, args);
-	
-	string_t* str = string_new(
-		NULL, len, ctx);
-	vsnprintf((char*)str->bytes,
-		len + 1, fmt, args);
-	string_rehash(str, ctx);
-	
+	vsnprintf((char*)buffer, 64, fmt, args);
 	va_end(args);
+
+	string_t* str = string_new(buffer, strlen((char*)buffer), ctx);
 	return str;
 }
 
@@ -1913,7 +1907,7 @@ static string_t* val_tostring(
 	}
 	case TYPE_NUM: {
 		str = string_fmt(
-			ctx, "%f", getnum(val));
+			ctx, "%g", getnum(val));
 		break;
 	}
 	case TYPE_LIST: {
@@ -2015,15 +2009,15 @@ static string_t* val_tostring(
 
 string_t* val_tostring_opts(
 	value_t val,
-	bool quotestr,
+	bool quote_string,
 	sylt_t* ctx)
 {
 	string_t* str = val_tostring(val, ctx);
-	if (quotestr && val.tag == TYPE_STRING) {
+	if (quote_string && val.tag == TYPE_STRING) {
 		return string_fmt(
 			ctx,
 			"\"%.*s\"",
-			str->len, str->bytes);
+			(int)str->len, str->bytes);
 	}
 	
 	return str;
@@ -2035,10 +2029,6 @@ void val_print(
 	bool quotestr,
 	sylt_t* ctx)
 {
-	if (val.tag == TYPE_NUM) {
-		sylt_printf("%f", getnum(val));
-		return;
-	}
 	string_t* str = val_tostring_opts(
 		val, quotestr, ctx);
 	string_print(str);
@@ -2148,7 +2138,7 @@ void dbg_print_header(
 		
 	sylt_dprintf(
 		"  addr  line opcode             "
-		"hex\n");
+		"info\n");
 	for (int i = 0; i < 40; i++)
 		sylt_dprintf("-");
 	sylt_dprintf("\n");
@@ -2173,12 +2163,52 @@ void dbg_print_instruction(const vm_t* vm) {
 	uint8_t op = vm->fp->ip[-1];
 	const char* name = OPINFO[op].name;
 	sylt_dprintf("%-19s", name);
-		
-	/* hex values */
-	int rank = OPINFO[op].rank;
-	for (int i = -1; i < rank; i++) {
-		uint8_t arg = vm->fp->ip[i];
-		sylt_dprintf("%02x ", arg);
+	
+	uint8_t arg0 = *vm->fp->ip;
+	switch (op) {
+	case OP_PUSH: {
+		value_t data = vm->fp->func->data[arg0];
+		string_t* str = val_tostring_opts(data, false, vm->ctx);
+		sylt_dprintf("%.*s", (int)str->len, str->bytes);
+		break;
+	}
+	case OP_LOAD: {
+		value_t val = func_stack()[arg0];
+		string_t* str = val_tostring_opts(val, true, vm->ctx);
+		sylt_dprintf("%.*s", (int)str->len, str->bytes);
+		break;
+	}
+	case OP_LOAD_NAME: {
+		value_t data = vm->fp->func->data[arg0];
+		if (data.tag == TYPE_STRING) {
+			string_t* name = getstring(data);
+			value_t* val = dict_get(vm->gdict, name);
+
+			if (val) {
+				string_t* valstr = val_tostring_opts(
+					*val, true, vm->ctx);
+				
+				sylt_dprintf("\"%.*s\" -> %.*s",
+					(int)name->len, name->bytes,
+					(int)valstr->len, valstr->bytes);
+			}
+		}
+		break;
+	}
+	case OP_STORE_NAME: {
+		value_t data = vm->fp->func->data[arg0];
+		if (data.tag == TYPE_STRING) {
+			string_t* name = getstring(data);
+			value_t val = vm->sp[-1];
+			string_t* valstr = val_tostring_opts(
+				val, false, vm->ctx);
+			
+			sylt_dprintf("%.*s <- %.*s",
+				(int)name->len, name->bytes,
+				(int)valstr->len, valstr->bytes);
+		}
+		break;
+	}
 	}
 		
 	sylt_dprintf("\n");

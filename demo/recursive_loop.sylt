@@ -1,0 +1,12 @@
+## demonstrates looping by a function calling itself
+
+let times = 3
+
+let loop(num) = {
+    if (num <= times) {
+        printLn(num)
+        loop(num + 1)
+    }
+}
+
+loop(1)

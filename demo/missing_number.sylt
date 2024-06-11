@@ -1,4 +1,4 @@
-## given a list of size n-1 such that it only contains distinct integers in the range of 1 to n,
+## given a list of size n - 1 such that it only contains distinct integers in the range of 1 to n,
 ## return the missing item
 
 let numbers = [1, 2, 3, 5]

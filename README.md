@@ -2,5 +2,5 @@ A dynamic scripting language inspired mainly by Lua, Rust, and F#. The implement
 
 Early work in progress.
 
-Look in the `/demo/` folder to see
-some example programs.
+Look in the `demo/` folder to see
+some simple example programs.

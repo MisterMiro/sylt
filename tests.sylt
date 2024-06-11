@@ -930,8 +930,6 @@ let tests = List.flatten([
 	],
 ])
 
-printLn(List.length(tests))
-
 ## number of times to run each test
 let n = 1
 ensure(n > 0)

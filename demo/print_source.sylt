@@ -6,8 +6,7 @@ let source_code = System.src().text
 let lines = String.split(source_code, "\n")
 
 List.iter(fun(i, code) -> {
-	let line = toString(i + 1)
-	print(String.rightPad(line, 5, " "))
+	print(String.rightPad(toString(i + 1), 5, " "))
 	print(" ")
 	printLn(code)
 }, lines)

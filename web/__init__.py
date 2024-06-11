@@ -16,22 +16,29 @@ def prettify_demo_name(file):
 def get_demo_list():
     demos = []
     for file in listdir(sylt_demos):
-        demos.append((file, prettify_demo_name(file)))
+        demos.append((sylt_demos + file, prettify_demo_name(file)))
+
+    demos.append(("", ""))
+    demos.append(("tests.sylt", prettify_demo_name("tests.sylt")))
+    demos.append(("stdlib.sylt", prettify_demo_name("stdlib.sylt")))
     return demos
 
 # loads the source code of a demo from file
 def load_demo_code(file):
-    demo = None
-    if (file):
-        with open(sylt_demos + file, "r") as file:
-            demo = file.read()
-    return demo
+    if not file:
+        return None
+    
+    with open(file, "r") as file:
+        return file.read()
 
 # launches a sylt instance and returns the output from stdout
 def run_sylt_binary(args):
     cmd = ["./" + sylt_binary] + args
-    sylt_process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    return sylt_process.communicate()[0].decode(sys.stdout.encoding)
+    ##sylt_process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    ##return sylt_process.communicate()[0].decode(sys.stdout.encoding)
+    sylt_process = subprocess.run(cmd, capture_output=True)
+    return sylt_process.stdout.decode(sys.stdout.encoding)
+
 
 # main page
 @app.route("/", methods=["GET"])

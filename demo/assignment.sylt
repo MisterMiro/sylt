@@ -1,4 +1,4 @@
-## shows how to reassign a variable using the '<-' operator
+## demonstrates how to reassign a variable using the '<-' operator
 
 let x = "hello"
 printLn(x)

@@ -4044,7 +4044,7 @@ void std_init(sylt_t* ctx) {
 	
 	/* parts of the stdlib are implemented 
 	 * in sylt */
-	//sylt_xfile(ctx, SYLT_STDLIB_PATH);
+	sylt_xfile(ctx, SYLT_STDLIB_PATH);
 	
 	gc_resume(ctx);
 }

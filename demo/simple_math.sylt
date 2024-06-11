@@ -1,0 +1,11 @@
+## showcases basic arithmetic
+
+printLn(3 + 4) ## 7
+
+printLn(10 - 8) ## 2
+
+printLn(8 * 4) ## 32
+
+printLn(100 / 20) ## 5
+
+printLn(12 % 8) ## 4

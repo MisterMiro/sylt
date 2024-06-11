@@ -1534,7 +1534,7 @@ string_t* string_fmt(
 	string_t* str = string_new(
 		NULL, len, ctx);
 	vsnprintf((char*)str->bytes,
-		len, fmt, args);
+		len + 1, fmt, args);
 	string_rehash(str, ctx);
 	
 	va_end(args);
@@ -1603,17 +1603,13 @@ void sylt_concat(sylt_t* ctx) {
 		&& b.tag == TYPE_LIST)
 	{
 		result = wraplist(list_concat(
-			sylt_peeklist(ctx, 1),
-			sylt_peeklist(ctx, 0),
-			ctx));
+			getlist(a), getlist(b), ctx));
 		
 	} else if (a.tag == TYPE_STRING
 		&& b.tag == TYPE_STRING)
 	{
 		result = wrapstring(string_concat(
-			sylt_peekstring(ctx, 1),
-			sylt_peekstring(ctx, 0),
-			ctx));
+			getstring(a), getstring(b), ctx));
 		
 	} else {
 		halt(ctx,

@@ -21,16 +21,12 @@ let mul(a, b) = a * b
 let div(a, b) = a / b
 let rem(a, b) = a % b
 
-let repFrom(f, min, max) = {
-	let i = min
-	while (i <= max) {
+let rep(f, n) = {
+	let i = 0
+	while (i < n) {
 		f(i)
 		i <- i + 1
 	}
-}
-
-let rep(f, n) = {
-	repFrom(f, 0, n)
 }
 
 let printEach(list) = {

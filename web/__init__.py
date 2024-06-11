@@ -19,8 +19,8 @@ def get_demo_list():
         demos.append((sylt_demos + file, prettify_demo_name(file)))
 
     demos.append(("", ""))
-    demos.append(("tests.sylt", prettify_demo_name("tests.sylt")))
-    demos.append(("stdlib.sylt", prettify_demo_name("stdlib.sylt")))
+    demos.append(("stdlib.sylt", "Standard library"))
+    demos.append(("tests.sylt", "Tests"))
     return demos
 
 # loads the source code of a demo from file
@@ -44,7 +44,7 @@ def run_sylt_binary(args):
 # main page
 @app.route("/", methods=["GET"])
 def index():
-    demo = load_demo_code(request.args.get("load_demo"))
+    demo = load_demo_code(request.args.get("load"))
     return render_template("index.html", demos=get_demo_list(), code=demo)
 
 # main page after submitting code to run

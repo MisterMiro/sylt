@@ -564,7 +564,7 @@ let listLib() = {
 	
 	## range
 	let a = List.range(-3, 3)
-	let b = [-3, -2, -1, 0, 1, 2]
+	let b = [-3, -2, -1, 0, 1, 2, 3]
 	ensure(a = b)
 	
 	## iter
@@ -716,20 +716,20 @@ let stringLib() = {
 	ensure(String.trim("\n\t hi \n\t") = "hi")
 	ensure(String.trim("hi") = "hi")
 	
-	## replaceAll
+	## replace
 	let str = "Country: SE"
-	str <- String.replaceAll(str,
+	str <- String.replace(str,
 		"SE", "Sweden")
 	ensure(str = "Country: Sweden")
 	
-	str <- String.replaceAll(str,
+	str <- String.replace(str,
 		"Sweden", "SE")
 	ensure(str = "Country: SE")
 	
 	str <- "leet"
-	str <- String.replaceAll(str, "l", "1")
-	str <- String.replaceAll(str, "e", "3")
-	str <- String.replaceAll(str, "t", "7")
+	str <- String.replace(str, "l", "1")
+	str <- String.replace(str, "e", "3")
+	str <- String.replace(str, "t", "7")
 	ensure(str = "1337")
 	
 	## leftPad

@@ -249,10 +249,8 @@ void halt(sylt_t*, const char*, ...);
 	"line limit of %d reached", MAX_LINES
 #define E_JUMP_LIMIT \
 	"jump distance too far (>%d)", MAX_JUMP
-#define E_EMPTY_PATH \
-	"no file path specified"
 #define E_OPEN_FAILED(path) \
-	"failed to open '%s'", (path)
+	"failed to open file '%s'", (path)
 #define E_INVALID_HANDLE(handle) \
 	"invalid file handle: %d", (handle)
 #define E_UNEXPECTED_CHAR(c) \
@@ -2263,6 +2261,10 @@ void dbg_print_instruction(const vm_t* vm) {
 		} 
 		break;
 	}
+	case OP_CALL: {
+		sylt_dprintf("%d arg", arg0);
+		break;
+	}
 	}
 		
 	sylt_dprintf("\n");
@@ -3350,6 +3352,7 @@ value_t stdlist_rev(sylt_t* ctx) {
 value_t stdlist_range(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
+	
 	sylt_num_t min = numarg(0);
 	sylt_num_t max = numarg(1);
 	list_t* ls = list_new(ctx);
@@ -5805,7 +5808,7 @@ string_t* load_file(
 	const char* path, sylt_t* ctx)
 {
 	if (!path) {
-		halt(ctx, E_EMPTY_PATH);
+		halt(ctx, E_OPEN_FAILED("NULL"));
 		unreachable();
 	}
 	
@@ -5865,6 +5868,9 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	}
 	
 	sylt_eprintf(": %s\n", msg);
+	fflush(stdout);
+	fflush(stderr);
+
 	longjmp(err_jump, 1);
 }
 

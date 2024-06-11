@@ -176,7 +176,7 @@ let fmt(str) = {
 			} else {
 				## end of expression
 				let value = eval(expr)
-				let value = asString(value)
+				let value = toString(value)
 				text <- text ++ value
 						
 				i <- i + String.length(expr)

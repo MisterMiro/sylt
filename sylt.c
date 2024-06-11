@@ -3498,7 +3498,6 @@ value_t stdstring_split(sylt_t* ctx) {
 
 value_t stdstring_lower(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	
 	string_t* copy = string_new(
 		stringarg(0)->bytes,
 		stringarg(0)->len,
@@ -3515,7 +3514,6 @@ value_t stdstring_lower(sylt_t* ctx) {
 
 value_t stdstring_upper(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	
 	string_t* copy = string_new(
 		stringarg(0)->bytes,
 		stringarg(0)->len,
@@ -3545,6 +3543,51 @@ value_t stdstring_swap_case(sylt_t* ctx) {
 	
 	string_rehash(copy, ctx);
 	return wrapstring(copy);
+}
+
+value_t stdstring_is_lower(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	string_t* str = stringarg(0);
+
+	bool is_lower = true;
+	for (size_t i = 0; i < str->len; i++) {
+		if (!islower(str->bytes[i])) {
+			is_lower = false;
+			break;
+		}
+	}
+
+	return wrapbool(is_lower);
+}
+
+value_t stdstring_is_upper(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	string_t* str = stringarg(0);
+
+	bool is_upper = true;
+	for (size_t i = 0; i < str->len; i++) {
+		if (!isupper(str->bytes[i])) {
+			is_upper = false;
+			break;
+		}
+	}
+
+	return wrapbool(is_upper);
+}
+
+value_t stdstring_is_whitespace(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	string_t* str = stringarg(0);
+
+	bool is_whitespace = true;
+	for (size_t i = 0; i < str->len; i++) {
+		if (!isspace(str->bytes[i])) {
+			is_whitespace = false;
+			break;
+		}
+	}
+
+	return wrapbool(is_whitespace);
 }
 
 value_t stdstring_starts_with(sylt_t* ctx) {
@@ -4082,6 +4125,12 @@ void std_init(sylt_t* ctx) {
 		stdstring_upper, 1);
 	std_addf(ctx, "swapCase",
 		stdstring_swap_case, 1);
+	std_addf(ctx, "isLower",
+		stdstring_is_lower, 1);
+	std_addf(ctx, "isUpper",
+		stdstring_is_upper, 1);
+	std_addf(ctx, "isWhitespace",
+		stdstring_is_whitespace, 1);
 	std_addf(ctx, "startsWith",
 		stdstring_starts_with, 2);
 	std_addf(ctx, "endsWith",

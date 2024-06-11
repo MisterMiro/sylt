@@ -691,6 +691,11 @@ let stringLib() = {
 	ensure(String.lower(str) = "mixed!")
 	ensure(String.upper(str) = "MIXED!")
 	ensure(String.swapCase(str) = "mIxEd!")
+
+	## isLower + isUpper + isWhitespace
+	ensure(String.isLower("x") and !String.isLower("X"))
+	ensure(String.isUpper("X") and !String.isUpper("x"))
+	ensure(String.isWhitespace(" \t\n\r"))
 	
 	## startsWith
 	ensure(String.startsWith(

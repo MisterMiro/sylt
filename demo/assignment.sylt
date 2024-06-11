@@ -1,7 +1,16 @@
-## demonstrates how to reassign a variable using the '<-' operator
+## demonstrates how to reassign a variable using the '<-' operator,
+## and the difference between assignment and binding a new variable
+## with the same name
 
 let x = "hello"
+let y = "morning"
 printLn(x)
+printLn(y)
 
-x <- "goodbye"
-printLn(x)
+{
+    x <- "goodbye"
+    let y = "evening"
+}
+
+printLn(x) ## "goodbye"
+printLn(y) ## still "morning"

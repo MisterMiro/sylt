@@ -34,8 +34,7 @@ def load_demo_code(file):
 # launches a sylt instance and returns the output from stdout
 def run_sylt_binary(args):
     cmd = ["./" + sylt_binary] + args
-    ##sylt_process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    ##return sylt_process.communicate()[0].decode(sys.stdout.encoding)
+    
     sylt_process = subprocess.run(cmd, capture_output=True)
     return sylt_process.stdout.decode(sys.stdout.encoding)
 

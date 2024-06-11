@@ -2,7 +2,7 @@
 
 let source_code = System.src().text
 
-## split the source into a list of lines so we can add line numbers
+## split the code into a list of lines so we can display line numbers
 let lines = String.split(source_code, "\n")
 
 List.iter(fun(i, code) -> {

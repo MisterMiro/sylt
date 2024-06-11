@@ -433,9 +433,10 @@ let whileLoop() = {
 let preludeLib() = {
 	## toString
 	ensure(toString(nil) = "nil")
+	printLn(toString(false))
 	ensure(toString(true) = "true"
 		and toString(false) = "false")
-	ensure(toString(707) = "707")
+	ensure(toString(707) = "707.0000")
 	ensure(toString(["bananas", 18, true])
 		= "[\"bananas\", 18, true]")
 	ensure(toString(printLn) = "printLn")
@@ -667,9 +668,11 @@ let stringLib() = {
 	let str = "0123456789"
 	ensure(String.digits = str)
 	
-	## length
+	## length + isEmpty
 	ensure(String.length(String.digits) = 10)
-	
+	ensure(String.isEmpty("")
+		and !String.isEmpty(String.digits))
+
 	## chars + join
 	ensure(String.chars("Abc")
 		= ["A", "b", "c"])

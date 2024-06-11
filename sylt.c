@@ -1917,7 +1917,7 @@ static string_t* val_tostring(
 	}
 	case TYPE_NUM: {
 		str = string_fmt(
-			ctx, "%.8g", getnum(val));
+			ctx, "%f", getnum(val));
 		break;
 	}
 	case TYPE_LIST: {
@@ -2039,6 +2039,10 @@ void val_print(
 	bool quotestr,
 	sylt_t* ctx)
 {
+	if (val.tag == TYPE_NUM) {
+		sylt_printf("%f", getnum(val));
+		return;
+	}
 	string_t* str = val_tostring_opts(
 		val, quotestr, ctx);
 	string_print(str);
@@ -2350,7 +2354,7 @@ void vm_ensure_stack(
 
 void sylt_call(sylt_t*, int);
 
-void vm_exec(vm_t* vm, bool stdlib_call) {
+void vm_exec(vm_t* vm) {
 	set_state(vm->ctx, SYLT_STATE_EXEC);
 	assert(vm->nframes > 0 && vm->fp);
 	
@@ -2787,18 +2791,14 @@ void vm_exec(vm_t* vm, bool stdlib_call) {
 			push(ret);
 			
 			vm->nframes--;
-			vm->fp =
-				&vm->frames[vm->nframes - 1];
-				
 			if (vm->nframes == 0) {
 				set_state(vm->ctx,
 					SYLT_STATE_DONE);
 				return;
 			}
-	
-			if (stdlib_call) {
-				return;
-			}
+
+			vm->fp =
+				&vm->frames[vm->nframes - 1];
 			
 			dbg_print_header(
 				vm, vm->fp->cls);
@@ -3329,6 +3329,11 @@ value_t stddict_values(sylt_t* ctx) {
 value_t stdstring_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	return wrapnum(stringarg(0)->len);
+}
+
+value_t stdstring_is_empty(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	return wrapnum(stringarg(0)->len == 0);
 }
 
 value_t stdstring_chars(sylt_t* ctx) {
@@ -3980,6 +3985,8 @@ void std_init(sylt_t* ctx) {
 			"0123456789", ctx)));
 	std_addf(ctx, "length",
 		stdstring_length, 1);
+	std_addf(ctx, "isEmpty",
+		stdstring_is_empty, 1);
 	std_addf(ctx, "chars",
 		stdstring_chars, 1);
 	std_addf(ctx, "join",
@@ -5785,15 +5792,6 @@ void sylt_handle_halt(sylt_t** ctx) {
 	gc_resume(*ctx);
 	sylt_free(*ctx);
 	*ctx = sylt_new();
-	
-	//ctx->vm->sp = ctx->vm->stack
-	//	+ ctx->vm->fp->offs;
-	
-	/*if (ctx->vm->nframes > 0) {
-		ctx->vm->nframes--;
-		ctx->vm->fp = &ctx->vm->frames[
-			ctx->vm->nframes - 1];
-	}*/
 }
 
 sylt_t* sylt_new(void) {
@@ -5899,7 +5897,7 @@ void compile_and_run(
 	sylt_call(ctx, 0);
 	
 	/* run program */
-	vm_exec(ctx->vm, false);
+	vm_exec(ctx->vm);
 }
 
 /* executes a sylt program from a

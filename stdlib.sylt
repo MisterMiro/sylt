@@ -11,6 +11,9 @@ let isNegative(n) = n < 0
 let isEven(n) = n % 2 = 0
 let isOdd(n) = n % 2 = 1
 
+let incr(n) = n + 1
+let decr(n) = n - 1
+
 let twice(n) = n * 2
 let half(n) = n / 2
 let squared(n) = n * n
@@ -25,7 +28,7 @@ let rep(f, n) = {
 	let i = 0
 	while (i < n) {
 		f(i)
-		i <- i + 1
+		i <- incr(i)
 	}
 }
 
@@ -83,6 +86,33 @@ let mean(list) =
 			list[List.length(list) / 2 - 1],
 			list[List.length(list) / 2]])
 
+let sortBy(f, list) = {
+	let bubbleSort(list, n) = {
+		let swapped = 0
+
+		rep(fun(i) -> {
+			if (f(list[i], list[i + 1])) {
+				let tmp = list[i]
+				list[i] <- list[i + 1]
+				list[i + 1] <- tmp
+
+				swapped <- incr(swapped)
+			}
+		}, n - 1)
+
+		let done = swapped = 0
+		if (!done)
+			bubbleSort(list, n - 1)
+	}
+
+	let n = List.length(list)
+	if (n > 1)
+		bubbleSort(list, n)
+}
+
+let sort(list) =
+	sortBy(fun(a, b) -> a > b, list)
+
 let flatten(list) = {
 	let flat = []
 	List.forEach(fun(item) ->
@@ -117,6 +147,8 @@ gdict["List"]["fold"] <- fold
 gdict["List"]["sum"] <- sum
 gdict["List"]["average"] <- average
 gdict["List"]["mean"] <- mean
+gdict["List"]["sortBy"] <- sortBy
+gdict["List"]["sort"] <- sort
 gdict["List"]["flatten"] <- flatten
 gdict["List"]["dedup"] <- dedup
 gdict["List"]["any"] <- any
@@ -171,7 +203,7 @@ let fmt(str) = {
 			
 			if (inExpr) {
 				## start of expression
-				i <- i + 1
+				i <- incr(i)
 			
 			} else {
 				## end of expression
@@ -188,7 +220,7 @@ let fmt(str) = {
 				expr <- expr ++ chars[i]
 			else
 				text <- text ++ chars[i]
-			i <- i + 1
+			i <- incr(i)
 		}
 	}
 	

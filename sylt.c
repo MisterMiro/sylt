@@ -2262,7 +2262,7 @@ void dbg_print_instruction(const vm_t* vm) {
 		break;
 	}
 	case OP_CALL: {
-		sylt_dprintf("%d arg", arg0);
+		sylt_dprintf("%d argument%s", arg0, (arg0 == 1) ? "" : "s");
 		break;
 	}
 	}
@@ -3352,7 +3352,7 @@ value_t stdlist_rev(sylt_t* ctx) {
 value_t stdlist_range(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
-	
+
 	sylt_num_t min = numarg(0);
 	sylt_num_t max = numarg(1);
 	list_t* ls = list_new(ctx);

@@ -7,6 +7,7 @@ app = Flask(__name__)
 
 sylt_binary = "sylt_bin"
 sylt_demos = "demo/"
+timeout = 10
 
 # converts 'example_file.sylt' to 'Example File'
 def prettify_demo_name(file):
@@ -35,7 +36,7 @@ def load_demo_code(file):
 def run_sylt_binary(args):
     cmd = ["./" + sylt_binary] + args
     try:
-        sylt_process = subprocess.run(cmd, capture_output=True, timeout=7.0)
+        sylt_process = subprocess.run(cmd, capture_output=True, timeout=timeout)
         return sylt_process.stdout.decode(sys.stdout.encoding)
     except subprocess.TimeoutExpired:
         return "Timed out (is there an infinite loop?)"

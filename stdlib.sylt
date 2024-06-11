@@ -29,6 +29,10 @@ let rep(f, n) = {
 	}
 }
 
+let printEach(list) = {
+	List.forEach(printLn, list)
+}
+
 ## List      |
 ## ===========
 

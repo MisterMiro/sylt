@@ -235,16 +235,3 @@ gdict["String"]["centerPad"] <- centerPad
 gdict["String"]["fmt"] <- fmt
 
 }
-
-## Math      |
-## ===========
-
-let impl = {
-
-let factorial(n) =
-	if (n < 1) 1
-	else n * factorial(n - 1)
-	
-gdict["Math"]["factorial"] <- factorial
-
-}

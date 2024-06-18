@@ -870,9 +870,6 @@ let mathLib() = {
 		Math.acosh(1.2), 0.6223, 0.001))
 	ensure(floatEq(
 		Math.atanh(0.8), 1.0986, 0.001))
-	
-	## factorial
-	ensure(Math.factorial(5) = 120)
 }
 
 ## tests to run

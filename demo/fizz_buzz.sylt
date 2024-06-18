@@ -1,14 +1,14 @@
-## if a number is divisible by 3: print "fizz", if divisible by 5: print "buzz", if divisible
-## by both 3 and 5: print "fizzbuzz", otherwise print the number
+## if a number is divisible by 3: print "Fizz", if divisible by 5: print "Buzz", if divisible
+## by both 3 and 5: print "FizzBuzz", otherwise print the number
 
 rep(fun(num) -> {
     num <- num + 1 ## 1 to 100
     let output = ""
 
     if (num % 3 = 0)
-        output <- "fizz"
+        output <- "Fizz"
     if (num % 5 = 0)
-        output <- output ++ "buzz"
+        output <- output ++ "Buzz"
     if (output = "")
         output <- toString(num)
 

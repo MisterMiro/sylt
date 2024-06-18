@@ -21,13 +21,21 @@ body {
     color: rgb(255, 255, 255);
 }
 
-.header-link {
+.header-title {
     background: linear-gradient(rgb(23, 8, 90), rgb(31, 10, 122));
     width: 300px;
     padding: 4px;
     margin-right: 20px;
     display: inline-block;
     font-family: 'Courier New', Courier, monospace;
+}
+
+.header-icon {
+    background: linear-gradient(rgb(23, 8, 90), rgb(31, 10, 122));
+    font-size: 32px;
+    display: inline-block;
+    font-family: 'Courier New', Courier, monospace;
+    float: right;
 }
 
 .demos {

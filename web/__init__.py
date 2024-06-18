@@ -41,16 +41,13 @@ def run_sylt_binary(args):
     except subprocess.TimeoutExpired:
         return "Timed out (is there an infinite loop?)"
 
-
-# main page
 @app.route("/", methods=["GET"])
 def index():
     demo = load_demo_code(request.args.get("load"))
     return render_template("index.html", demos=get_demo_list(), code=demo)
 
-# main page after submitting code to run
 @app.route("/", methods=["POST"])
-def index_run_code():
+def index_submit():
     # get the source code from the input box
     code = request.form["code"]
     disassemble = request.form.get("disassemble")

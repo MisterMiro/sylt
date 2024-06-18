@@ -32,9 +32,8 @@ let rep(f, n) = {
 	}
 }
 
-let printEach(list) = {
+let printEach(list) =
 	List.forEach(printLn, list)
-}
 
 ## List      |
 ## ===========
@@ -75,7 +74,7 @@ let sum(list) =
 	List.fold(add, 0, list)
 
 let average(list) =
-	if (List.isEmpty(list)) 0
+	if (list = []) 0
 	else List.sum(list) / List.length(list)
 	
 let mean(list) = 

@@ -9,7 +9,7 @@ rep(fun(num) -> {
         output <- "fizz"
     if (num % 5 = 0)
         output <- output ++ "buzz"
-    if (String.isEmpty(output))
+    if (output = "")
         output <- toString(num)
 
     printLn(output)

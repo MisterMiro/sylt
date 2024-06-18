@@ -3269,19 +3269,6 @@ value_t stdlist_length(sylt_t* ctx) {
 	return wrapnum(listarg(0)->len);
 }
 
-value_t stdlist_is_empty(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
-	return wrapbool(listarg(0)->len == 0);
-}
-
-value_t stdlist_clear(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
-	list_t* ls = listarg(0);
-	while (ls->len > 0)
-		list_pop(ls, ctx);
-	return nil();
-}
-
 value_t stdlist_add(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -3369,11 +3356,6 @@ value_t stddict_length(sylt_t* ctx) {
 	return wrapnum(dictarg(0)->len);
 }
 
-value_t stddict_is_empty(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_DICT);
-	return wrapbool(dictarg(0)->len == 0);
-}
-
 value_t stddict_keys(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_DICT);
 	dict_t* dc = dictarg(0);
@@ -3412,11 +3394,6 @@ value_t stddict_values(sylt_t* ctx) {
 value_t stdstring_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	return wrapnum(stringarg(0)->len);
-}
-
-value_t stdstring_is_empty(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	return wrapbool(stringarg(0)->len == 0);
 }
 
 value_t stdstring_chars(sylt_t* ctx) {
@@ -4069,9 +4046,6 @@ void std_init(sylt_t* ctx) {
 	std_setlib(ctx, "List");
 	std_addf(ctx, "length",
 		stdlist_length, 1);
-	std_addf(ctx, "isEmpty",
-		stdlist_is_empty, 1);
-	std_addf(ctx, "clear", stdlist_clear, 1);
 	std_addf(ctx, "add", stdlist_add, 3);
 	std_addf(ctx, "del", stdlist_del, 2);
 	std_addf(ctx, "push", stdlist_push, 2);
@@ -4092,8 +4066,6 @@ void std_init(sylt_t* ctx) {
 	std_setlib(ctx, "Dict");
 	std_addf(ctx, "length",
 		stddict_length, 1);
-	std_addf(ctx, "isEmpty",
-		stddict_is_empty, 1);
 	std_addf(ctx, "keys",
 		stddict_keys, 1);
 	std_addf(ctx, "values",
@@ -4111,8 +4083,6 @@ void std_init(sylt_t* ctx) {
 			"0123456789", ctx)));
 	std_addf(ctx, "length",
 		stdstring_length, 1);
-	std_addf(ctx, "isEmpty",
-		stdstring_is_empty, 1);
 	std_addf(ctx, "chars",
 		stdstring_chars, 1);
 	std_addf(ctx, "join",

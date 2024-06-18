@@ -388,14 +388,14 @@ let functions() = {
 	
 	## recursion
 	let clear(ls) =
-		if (!List.isEmpty(ls)) {
+		if (ls != []) {
 			List.pop(ls)
 			clear(ls)
 		}
 		
 	let nums = [1, 2, 3]
 	clear(nums)
-	ensure(List.isEmpty(nums))
+	ensure(nums = [])
 }
 
 let ifElse() = {
@@ -496,15 +496,6 @@ let listLib() = {
 	ensure(List.length([]) = 0)
 	ensure(List.length([1]) = 1)
 	ensure(List.length([1, 2]) = 2)
-	
-	## isEmpty
-	ensure(List.isEmpty([]))
-	ensure(!List.isEmpty([123]))
-	
-	## clear
-	let x = [80, 90, 100]
-	List.clear(x)
-	ensure(List.isEmpty(x))
 	
 	## add
 	let x = [1, 3, 4]
@@ -645,10 +636,6 @@ let dictLib() = {
 	## length
 	ensure(Dict.length(dict) = 3)
 	
-	## isEmpty
-	ensure(Dict.isEmpty([||]))
-	ensure(!Dict.isEmpty(dict))
-	
 	## keys
 	ensure(Dict.keys(dict) =
 		["door", "car", "box"])
@@ -667,10 +654,8 @@ let stringLib() = {
 	let str = "0123456789"
 	ensure(String.digits = str)
 	
-	## length + isEmpty
+	## length
 	ensure(String.length(String.digits) = 10)
-	ensure(String.isEmpty("")
-		and !String.isEmpty(String.digits))
 
 	## chars + join
 	ensure(String.chars("Abc")

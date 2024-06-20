@@ -459,8 +459,7 @@ void* ptr_resize(
 	
 	#if DBG_PRINT_GC_STATE
 	if (ns > 0)
-		sylt_dprintf(
-			"        %+ld to %s in %s:%d\n",
+		sylt_dprintf("        %+ld to %s in %s:%d\n",
 			ns - os, p_name, func_name, line);
 	#else
 	(void)p_name;
@@ -855,7 +854,7 @@ typedef struct vm_s {
 	(value_t){TYPE_UPVALUE, \
 		{.obj = (obj_t*)(v)}}
 
-/* macros for getting the raw value from 
+/* macros for getting the raw value from
  * a value_t. the type must be
  * checked before accessing these to
  * prevent undefined behaviour */
@@ -883,78 +882,49 @@ bool val_eq(value_t, value_t);
  * for making objects visible to the GC */
 
 void vm_ensure_stack(vm_t*, size_t);
-static inline void vm_push(
-	struct vm_s*, struct value_s);
-static inline value_t vm_pop(
-	struct vm_s*);
-static inline value_t vm_peek(
-	const struct vm_s*, int);
-static inline void vm_shrink(
-	struct vm_s*, int);
+static inline void vm_push(struct vm_s*, struct value_s);
+static inline value_t vm_pop(struct vm_s*);
+static inline value_t vm_peek(const struct vm_s*, int);
+static inline void vm_shrink(struct vm_s*, int);
 	
 #define sylt_ensure_stack(ctx, n) \
 	vm_ensure_stack(ctx->vm, n)
 
 /* for pushing values on the stack */
 #define sylt_push(ctx, v) vm_push(ctx->vm, v)
-#define sylt_pushnil(ctx) \
-	sylt_push(ctx, nil())
-#define sylt_pushbool(ctx, v) \
-	sylt_push(ctx, wrapbool(v))
-#define sylt_pushnum(ctx, v) \
-	sylt_push(ctx, wrapnum(v))
-#define sylt_pushlist(ctx, v) \
-	sylt_push(ctx, wraplist(v))
-#define sylt_pushdict(ctx, v) \
-	sylt_push(ctx, wrapdict(v))
-#define sylt_pushstring(ctx, v) \
-	sylt_push(ctx, wrapstring(v))
-#define sylt_pushfunc(ctx, v) \
-	sylt_push(ctx, wrapfunc(v))
-#define sylt_pushclosure(ctx, v) \
-	sylt_push(ctx, wrapclosure(v))
+#define sylt_pushnil(ctx) sylt_push(ctx, nil())
+#define sylt_pushbool(ctx, v) sylt_push(ctx, wrapbool(v))
+#define sylt_pushnum(ctx, v) sylt_push(ctx, wrapnum(v))
+#define sylt_pushlist(ctx, v) sylt_push(ctx, wraplist(v))
+#define sylt_pushdict(ctx, v) sylt_push(ctx, wrapdict(v))
+#define sylt_pushstring(ctx, v) sylt_push(ctx, wrapstring(v))
+#define sylt_pushfunc(ctx, v) sylt_push(ctx, wrapfunc(v))
+#define sylt_pushclosure(ctx, v) sylt_push(ctx, wrapclosure(v))
 
 /* for popping values off the stack */
 #define sylt_pop(ctx) vm_pop(ctx->vm)
-#define sylt_popnil(ctx) \
-	sylt_pop(ctx)
-#define sylt_popbool(ctx) \
-	getbool(sylt_pop(ctx))
-#define sylt_popnum(ctx) \
-	getnum(sylt_pop(ctx))
-#define sylt_poplist(ctx) \
-	getlist(sylt_pop(ctx))
-#define sylt_popdict(ctx) \
-	getdict(sylt_pop(ctx))
-#define sylt_popstring(ctx) \
-	getstring(sylt_pop(ctx))
-#define sylt_popfunc(ctx) \
-	getfunc(sylt_pop(ctx))
+#define sylt_popnil(ctx) sylt_pop(ctx)
+#define sylt_popbool(ctx) getbool(sylt_pop(ctx))
+#define sylt_popnum(ctx) getnum(sylt_pop(ctx))
+#define sylt_poplist(ctx) getlist(sylt_pop(ctx))
+#define sylt_popdict(ctx) getdict(sylt_pop(ctx))
+#define sylt_popstring(ctx) getstring(sylt_pop(ctx))
+#define sylt_popfunc(ctx) getfunc(sylt_pop(ctx))
 
 /* for peeking values down the stack */
 #define sylt_peek(ctx, n) vm_peek(ctx->vm, n)
-#define sylt_peekbool(ctx, n) \
-	getbool(sylt_peek(ctx, n))
-#define sylt_peeknum(ctx, n) \
-	getnum(sylt_peek(ctx, n))
-#define sylt_peeklist(ctx, n) \
-	getlist(sylt_peek(ctx, n))
-#define sylt_peekdict(ctx, n) \
-	getdict(sylt_peek(ctx, n))
-#define sylt_peekstring(ctx, n) \
-	getstring(sylt_peek(ctx, n))
-#define sylt_peekfunc(ctx, n) \
-	getfunc(sylt_peek(ctx, n))
-#define sylt_peekclosure(ctx, n) \
-	getclosure(sylt_peek(ctx, n))
+#define sylt_peekbool(ctx, n) getbool(sylt_peek(ctx, n))
+#define sylt_peeknum(ctx, n) getnum(sylt_peek(ctx, n))
+#define sylt_peeklist(ctx, n) getlist(sylt_peek(ctx, n))
+#define sylt_peekdict(ctx, n) getdict(sylt_peek(ctx, n))
+#define sylt_peekstring(ctx, n) getstring(sylt_peek(ctx, n))
+#define sylt_peekfunc(ctx, n) getfunc(sylt_peek(ctx, n))
+#define sylt_peekclosure(ctx, n) getclosure(sylt_peek(ctx, n))
 
 /* shrinks the stack by n values */
-#define sylt_shrink(ctx, n) \
-	vm_shrink(ctx->vm, n)
+#define sylt_shrink(ctx, n) vm_shrink(ctx->vm, n)
 	
-void dbg_print_obj_mem(
-	obj_t* obj, bool freed)
-{
+void dbg_print_obj_mem(obj_t* obj, bool freed) {
 	if (!obj)
 		return;
 	
@@ -966,17 +936,11 @@ void dbg_print_obj_mem(
 
 /* allocates a generic object */
 obj_t* obj_new_impl(
-	size_t size,
-	type_t tag,
-	const char* func_name,
-	int line,
-	sylt_t* ctx)
+	size_t size, type_t tag, const char* func_name, int line,sylt_t* ctx)
 {
 	assert(isheaptype(tag));
 	obj_t* obj = ptr_resize(
-		NULL, 0, size,
-		"<obj>", func_name, line,
-		ctx);
+		NULL, 0, size, "<obj>", func_name, line, ctx);
 	
 	obj->tag = tag;
 	obj->marked = false;
@@ -1054,17 +1018,14 @@ void obj_mark(obj_t* obj, sylt_t* ctx) {
 	/* add the object to a cache for
 	 * performance */
 	ctx->mem.gc.marked = gc_realloc(
-		ctx->mem.gc.marked,
-		(sizeof(obj_t*)
-			* ctx->mem.gc.nmarked) + 1);
+		ctx->mem.gc.marked, (sizeof(obj_t*) * ctx->mem.gc.nmarked) + 1);
 	
 	if (!ctx->mem.gc.marked) {
 		halt(ctx, E_OUT_OF_MEM);
 		unreachable();
 	}
 	
-	ctx->mem.gc.marked
-		[ctx->mem.gc.nmarked++] = obj;
+	ctx->mem.gc.marked[ctx->mem.gc.nmarked++] = obj;
 }
 
 void val_mark(value_t val, sylt_t* ctx);
@@ -1101,8 +1062,7 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	}
 	case TYPE_FUNCTION: {
 		func_t* func = (func_t*)obj;
-		for (size_t i = 0;
-			i < func->ndata; i++)
+		for (size_t i = 0; i < func->ndata; i++)
 			val_mark(func->data[i], ctx);
 			
 		obj_mark((obj_t*)func->name, ctx);
@@ -1112,10 +1072,8 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	case TYPE_CLOSURE: {
 		closure_t* cls = (closure_t*)obj;
 		obj_mark((obj_t*)cls->func, ctx);
-		for (size_t i = 0;
-			i < cls->nupvals; i++)
-			obj_mark((obj_t*)cls->upvals[i],
-				ctx);
+		for (size_t i = 0; i < cls->nupvals; i++)
+			obj_mark((obj_t*)cls->upvals[i], ctx);
 		
 		break;
 	}
@@ -1131,25 +1089,19 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 /* == list == */
 
 list_t* list_new(sylt_t* ctx) {
-	list_t* ls = (list_t*)obj_new(
-		sizeof(list_t), TYPE_LIST, ctx);
+	list_t* ls = (list_t*)obj_new(sizeof(list_t), TYPE_LIST, ctx);
 	ls->items = NULL;
 	ls->len = 0;
 	return ls;
 }
 
 void list_free(list_t* ls, sylt_t* ctx) {
-	arr_free(ls->items,
-		value_t,
-		nextpow2(ls->len),
-		ctx);
+	arr_free(ls->items, value_t, nextpow2(ls->len), ctx);
 	ptr_free(ls, list_t, ctx);
 }
 
 /* returns true if the two lists are equal */
-bool list_eq(
-	const list_t* a, const list_t* b)
-{
+bool list_eq(const list_t* a, const list_t* b) {
 	if (!a || !b)
 		return false;
 	
@@ -1169,9 +1121,7 @@ bool list_eq(
 /* converts a possibly negative index to
  * a positive one and halts if it is out
  * of bounds */
-size_t list_index(
-	const list_t* ls, int index, sylt_t* ctx)
-{
+size_t list_index(const list_t* ls, int index, sylt_t* ctx) {
 	if (index < 0)
 		index = ls->len + index;
 	
@@ -1186,32 +1136,20 @@ size_t list_index(
 
 /* returns the nth item in the list, errors
  * if the index is out of bounds */
-value_t list_get(
-	list_t* ls, int index, sylt_t* ctx)
-{
+value_t list_get(list_t* ls, int index, sylt_t* ctx) {
 	index = list_index(ls, index, ctx);
 	return ls->items[index];
 }
 
 /* sets the value at index n, errors if out
  * of bounds */
-void list_set(
-	list_t* ls,
-	int index,
-	value_t val,
-	sylt_t* ctx)
-{
+void list_set(list_t* ls, int index, value_t val, sylt_t* ctx) {
 	index = list_index(ls, index, ctx);
 	ls->items[index] = val;
 }
 
 /* inserts an item at the given index */
-void list_insert(
-	list_t* ls,
-	int index,
-	value_t val,
-	sylt_t* ctx)
-{
+void list_insert(list_t* ls, int index, value_t val, sylt_t* ctx) {
 	ls->items = arr_resize(
 		ls->items,
 		value_t,
@@ -1227,11 +1165,7 @@ void list_insert(
 }
 
 /* deletes an item from the given index */
-value_t list_delete(
-	list_t* ls,
-	int index,
-	sylt_t* ctx)
-{
+value_t list_delete(list_t* ls, int index, sylt_t* ctx) {
 	index = list_index(ls, index, ctx);
 	value_t val = ls->items[index];
 	for (int i = index; i <
@@ -1249,9 +1183,7 @@ value_t list_delete(
 }
 
 /* appends an item to the end of the list */
-void list_push(
-	list_t* ls, value_t val, sylt_t* ctx)
-{
+void list_push(list_t* ls, value_t val, sylt_t* ctx) {
 	list_insert(ls, -1, val, ctx);
 }
 
@@ -1262,11 +1194,7 @@ value_t list_pop(list_t* ls, sylt_t* ctx) {
 }
 
 /* returns the concatenation of a and b */
-list_t* list_concat(
-	const list_t* a,
-	const list_t* b,
-	sylt_t* ctx)
-{
+list_t* list_concat(const list_t* a, const list_t* b, sylt_t* ctx) {
 	gc_pause(ctx);
 	list_t* result = list_new(ctx);
 	
@@ -1282,10 +1210,7 @@ list_t* list_concat(
 
 /* counts the occurrences of a unique value in
  * the list */
-size_t list_count(
-	const list_t* ls,
-	value_t val)
-{
+size_t list_count(const list_t* ls, value_t val) {
 	size_t count = 0;
 	for (size_t i = 0; i < ls->len; i++) {
 		if (val_eq(ls->items[i], val))
@@ -1299,8 +1224,7 @@ size_t list_count(
 #define DICT_MAX_LOAD 0.75
 
 dict_t* dict_new(sylt_t* ctx) {
-	dict_t* dc = (dict_t*)obj_new(
-		sizeof(dict_t), TYPE_DICT, ctx);
+	dict_t* dc = (dict_t*)obj_new(sizeof(dict_t), TYPE_DICT, ctx);
 	dc->items = NULL;
 	dc->len = 0;
 	dc->cap = 0;
@@ -1308,21 +1232,14 @@ dict_t* dict_new(sylt_t* ctx) {
 }
 
 void dict_free(dict_t* dc, sylt_t* ctx) {
-	arr_free(
-		dc->items,
-		item_t,
-		dc->cap,
-		ctx);
+	arr_free(dc->items, item_t, dc->cap, ctx);
 	ptr_free(dc, dict_t, ctx);
 }
 
-bool string_eq(
-	const string_t* a, const string_t* b);
+bool string_eq(const string_t* a, const string_t* b);
 
 /* returns true if the two dicts are equal */
-bool dict_eq(
-	const dict_t* a, const dict_t* b)
-{
+bool dict_eq(const dict_t* a, const dict_t* b) {
 	if (!a || !b)
 		return false;
 	
@@ -1336,14 +1253,10 @@ bool dict_eq(
 		return false;
 	
 	for (size_t i = 0; i < a->cap; i++) {
-		if (!string_eq(
-			a->items[i].key,
-			b->items[i].key))
+		if (!string_eq(a->items[i].key, b->items[i].key))
 			return false;
 		
-		if (!val_eq(
-			a->items[i].val,
-			b->items[i].val))
+		if (!val_eq(a->items[i].val, b->items[i].val))
 			return false;
 	}
 		
@@ -1352,17 +1265,12 @@ bool dict_eq(
 
 /* finds an entry in a dictionary from
  * a string key value */
-item_t* dict_find(
-	const string_t* key,
-	const item_t* items,
-	size_t cap)
-{
+item_t* dict_find(const string_t* key, const item_t* items, size_t cap) {
 	/* key->hash % cap */
 	uint32_t index = key->hash & (cap - 1);
 	for (;;) {
 		const item_t* item = &items[index];
-		if (!item->key
-			|| string_eq(item->key, key))
+		if (!item->key || string_eq(item->key, key))
 			return (item_t*)item;
 		
 		/* (index + 1) % cap */
@@ -1371,15 +1279,11 @@ item_t* dict_find(
 }
 
 /* retrieves a value from the dictionary */
-value_t* dict_get(
-	const dict_t* dc, const string_t* key)
-{
+value_t* dict_get(const dict_t* dc, const string_t* key) {
 	if (dc->len == 0)
 		return NULL;
 		
-	item_t* item = dict_find(
-		key, dc->items, dc->cap);
-	
+	item_t* item = dict_find(key, dc->items, dc->cap);
 	if (!item->key)
 		return NULL;
 	
@@ -1388,12 +1292,9 @@ value_t* dict_get(
 
 /* sets the capacity and reallocates the 
  * backing array */
-void dict_set_cap(
-	dict_t* dc, size_t cap, sylt_t* ctx)
-{
-	item_t* items = arr_alloc(
-		items, item_t, cap, ctx);
-	
+void dict_set_cap(dict_t* dc, size_t cap, sylt_t* ctx) {
+	/* allocate a new array */
+	item_t* items = arr_alloc(items, item_t, cap, ctx);
 	for (size_t i = 0; i < cap; i++) {
 		items[i].key = NULL;
 		items[i].val = nil();
@@ -1405,8 +1306,7 @@ void dict_set_cap(
 		if (!src->key)
 			continue;
 			
-		item_t* dst = dict_find(
-			src->key, items, cap);
+		item_t* dst = dict_find(src->key, items, cap);
 		dst->key = src->key;
 		dst->val = src->val;
 	}
@@ -1420,12 +1320,7 @@ void dict_set_cap(
 }
 
 /* inserts a value into the dictionary */
-bool dict_set(
-	dict_t* dc,
-	const string_t* key,
-	value_t val,
-	sylt_t* ctx)
-{
+bool dict_set(dict_t* dc, const string_t* key, value_t val, sylt_t* ctx) {
 	/* grow if needed */
 	size_t cap = dc->cap * DICT_MAX_LOAD;
 	if (dc->len + 1 > cap) {
@@ -1433,9 +1328,7 @@ bool dict_set(
 		dict_set_cap(dc, new_cap, ctx);
 	}
 	
-	item_t* item = dict_find(
-		key, dc->items, dc->cap);
-	
+	item_t* item = dict_find(key, dc->items, dc->cap);
 	bool is_new = !item->key;
 	if (is_new)
 		dc->len++;
@@ -1445,31 +1338,22 @@ bool dict_set(
 	return is_new;
 }
 
-void dict_copy(
-	dict_t* dst,
-	const dict_t* src,
-	bool overwrite,
-	sylt_t* ctx)
-{
+void dict_copy(dict_t* dst, const dict_t* src, bool overwrite, sylt_t* ctx) {
 	for (size_t i = 0; i < src->cap; i++) {
 		item_t* item = &src->items[i];
 		if (!item->key)
 			continue;
 		
-		bool exists = !overwrite && dict_get(
-			dst, item->key);
+		bool exists = !overwrite && dict_get(dst, item->key);
 		if (exists)
 			continue;
 		
-		dict_set(dst,
-			item->key, item->val, ctx);
+		dict_set(dst,item->key, item->val, ctx);
 	}
 }
 
 /* FNV-1a */
-uint32_t dict_calc_hash(
-	const uint8_t* bytes, size_t len)
-{
+uint32_t dict_calc_hash(const uint8_t* bytes, size_t len) {
 	uint32_t hash = 2166136261u;
 	for (size_t i = 0; i < len; i++) {
 		hash ^= bytes[i];
@@ -1482,16 +1366,12 @@ uint32_t dict_calc_hash(
 
 void string_rehash(string_t*, sylt_t*);
 
-string_t* string_new(
-	uint8_t* bytes, size_t len, sylt_t* ctx)
-{
-	string_t* str = (string_t*)obj_new(
-		sizeof(string_t), TYPE_STRING, ctx);
+string_t* string_new(uint8_t* bytes, size_t len, sylt_t* ctx) {
+	string_t* str = (string_t*)obj_new(sizeof(string_t), TYPE_STRING, ctx);
 	sylt_pushstring(ctx, str); /* GC */
 	
 	str->bytes = NULL;
-	arr_alloc(
-		str->bytes, uint8_t, len + 1, ctx);
+	arr_alloc(str->bytes, uint8_t, len + 1, ctx);
 	
 	if (bytes)
 		memcpy(str->bytes, bytes, len);
@@ -1502,27 +1382,18 @@ string_t* string_new(
 }
 
 void string_free(string_t* str, sylt_t* ctx) {
-	arr_free(
-		str->bytes,
-		uint8_t,
-		str->len + 1,
-		ctx);
+	arr_free(str->bytes, uint8_t, str->len + 1, ctx);
 	ptr_free(str, dict_t, ctx);
 }
 
 /* helper function for creating a new 
  * string object from a C string literal */
-string_t* string_lit(
-	const char* lit, sylt_t* ctx)
-{
-	return string_new(
-		(uint8_t*)lit, strlen(lit), ctx);
+string_t* string_lit(const char* lit, sylt_t* ctx) {
+	return string_new((uint8_t*)lit, strlen(lit), ctx);
 }
 
 /* creates a new formatted string */
-string_t* string_fmt(
-	sylt_t* ctx, const char* fmt, ...)
-{
+string_t* string_fmt(sylt_t* ctx, const char* fmt, ...) {
 	uint8_t buffer[2048];
 	va_list args;
 	va_start(args, fmt);
@@ -1546,9 +1417,7 @@ string_t* string_fmt(
 
 /* must be called whenever the contents
  * of a string changes */
-void string_rehash(
-	string_t* str, sylt_t* ctx)
-{
+void string_rehash(string_t* str, sylt_t* ctx) {
 	(void)ctx;
 	
 	/* add null terminator */
@@ -1561,9 +1430,7 @@ void string_rehash(
 }
 
 /* returns true if a == b */
-bool string_eq(
-	const string_t* a, const string_t* b)
-{
+bool string_eq(const string_t* a, const string_t* b) {
 	if (!a || !b)
 		return false;
 	
@@ -1573,26 +1440,16 @@ bool string_eq(
 	if (a->len != b->len)
 		return false;
 		
-	return memcmp(a->bytes, b->bytes, a->len)
-		== 0;
+	return memcmp(a->bytes, b->bytes, a->len) == 0;
 }
 
 /* concatenates two strings */
-string_t* string_concat(
-	const string_t* a,
-	const string_t* b,
-	sylt_t* ctx)
-{
+string_t* string_concat(const string_t* a, const string_t* b, sylt_t* ctx) {
 	assert(a && b);
 	
-	size_t len = a->len + b->len;
-	string_t* result = string_new(
-		NULL, len, ctx);
-	
+	string_t* result = string_new(NULL, a->len + b->len, ctx);
 	memcpy(result->bytes, a->bytes, a->len);
-	memcpy(result->bytes + a->len,
-		b->bytes, b->len);
-	
+	memcpy(result->bytes + a->len, b->bytes, b->len);
 	string_rehash(result, ctx);
 	return result;
 }
@@ -1602,21 +1459,14 @@ void sylt_concat(sylt_t* ctx) {
 	value_t a = sylt_peek(ctx, 1);
 	value_t result;
 	
-	if (a.tag == TYPE_LIST
-		&& b.tag == TYPE_LIST)
-	{
-		result = wraplist(list_concat(
-			getlist(a), getlist(b), ctx));
+	if (a.tag == TYPE_LIST && b.tag == TYPE_LIST) {
+		result = wraplist(list_concat(getlist(a), getlist(b), ctx));
 		
-	} else if (a.tag == TYPE_STRING
-		&& b.tag == TYPE_STRING)
-	{
-		result = wrapstring(string_concat(
-			getstring(a), getstring(b), ctx));
+	} else if (a.tag == TYPE_STRING && b.tag == TYPE_STRING) {
+		result = wrapstring(string_concat(getstring(a), getstring(b), ctx));
 		
 	} else {
-		halt(ctx,
-			E_CONCAT_TYPE(a.tag, b.tag));
+		halt(ctx, E_CONCAT_TYPE(a.tag, b.tag));
 		unreachable();
 	}
 	
@@ -1625,10 +1475,7 @@ void sylt_concat(sylt_t* ctx) {
 }
 
 /* appends src to dst */
-void string_append(
-	string_t** dst,
-	const string_t* src,
-	sylt_t* ctx)
+void string_append(string_t** dst, const string_t* src, sylt_t* ctx)
 {
 	assert(dst && *dst && src);
 	
@@ -1638,10 +1485,7 @@ void string_append(
 	*dst = sylt_popstring(ctx);
 }
 
-bool string_starts_with(
-	const string_t* str,
-	const string_t* other)
-{
+bool string_starts_with(const string_t* str, const string_t* other) {
 	if (other->len > str->len)
 		return false;
 		
@@ -1651,17 +1495,12 @@ bool string_starts_with(
 		other->len) == 0;
 }
 
-bool string_ends_with(
-	const string_t* str,
-	const string_t* other)
-{
+bool string_ends_with(const string_t* str, const string_t* other) {
 	if (other->len > str->len)
 		return false;
 		
 	return strncmp(
-		(const char*)str->bytes
-			+ str->len
-			- other->len,
+		(const char*)str->bytes + str->len - other->len,
 		(const char*)other->bytes,
 		other->len) == 0;
 }
@@ -1699,14 +1538,8 @@ void string_dprint(string_t* str) {
 /* == function == */
 
 /* creates a new function */
-func_t* func_new(
-	sylt_t* ctx,
-	string_t* name,
-	string_t* src)
-{
-	func_t* func = (func_t*)obj_new(
-		sizeof(func_t), TYPE_FUNCTION, ctx);
-	
+func_t* func_new(sylt_t* ctx, string_t* name, string_t* src) {
+	func_t* func = (func_t*)obj_new(sizeof(func_t), TYPE_FUNCTION, ctx);
 	func->code = NULL;
 	func->ncode = 0;
 	func->data = NULL;
@@ -1726,32 +1559,15 @@ func_t* func_new(
 }
 
 void func_free(func_t* func, sylt_t* ctx) {
-	arr_free(
-		func->code,
-		uint8_t,
-		nextpow2(func->ncode),
-		ctx);
-    arr_free(
-    	func->data,
-    	value_t,
-    	nextpow2(func->ndata),
-    	ctx);
-    arr_free(
-    	func->lines,
-    	uint32_t,
-    	nextpow2(func->nlines),
-    	ctx);
+	arr_free(func->code, uint8_t, nextpow2(func->ncode), ctx);
+    arr_free(func->data, value_t, nextpow2(func->ndata), ctx);
+    arr_free(func->lines, uint32_t, nextpow2(func->nlines), ctx);
 	ptr_free(func, func_t, ctx);
 }
 
 /* writes a byte to the functions
  * bytecode array */
-void func_write(
-	func_t* func,
-	uint8_t byte,
-	uint32_t line,
-	sylt_t* ctx)
-{
+void func_write(func_t* func, uint8_t byte, uint32_t line, sylt_t* ctx) {
 	if (func->ncode >= MAX_CODE) {
 		halt(ctx, E_CODE_LIMIT);
 		unreachable();
@@ -1783,9 +1599,7 @@ bool val_eq(value_t a, value_t b);
 
 /* writes a value to a functions constant
  * data table and returns its index */
-size_t func_write_data(
-	func_t* func, value_t val, sylt_t* ctx)
-{
+size_t func_write_data(func_t* func, value_t val, sylt_t* ctx) {
 	for (size_t i = 0; i < func->ndata; i++)
 		if (val_eq(func->data[i], val))
 			return i;
@@ -1811,45 +1625,31 @@ size_t func_write_data(
 /* == closure == */
 
 /* creates a new closure around a function */
-closure_t* closure_new(
-	sylt_t* ctx, const func_t* func)
-{
-	closure_t* cls = (closure_t*)obj_new(
-		sizeof(closure_t), TYPE_CLOSURE, ctx);
+closure_t* closure_new(sylt_t* ctx, const func_t* func) {
+	closure_t* cls = (closure_t*)obj_new(sizeof(closure_t), TYPE_CLOSURE, ctx);
 	cls->func = func;
 	cls->upvals = NULL;
 	cls->nupvals = func->upvalues;
 	return cls;
 }
 
-void closure_free(
-	closure_t* cls, sylt_t* ctx)
-{
-	arr_free(
-		cls->upvals,
-		upvalue_t*,
-		cls->nupvals,
-		ctx);
+void closure_free(closure_t* cls, sylt_t* ctx) {
+	arr_free(cls->upvals, upvalue_t*, cls->nupvals, ctx);
 	ptr_free(cls, closure_t, ctx);
 }
 
 /* == upvalue == */
 
 /* creates a new upvalue */
-upvalue_t* upvalue_new(
-	sylt_t* ctx, size_t index)
-{
-	upvalue_t* upval = (upvalue_t*)obj_new(
-		sizeof(upvalue_t), TYPE_UPVALUE, ctx);
+upvalue_t* upvalue_new(sylt_t* ctx, size_t index) {
+	upvalue_t* upval = (upvalue_t*)obj_new(sizeof(upvalue_t), TYPE_UPVALUE, ctx);
 	upval->index = index;
 	upval->closed = nil();
 	upval->next = NULL;
 	return upval;
 }
 
-void upvalue_free(
-	upvalue_t* upval, sylt_t* ctx)
-{
+void upvalue_free(upvalue_t* upval, sylt_t* ctx) {
 	ptr_free(upval, upvalue_t, ctx);
 }
 
@@ -1869,36 +1669,23 @@ bool val_eq(value_t a, value_t b) {
 		return false;
 	
 	switch (a.tag) {
-	case TYPE_NIL:
-		return true;
-	case TYPE_BOOL:
-		return getbool(a) == getbool(b);
-	case TYPE_NUM:
-		return getnum(a) == getnum(b);
-	case TYPE_LIST:
-		return list_eq(
-			getlist(a), getlist(b));
-	case TYPE_DICT:
-		return dict_eq(
-			getdict(a), getdict(b));
-	case TYPE_STRING:
-		return string_eq(
-			getstring(a), getstring(b));
+	case TYPE_NIL: return true;
+	case TYPE_BOOL: return getbool(a) == getbool(b);
+	case TYPE_NUM: return getnum(a) == getnum(b);
+	case TYPE_LIST: return list_eq(getlist(a), getlist(b));
+	case TYPE_DICT: return dict_eq(getdict(a), getdict(b));
+	case TYPE_STRING: return string_eq(getstring(a), getstring(b));
 	case TYPE_FUNCTION:
 	case TYPE_CLOSURE:
-	case TYPE_UPVALUE:
-		return getobj(a) == getobj(b);
+	case TYPE_UPVALUE: return getobj(a) == getobj(b);
 	default: unreachable();
 	}
 }
 
-string_t* val_tostring_opts(
-	value_t, bool, sylt_t*);
+string_t* val_tostring_opts(value_t, bool, sylt_t*);
 
 /* converts a value to a printable string */
-static string_t* val_tostring(
-	value_t val, sylt_t* ctx)
-{
+static string_t* val_tostring(value_t val, sylt_t* ctx) {
 	sylt_push(ctx, val); /* for GC */
 	
 	string_t* str = NULL;
@@ -1915,40 +1702,31 @@ static string_t* val_tostring(
 		break;
 	}
 	case TYPE_NUM: {
-		str = string_fmt(
-			ctx, "%.8g", getnum(val));
+		str = string_fmt(ctx, "%.8g", getnum(val));
 		break;
 	}
 	case TYPE_LIST: {
-		sylt_pushstring(ctx,
-			string_lit("[", ctx));
+		sylt_pushstring(ctx, string_lit("[", ctx));
 		
 		list_t* ls = getlist(val);
 		for (size_t i = 0; i < ls->len; i++) {
-			sylt_pushstring(ctx,
-				val_tostring_opts(
-					ls->items[i],
-					true,
-					ctx));
+			sylt_pushstring(ctx, val_tostring_opts(ls->items[i], true, ctx));
 			sylt_concat(ctx);
 			
 			if (i < ls->len - 1) {
-				sylt_pushstring(ctx,
-					string_lit(", ", ctx));
+				sylt_pushstring(ctx, string_lit(", ", ctx));
 				sylt_concat(ctx);
 			}
 		}
 		
-		sylt_pushstring(ctx,
-			string_lit("]", ctx));
+		sylt_pushstring(ctx, string_lit("]", ctx));
 		sylt_concat(ctx);
 		
 		str = sylt_popstring(ctx);
 		break;
 	}
 	case TYPE_DICT: {
-		sylt_pushstring(ctx,
-			string_lit("[|", ctx));
+		sylt_pushstring(ctx, string_lit("[|", ctx));
 		
 		dict_t* dc = getdict(val);
 		size_t n = 0;
@@ -1956,38 +1734,29 @@ static string_t* val_tostring(
 			if (!dc->items[i].key)
 				continue;
 				
-			if (val_eq(dc->items[i].val,
-				wrapdict(dc)))
+			if (val_eq(dc->items[i].val, wrapdict(dc)))
 				continue;
 			
 			/* key */
-			sylt_pushstring(ctx,
-				dc->items[i].key);
+			sylt_pushstring(ctx, dc->items[i].key);
 			sylt_concat(ctx);
 			
-			sylt_pushstring(ctx,
-				string_lit(": ", ctx));
+			sylt_pushstring(ctx, string_lit(": ", ctx));
 			sylt_concat(ctx);
 			
 			/* value */
-			sylt_pushstring(ctx,
-				val_tostring_opts(
-					dc->items[i].val,
-					true,
-					ctx));
+			sylt_pushstring(ctx, val_tostring_opts(dc->items[i].val, true, ctx));
 			sylt_concat(ctx);
 			
 			if (n < dc->len - 1) {
-				sylt_pushstring(ctx,
-					string_lit(", ", ctx));
+				sylt_pushstring(ctx, string_lit(", ", ctx));
 				sylt_concat(ctx);
 			}
 			
 			n++;
 		}
 		
-		sylt_pushstring(ctx,
-			string_lit("|]", ctx));
+		sylt_pushstring(ctx, string_lit("|]", ctx));
 		sylt_concat(ctx);
 		
 		str = sylt_popstring(ctx);
@@ -2016,42 +1785,23 @@ static string_t* val_tostring(
 	return str;
 }
 
-string_t* val_tostring_opts(
-	value_t val,
-	bool quote_string,
-	sylt_t* ctx)
-{
+string_t* val_tostring_opts(value_t val, bool quote_string, sylt_t* ctx) {
 	string_t* str = val_tostring(val, ctx);
-	if (quote_string && val.tag == TYPE_STRING) {
-		return string_fmt(
-			ctx,
-			"\"%.*s\"",
-			(int)str->len, str->bytes);
-	}
+	if (quote_string && val.tag == TYPE_STRING)
+		return string_fmt(ctx, "\"%.*s\"", (int)str->len, str->bytes);
 	
 	return str;
 }
 
 /* prints a value to stdout */
-void val_print(
-	value_t val,
-	bool quote_string,
-	sylt_t* ctx)
-{
-	string_t* str = val_tostring_opts(
-		val, quote_string, ctx);
+void val_print(value_t val, bool quote_string, sylt_t* ctx) {
+	string_t* str = val_tostring_opts(val, quote_string, ctx);
 	string_print(str);
 }
 
-void val_dprint(
-	value_t val,
-	bool quote_string,
-	int max_length,
-	sylt_t* ctx)
-{
+void val_dprint(value_t val, bool quote_string, int max_length, sylt_t* ctx) {
 	(void)max_length;
-	string_t* str = val_tostring_opts(
-		val, quote_string, ctx);
+	string_t* str = val_tostring_opts(val, quote_string, ctx);
 	sylt_dprintf("%.*s", (int)str->len, str->bytes);
 }
 
@@ -2076,25 +1826,18 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 }
 
 void vm_free(vm_t* vm) {
-	arr_free(
-		vm->stack, 
-		value_t,
-		vm->maxstack,
-		vm->ctx);
-		
+	arr_free(vm->stack, value_t, vm->maxstack, vm->ctx);
 	for (size_t i = 0; i < MAX_FILES; i++)
 		if (vm->files[i])
 			fclose(vm->files[i]);
 }
 
 size_t vm_address(const vm_t* vm) {
-	return (size_t)(vm->fp->ip - 1
-		- vm->fp->func->code);
+	return (size_t)(vm->fp->ip - 1 - vm->fp->func->code);
 }
 
 uint32_t vm_line(const vm_t* vm) {
-	return vm->fp->func->lines[
-		vm_address(vm)];
+	return vm->fp->func->lines[vm_address(vm)];
 }
 
 /* VM macros */
@@ -2112,9 +1855,7 @@ uint32_t vm_line(const vm_t* vm) {
 #define func_stack() \
 	(vm->stack + vm->fp->offs)
 
-void dbg_print_header(
-	const vm_t* vm, const closure_t* cls)
-{
+void dbg_print_header(const vm_t* vm, const closure_t* cls) {
 	if (!vm->ctx->disassemble)
 		return;
 	
@@ -2124,12 +1865,10 @@ void dbg_print_header(
 	string_dprint(func->path);
 	sylt_dprintf(" ");
 	
-	sylt_dprintf("(%d/%d), ",
-		(int)vm->nframes, MAX_CFRAMES);
+	sylt_dprintf("(%d/%d), ",(int)vm->nframes, MAX_CFRAMES);
 	
 	size_t used = vm->sp - vm->stack;
-	sylt_dprintf("stack %ld/%ld\n",
-		used, vm->maxstack);
+	sylt_dprintf("stack %ld/%ld\n", used, vm->maxstack);
 	
 	sylt_dprintf(
 		"%ld bytes, "
@@ -2146,11 +1885,7 @@ void dbg_print_header(
 	#if DBG_PRINT_DATA
 	sylt_dprintf("  data:\n");
 	for (size_t i = 0; i < func->ndata; i++) {
-		string_t* str = val_tostring_opts(
-			func->data[i],
-			true,
-			vm->ctx);
-		
+		string_t* str = val_tostring_opts(func->data[i], true, vm->ctx);
 		sylt_dprintf("    #%-2ld -- ", i);
 		string_dprint(str);
 		sylt_dprintf("\n");
@@ -2270,9 +2005,7 @@ void dbg_print_instruction(const vm_t* vm) {
 	sylt_dprintf("\n");
 }
 
-void dbg_print_stack(
-	const vm_t* vm, const func_t* func)
-{
+void dbg_print_stack(const vm_t* vm, const func_t* func) {
 	const int maxvals = 5;
 	
 	/* don't print first iteration */
@@ -2290,8 +2023,7 @@ void dbg_print_stack(
 	value_t* v = start;
 	
 	if (diff > maxvals)
-		sylt_dprintf("             [ <+%ld, ",
-			diff - maxvals);
+		sylt_dprintf("             [ <+%ld, ", diff - maxvals);
 	else
 		sylt_dprintf("             [ ");
 	
@@ -2306,9 +2038,7 @@ void dbg_print_stack(
 }
 
 /* pushes a value on the stack */
-static inline void vm_push(
-	vm_t* vm, value_t val)
-{
+static inline void vm_push(vm_t* vm, value_t val) {
 	#if DBG_ASSERTIONS
 	size_t used = vm->sp - vm->stack;
 	assert(used <= vm->maxstack);
@@ -2324,17 +2054,13 @@ static inline value_t vm_pop(vm_t* vm) {
 }
 
 /* shrinks the stack by n values */
-static inline void vm_shrink(
-	vm_t* vm, int n)
-{
+static inline void vm_shrink(vm_t* vm, int n) {
 	assert(vm->sp - n >= vm->stack);
 	vm->sp -= n;
 }
 
 /* returns the value n down the stack */
-static inline value_t vm_peek(
-	const vm_t* vm, int n)
-{
+static inline value_t vm_peek(const vm_t* vm, int n) {
 	value_t* ptr = vm->sp - 1 - n;
 	assert(ptr >= vm->stack);
 	assert(ptr <= vm->sp - 1);
@@ -2343,18 +2069,14 @@ static inline value_t vm_peek(
 
 /* returns the value referenced by
  * an upvalue */
-value_t vm_load_upval(
-	vm_t* vm, upvalue_t* upval)
-{
+value_t vm_load_upval(vm_t* vm, upvalue_t* upval) {
 	if (upval->index == -1)
 		return upval->closed;
 	return vm->stack[upval->index];
 }
 
 /* sets the value referenced by an upvalue */
-void vm_store_upval(
-	vm_t* vm, upvalue_t* upval, value_t val)
-{
+void vm_store_upval(vm_t* vm, upvalue_t* upval, value_t val) {
 	if (upval->index == -1) {
 		upval->closed = val;
 		return;
@@ -2365,9 +2087,7 @@ void vm_store_upval(
 
 /* captures a stack variable into an
  * upvalue */
-upvalue_t* vm_cap_upval(
-	vm_t* vm, int index)
-{
+upvalue_t* vm_cap_upval(vm_t* vm, int index) {
 	/* check if there already exists an
 	 * upvalue for the given index */
 	upvalue_t* prev = NULL;
@@ -2397,9 +2117,7 @@ upvalue_t* vm_cap_upval(
 
 /* closes any upvalues pointing at or above
  * the provided stack index */
-void vm_close_upvals(
-	vm_t* vm, int last)
-{
+void vm_close_upvals(vm_t* vm, int last) {
 	while (vm->openups &&
 		vm->openups->index >= last)
 	{
@@ -2412,9 +2130,7 @@ void vm_close_upvals(
 }
 
 /* grows the stack if necessary */
-void vm_ensure_stack(
-	vm_t* vm, size_t needed)
-{
+void vm_ensure_stack(vm_t* vm, size_t needed) {
 	needed += SYLT_EXTRA_STACK;
 	if (vm->maxstack >= needed)
 		return;
@@ -2474,8 +2190,7 @@ void vm_exec(vm_t* vm) {
 			
 			push(wraplist(ls)); /* GC */
 			for (int i = len; i > 0; i--) {
-				list_push(
-					ls, peek(i), vm->ctx);
+				list_push(ls, peek(i), vm->ctx);
 			}
 			pop(); /* GC */
 			
@@ -2489,10 +2204,7 @@ void vm_exec(vm_t* vm) {
 			
 			push(wrapdict(dc)); /* GC */
 			for (int i = len; i > 0; i -= 2)
-				dict_set(dc,
-					getstring(peek(i)),
-					peek(i - 1),
-					vm->ctx);
+				dict_set(dc, getstring(peek(i)), peek(i - 1), vm->ctx);
 			pop(); /* GC */
 			
 			shrink(len);
@@ -2503,16 +2215,10 @@ void vm_exec(vm_t* vm) {
 			gc_pause(vm->ctx);
 			
 			func_t* func = getfunc(readval());
-			closure_t* cls =
-				closure_new(vm->ctx, func);
+			closure_t* cls = closure_new(vm->ctx, func);
 			
 			push(wrapclosure(cls));
-			
-			arr_alloc(
-				cls->upvals,
-				upvalue_t*,
-				func->upvalues,
-				vm->ctx);
+			arr_alloc(cls->upvals, upvalue_t*, func->upvalues, vm->ctx);
 			cls->nupvals = func->upvalues;
 			
 			/* read upvalues */
@@ -2523,13 +2229,9 @@ void vm_exec(vm_t* vm) {
 				uint8_t index = read8();
 				
 				if (is_local)
-					cls->upvals[i] =
-						vm_cap_upval(vm,
-							vm->fp->offs
-								+ index);
+					cls->upvals[i] = vm_cap_upval(vm, vm->fp->offs + index);
 				else
-					cls->upvals[i] = vm->fp->
-						cls->upvals[index];
+					cls->upvals[i] = vm->fp->cls->upvals[index];
 			}
 			
 			gc_resume(vm->ctx);
@@ -2540,8 +2242,7 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_POP_HEAP: {
-			vm_close_upvals(vm,
-				vm->sp - vm->stack - 1);
+			vm_close_upvals(vm, vm->sp - vm->stack - 1);
 			pop();
 			break;
 		}
@@ -2559,21 +2260,16 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_ADD_NAME: {
-			string_t* name = getstring(
-				readval());
-			dict_set(vm->gdict,
-				name, pop(), vm->ctx);
+			string_t* name = getstring(readval());
+			dict_set(vm->gdict, name, pop(), vm->ctx);
 			break;
 		}
 		case OP_LOAD_NAME: {
-			string_t* name = getstring(
-				readval());
-			value_t* val = dict_get(
-				vm->gdict, name);
+			string_t* name = getstring(readval());
+			value_t* val = dict_get(vm->gdict, name);
 				
 			if (!val) {
-				halt(vm->ctx,
-					E_UNDEFINED(name));
+				halt(vm->ctx, E_UNDEFINED(name));
 				unreachable();
 			}
 			
@@ -2581,15 +2277,11 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_STORE_NAME: {
-			string_t* name = getstring(
-				readval());
-			
-			bool is_new = dict_set(vm->gdict,
-				name, peek(0), vm->ctx);
+			string_t* name = getstring(readval());
+			bool is_new = dict_set(vm->gdict, name, peek(0), vm->ctx);
 				
 			if (is_new) {
-				halt(vm->ctx,
-					E_UNDEFINED(name));
+				halt(vm->ctx, E_UNDEFINED(name));
 				unreachable();
 			}
 				
@@ -2597,41 +2289,29 @@ void vm_exec(vm_t* vm) {
 		}
 		case OP_LOAD_ITEM: {
 			if (peek(1).tag == TYPE_LIST) {
-				typecheck(vm->ctx, peek(0),
-					TYPE_NUM);
+				typecheck(vm->ctx, peek(0), TYPE_NUM);
 				
-				sylt_num_t index =
-					getnum(pop());
-				
+				sylt_num_t index = getnum(pop());
 				list_t* ls = getlist(pop());
-				push(list_get(ls, index,
-					vm->ctx));
+				push(list_get(ls, index, vm->ctx));
 			
-			} else if (peek(1).tag
-				== TYPE_DICT)
-			{
-				typecheck(vm->ctx, peek(0),
-					TYPE_STRING);
+			} else if (peek(1).tag == TYPE_DICT) {
+				typecheck(vm->ctx, peek(0), TYPE_STRING);
 				
-				string_t* key = getstring(
-					pop());
+				string_t* key = getstring(pop());
 				dict_t* dc = getdict(pop());
-				
-				value_t* val =
-					dict_get(dc, key);
+				value_t* val = dict_get(dc, key);
 				
 				if (!val) {
 					push(nil());
-					halt(vm->ctx,
-						E_KEY_NOT_FOUND(key));
+					halt(vm->ctx, E_KEY_NOT_FOUND(key));
 					unreachable();
 				}	
 				
 				push(*val);
 				
 			} else {
-				halt(vm->ctx, E_INDEX_TYPE(
-					peek(1).tag));
+				halt(vm->ctx, E_INDEX_TYPE(peek(1).tag));
 				unreachable();
 			}
 			
@@ -2641,51 +2321,38 @@ void vm_exec(vm_t* vm) {
 			value_t val = pop();
 			
 			if (peek(1).tag == TYPE_LIST) {
-				typecheck(vm->ctx, peek(0),
-					TYPE_NUM);
+				typecheck(vm->ctx, peek(0), TYPE_NUM);
 		
-				sylt_num_t index =
-					getnum(pop());
+				sylt_num_t index = getnum(pop());
 				
 				list_t* ls = getlist(pop());
-				list_set(ls, index, val,
-					vm->ctx);
+				list_set(ls, index, val, vm->ctx);
 			
 				push(val);
 			
-			} else if (peek(1).tag
-				== TYPE_DICT)
-			{
-				typecheck(vm->ctx, peek(0),
-					TYPE_STRING);
+			} else if (peek(1).tag == TYPE_DICT) {
+				typecheck(vm->ctx, peek(0), TYPE_STRING);
 				
-				string_t* key = getstring(
-					pop());
-				
+				string_t* key = getstring(pop());
 				dict_t* dc = getdict(pop());
-				dict_set(dc, key, val,
-					vm->ctx);
+				dict_set(dc, key, val, vm->ctx);
 				
 				push(val);
 				
 			} else {
-				halt(vm->ctx, E_INDEX_TYPE(
-					peek(1).tag));
+				halt(vm->ctx, E_INDEX_TYPE(peek(1).tag));
 				unreachable();
 			}
 			
 			break;
 		}
 		case OP_LOAD_UPVAL: {
-			value_t val = vm_load_upval(vm,
-				vm->fp->cls->upvals[read8()]);
+			value_t val = vm_load_upval(vm, vm->fp->cls->upvals[read8()]);
 			push(val);
 			break;
 		}
 		case OP_STORE_UPVAL: {
-			vm_store_upval(vm,
-				vm->fp->cls->upvals[read8()],
-				peek(0));
+			vm_store_upval(vm, vm->fp->cls->upvals[read8()], peek(0));
 			break;
 		}
 		case OP_LOAD_RET: {
@@ -2698,40 +2365,32 @@ void vm_exec(vm_t* vm) {
 		}
 		/* == arithmetic == */
 		case OP_ADD: {
-			typecheck(vm->ctx,
-				peek(0), TYPE_NUM);
-			typecheck(vm->ctx,
-				peek(1), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
 			sylt_num_t a = getnum(pop());
 			push(wrapnum(a + b));
 			break;
 		}
 		case OP_SUB: {
-			typecheck(vm->ctx,
-				peek(0), TYPE_NUM);
-			typecheck(vm->ctx,
-				peek(1), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
 			sylt_num_t a = getnum(pop());
 			push(wrapnum(a - b));
 			break;
 		}
 		case OP_MUL: {
-			typecheck(vm->ctx,
-				peek(0), TYPE_NUM);
-			typecheck(vm->ctx,
-				peek(1), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
 			sylt_num_t a = getnum(pop());
 			push(wrapnum(a * b));
 			break;
 		}
 		case OP_DIV: {
-			typecheck(vm->ctx,
-				peek(0), TYPE_NUM);
-			typecheck(vm->ctx,
-				peek(1), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
 			sylt_num_t a = getnum(pop());
 			
@@ -2744,10 +2403,8 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_EDIV: {
-			typecheck(vm->ctx,
-				peek(0), TYPE_NUM);
-			typecheck(vm->ctx,
-				peek(1), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
 			sylt_num_t a = getnum(pop());
 			
@@ -2756,56 +2413,45 @@ void vm_exec(vm_t* vm) {
 				unreachable();
 			}
 		
-			sylt_num_t res =
-				num_func(fmodf, fmod)(a, b);
-		
+			sylt_num_t res = num_func(fmodf, fmod)(a, b);
 			if (res < 0)
 				res += fabs(b);
 			push(wrapnum(res));
 			break;
 		}
 		case OP_UMIN: {
-			typecheck(
-				vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
 			push(wrapnum(-getnum(pop())));
 			break;
 		}
 		/* == comparison == */
 		case OP_LT: {
-			typecheck(vm->ctx,
-				peek(0), TYPE_NUM);
-			typecheck(vm->ctx,
-				peek(1), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
 			sylt_num_t a = getnum(pop());
 			push(wrapbool(a < b));
 			break;
 		}
 		case OP_LTE: {
-			typecheck(vm->ctx,
-				peek(0), TYPE_NUM);
-			typecheck(vm->ctx,
-				peek(1), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
 			sylt_num_t a = getnum(pop());
 			push(wrapbool(a <= b));
 			break;
 		}
 		case OP_GT: {
-			typecheck(vm->ctx,
-				peek(0), TYPE_NUM);
-			typecheck(vm->ctx,
-				peek(1), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
 			sylt_num_t a = getnum(pop());
 			push(wrapbool(a > b));
 			break;
 		}
 		case OP_GTE: {
-			typecheck(vm->ctx,
-				peek(0), TYPE_NUM);
-			typecheck(vm->ctx,
-				peek(1), TYPE_NUM);
+			typecheck(vm->ctx, peek(0), TYPE_NUM);
+			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
 			sylt_num_t a = getnum(pop());
 			push(wrapbool(a >= b));
@@ -2825,8 +2471,7 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_NOT: {
-			typecheck(
-				vm->ctx, peek(0), TYPE_BOOL);
+			typecheck(vm->ctx, peek(0), TYPE_BOOL);
 			push(wrapbool(!getbool(pop())));
 			break;
 		}
@@ -2843,16 +2488,14 @@ void vm_exec(vm_t* vm) {
 		}
 		case OP_JMP_IF: {
 			uint16_t offset = read16();
-			typecheck(
-				vm->ctx, peek(0), TYPE_BOOL);
+			typecheck(vm->ctx, peek(0), TYPE_BOOL);
 			if (getbool(peek(0)))
 				vm->fp->ip += offset;
 			break;
 		}
 		case OP_JMP_IF_NOT: {
 			uint16_t offset = read16();
-			typecheck(
-				vm->ctx, peek(0), TYPE_BOOL);
+			typecheck(vm->ctx, peek(0), TYPE_BOOL);
 			if (!getbool(peek(0)))
 				vm->fp->ip += offset;
 			break;
@@ -2874,17 +2517,13 @@ void vm_exec(vm_t* vm) {
 			
 			vm->nframes--;
 			if (vm->nframes == 0) {
-				set_state(vm->ctx,
-					SYLT_STATE_DONE);
+				set_state(vm->ctx, SYLT_STATE_DONE);
 				return;
 			}
 
-			vm->fp =
-				&vm->frames[vm->nframes - 1];
+			vm->fp = &vm->frames[vm->nframes - 1];
 			
-			dbg_print_header(
-				vm, vm->fp->cls);
-			
+			dbg_print_header(vm, vm->fp->cls);
 			break;
 		}
 		default: unreachable();
@@ -2895,17 +2534,13 @@ void vm_exec(vm_t* vm) {
 void sylt_call(sylt_t* ctx, int argc) {
 	vm_t* vm = ctx->vm;
 	
-	typecheck(
-		vm->ctx, peek(argc), TYPE_CLOSURE);
+	typecheck(vm->ctx, peek(argc), TYPE_CLOSURE);
 	closure_t* cls = getclosure(peek(argc));
 	const func_t* func = cls->func;
 				
 	if (func->params != argc) {
-		halt(vm->ctx, E_WRONG_ARGC(
-			func->name,
-			func->params,
-			argc));
-			unreachable();
+		halt(vm->ctx, E_WRONG_ARGC(func->name, func->params, argc));
+		unreachable();
 	}
 			
 	if (func->cfunc) {
@@ -2926,8 +2561,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 	}
 			
 	if (vm->nframes == MAX_CFRAMES) {
-		halt(vm->ctx,
-			E_STACK_OVERFLOW, MAX_CFRAMES);
+		halt(vm->ctx, E_STACK_OVERFLOW, MAX_CFRAMES);
 		unreachable();
 	}
 			
@@ -2961,8 +2595,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 /* == standard library == */
 
 #define argc() (ctx->vm->fp->ip[-1])
-#define arg(n) \
-	sylt_peek(ctx, argc() - (n) - 1)
+#define arg(n) sylt_peek(ctx, argc() - (n) - 1)
 
 #define boolarg(n) getbool(arg(n))
 #define numarg(n) getnum(arg(n))
@@ -2997,8 +2630,7 @@ value_t std_read_in(sylt_t* ctx) {
 }
 
 value_t std_to_string(sylt_t* ctx) {
-	string_t* str =
-		val_tostring(arg(0), ctx);
+	string_t* str = val_tostring(arg(0), ctx);
 	return wrapstring(str);
 }
 
@@ -3009,8 +2641,7 @@ value_t std_to_num(sylt_t* ctx) {
 	case TYPE_BOOL: num = boolarg(0); break;
 	case TYPE_NUM: num = numarg(0); break;
 	case TYPE_STRING:
-		num = num_func(strtof, strtod)
-		((char*)stringarg(0)->bytes, NULL);
+		num = num_func(strtof, strtod)((char*)stringarg(0)->bytes, NULL);
 		break;
 	default: num = 0;
 	}
@@ -3029,15 +2660,13 @@ value_t std_float_eq(sylt_t* ctx) {
 		return wrapbool(true);
 	
 	sylt_num_t epsilon = getnum(arg(2));
-	sylt_num_t diff =
-		num_func(fabsf, fabs)(a - b);
+	sylt_num_t diff = num_func(fabsf, fabs)(a - b);
 	
 	return wrapbool(diff < epsilon);
 }
 
 value_t std_type_of(sylt_t* ctx) {
-	return wrapstring(string_lit(
-		user_type_name(arg(0).tag), ctx));
+	return wrapstring(string_lit(user_type_name(arg(0).tag), ctx));
 }
 
 value_t std_ensure(sylt_t* ctx) {
@@ -3095,9 +2724,7 @@ value_t stdfile_open(sylt_t* ctx) {
 	if (handle == -1)
 		halt(ctx, E_OPEN_FAILED(path));
 	
-	ctx->vm->files[handle] = fopen(
-		(const char*)path->bytes,
-		(const char*)mode->bytes);
+	ctx->vm->files[handle] = fopen((const char*)path->bytes, (const char*)mode->bytes);
 	return wrapnum(handle);
 }
 
@@ -3120,9 +2747,7 @@ value_t stdfile_write(sylt_t* ctx) {
 	if (!fp)
 		halt(ctx, E_INVALID_HANDLE(handle));
 	
-	string_t* str = val_tostring(
-		arg(1), ctx);
-	
+	string_t* str = val_tostring(arg(1), ctx);
 	for (size_t i = 0; i < str->len; i++)
 		putc(str->bytes[i], fp);
 	
@@ -3170,67 +2795,42 @@ value_t stdfile_del(sylt_t* ctx) {
 
 value_t stdsys_mem_info(sylt_t* ctx) {
 	dict_t* dc = dict_new(ctx);
-	dict_set(dc, string_lit("memUse", ctx),
-		wrapnum(ctx->mem.bytes), ctx);
-	dict_set(dc, string_lit("topMemUse", ctx),
-		wrapnum(ctx->mem.highest), ctx);
-	dict_set(dc, string_lit("gcCycles", ctx),
-		wrapnum(ctx->mem.gc.cycles), ctx);
-	dict_set(dc, string_lit("nextGC", ctx),
-		wrapnum(ctx->mem.gc.trigger), ctx);
+	dict_set(dc, string_lit("memUse", ctx), wrapnum(ctx->mem.bytes), ctx);
+	dict_set(dc, string_lit("topMemUse", ctx), wrapnum(ctx->mem.highest), ctx);
+	dict_set(dc, string_lit("gcCycles", ctx), wrapnum(ctx->mem.gc.cycles), ctx);
+	dict_set(dc, string_lit("nextGC", ctx), wrapnum(ctx->mem.gc.trigger), ctx);
 	return wrapdict(dc);
 }
 
 value_t stdsys_src(sylt_t* ctx) {
 	dict_t* dc = dict_new(ctx);
-	dict_set(dc,string_lit("text", ctx),
-		wrapstring(ctx->vm->fp->func->src),
-		ctx);
-	dict_set(dc, string_lit("name", ctx),
-		wrapstring(ctx->vm->fp->func->name),
-		ctx);
-	dict_set(dc, string_lit("path", ctx),
-		wrapstring(ctx->vm->fp->func->path),
-		ctx);
-	dict_set(dc, string_lit("line", ctx),
-		wrapnum(vm_line(ctx->vm)),
-		ctx);
+	dict_set(dc,string_lit("text", ctx), wrapstring(ctx->vm->fp->func->src), ctx);
+	dict_set(dc, string_lit("name", ctx), wrapstring(ctx->vm->fp->func->name), ctx);
+	dict_set(dc, string_lit("path", ctx), wrapstring(ctx->vm->fp->func->path), ctx);
+	dict_set(dc, string_lit("line", ctx), wrapnum(vm_line(ctx->vm)), ctx);
 	return wrapdict(dc);
 }
 
 value_t stdsys_mem_sizes(sylt_t* ctx) {
 	dict_t* dc = dict_new(ctx);
-	dict_set(dc, string_lit("char", ctx),
-		wrapnum(sizeof(char)), ctx);
-	dict_set(dc, string_lit("bool", ctx),
-		wrapnum(sizeof(bool)), ctx);
-	dict_set(dc, string_lit("int", ctx),
-		wrapnum(sizeof(int)), ctx);
-	dict_set(dc, string_lit("long", ctx),
-		wrapnum(sizeof(long)), ctx);
-	dict_set(dc, string_lit("size_t", ctx),
-		wrapnum(sizeof(size_t)), ctx);
-	dict_set(dc, string_lit("value_t", ctx),
-		wrapnum(sizeof(value_t)), ctx);
-	dict_set(dc, string_lit("list_t", ctx),
-		wrapnum(sizeof(list_t)), ctx);
-	dict_set(dc, string_lit("dict_t", ctx),
-		wrapnum(sizeof(dict_t)), ctx);
-	dict_set(dc, string_lit("string_t", ctx),
-		wrapnum(sizeof(string_t)), ctx);
-	dict_set(dc, string_lit("func_t", ctx),
-		wrapnum(sizeof(func_t)), ctx);
-	dict_set(dc, string_lit("closure_t", ctx),
-		wrapnum(sizeof(closure_t)), ctx);
-	dict_set(dc, string_lit("upvalue_t", ctx),
-		wrapnum(sizeof(upvalue_t)), ctx);
+	dict_set(dc, string_lit("char", ctx), wrapnum(sizeof(char)), ctx);
+	dict_set(dc, string_lit("bool", ctx), wrapnum(sizeof(bool)), ctx);
+	dict_set(dc, string_lit("int", ctx), wrapnum(sizeof(int)), ctx);
+	dict_set(dc, string_lit("long", ctx), wrapnum(sizeof(long)), ctx);
+	dict_set(dc, string_lit("size_t", ctx), wrapnum(sizeof(size_t)), ctx);
+	dict_set(dc, string_lit("value_t", ctx), wrapnum(sizeof(value_t)), ctx);
+	dict_set(dc, string_lit("list_t", ctx), wrapnum(sizeof(list_t)), ctx);
+	dict_set(dc, string_lit("dict_t", ctx), wrapnum(sizeof(dict_t)), ctx);
+	dict_set(dc, string_lit("string_t", ctx), wrapnum(sizeof(string_t)), ctx);
+	dict_set(dc, string_lit("func_t", ctx), wrapnum(sizeof(func_t)), ctx);
+	dict_set(dc, string_lit("closure_t", ctx), wrapnum(sizeof(closure_t)), ctx);
+	dict_set(dc, string_lit("upvalue_t", ctx), wrapnum(sizeof(upvalue_t)), ctx);
 	return wrapdict(dc);
 }
 
 value_t stdsys_halt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	halt(ctx,
-		(const char*)stringarg(0)->bytes);
+	halt(ctx, (const char*)stringarg(0)->bytes);
 	return nil();
 }
 
@@ -3244,8 +2844,7 @@ value_t stdsys_time(sylt_t* ctx) {
     
     timer = time(NULL);
     tm_info = localtime(&timer);
-    strftime(buffer, 64,
-    	(const char*)fmt->bytes, tm_info);
+    strftime(buffer, 64, (const char*)fmt->bytes, tm_info);
     
     string_t* str = string_lit(buffer, ctx);
     return wrapstring(str);
@@ -3272,16 +2871,14 @@ value_t stdlist_length(sylt_t* ctx) {
 value_t stdlist_add(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	typecheck(ctx, arg(1), TYPE_NUM);
-	list_insert(
-		listarg(0), numarg(1), arg(2), ctx);
+	list_insert(listarg(0), numarg(1), arg(2), ctx);
 	return nil();
 }
 
 value_t stdlist_del(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	typecheck(ctx, arg(1), TYPE_NUM);
-	return list_delete(
-		listarg(0), numarg(1), ctx);
+	return list_delete(listarg(0), numarg(1), ctx);
 }
 
 value_t stdlist_push(sylt_t* ctx) {
@@ -3307,15 +2904,13 @@ value_t stdlist_last(sylt_t* ctx) {
 
 value_t stdlist_count(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
-	size_t result = list_count(
-		listarg(0), arg(1));
+	size_t result = list_count(listarg(0), arg(1));
 	return wrapnum(result);
 }
 
 value_t stdlist_contains(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
-	bool result = list_count(
-		listarg(0), arg(1)) > 0;
+	bool result = list_count(listarg(0), arg(1)) > 0;
 	return wrapbool(result);
 }
 
@@ -3328,10 +2923,7 @@ value_t stdlist_rev(sylt_t* ctx) {
 	
 	list_t* new_ls = list_new(ctx);
 	for (size_t i = 0; i < old_ls->len; i++)
-		list_push(new_ls,
-			old_ls->items[
-				old_ls->len - i - 1],
-			ctx);
+		list_push(new_ls, old_ls->items[old_ls->len - i - 1], ctx);
 	
 	return wraplist(new_ls);
 }
@@ -3365,9 +2957,7 @@ value_t stddict_keys(sylt_t* ctx) {
 		if (!dc->items[i].key)
 			continue;
 		
-		list_push(keys,
-			wrapstring(dc->items[i].key),
-			ctx);
+		list_push(keys, wrapstring(dc->items[i].key), ctx);
 	}
 	
 	return wraplist(keys);
@@ -3382,8 +2972,7 @@ value_t stddict_values(sylt_t* ctx) {
 		if (!dc->items[i].key)
 			continue;
 		
-		list_push(values,
-			dc->items[i].val, ctx);
+		list_push(values, dc->items[i].val, ctx);
 	}
 	
 	return wraplist(values);
@@ -3402,8 +2991,7 @@ value_t stdstring_chars(sylt_t* ctx) {
 	list_t* ls = list_new(ctx);
 	
 	for (size_t i = 0; i < str->len; i++) {
-		string_t* ch = string_new(
-			&str->bytes[i], 1, ctx);
+		string_t* ch = string_new(&str->bytes[i], 1, ctx);
 		list_push(ls, wrapstring(ch), ctx);
 	}
 	
@@ -3418,8 +3006,7 @@ value_t stdstring_join(sylt_t* ctx) {
 	sylt_pushstring(ctx, str);
 	
 	for (size_t i = 0; i < ls->len; i++) {
-		string_t* val_str = val_tostring(
-			ls->items[i], ctx);
+		string_t* val_str = val_tostring(ls->items[i], ctx);
 		
 		sylt_pushstring(ctx, str);
 		sylt_pushstring(ctx, val_str);
@@ -3443,16 +3030,11 @@ value_t stdstring_split(sylt_t* ctx) {
 	if (str->len == 0)
 		return wraplist(parts);
 	
-	string_t* current =
-		string_new(NULL, 0, ctx);
+	string_t* current = string_new(NULL, 0, ctx);
 	
 	for (size_t i = 0; i < str->len; i++) {
-		string_t* c = string_new(
-			(unsigned char*)str->bytes + i,
-			1, ctx);
-		
-		bool split = sep->len > 0 &&
-			str->bytes[i] == sep->bytes[0];
+		string_t* c = string_new((unsigned char*)str->bytes + i, 1, ctx);
+		bool split = sep->len > 0 && str->bytes[i] == sep->bytes[0];
 		
 		if (!split) {
 			sylt_pushstring(ctx, current);
@@ -3462,11 +3044,8 @@ value_t stdstring_split(sylt_t* ctx) {
 		}
 		
 		if (split || i == str->len - 1) {
-			list_push(parts,
-				wrapstring(current),
-				ctx);
-			current = string_new(
-				NULL, 0, ctx);
+			list_push(parts, wrapstring(current), ctx);
+			current = string_new(NULL, 0, ctx);
 		}
 	}
 	
@@ -3475,14 +3054,10 @@ value_t stdstring_split(sylt_t* ctx) {
 
 value_t stdstring_lower(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	string_t* copy = string_new(
-		stringarg(0)->bytes,
-		stringarg(0)->len,
-		ctx);
+	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
 	for (size_t i = 0; i < copy->len; i++) {
-		copy->bytes[i] =
-			tolower(copy->bytes[i]);
+		copy->bytes[i] = tolower(copy->bytes[i]);
 	}
 	
 	string_rehash(copy, ctx);
@@ -3491,14 +3066,10 @@ value_t stdstring_lower(sylt_t* ctx) {
 
 value_t stdstring_upper(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	string_t* copy = string_new(
-		stringarg(0)->bytes,
-		stringarg(0)->len,
-		ctx);
+	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
 	for (size_t i = 0; i < copy->len; i++)
-		copy->bytes[i] =
-			toupper(copy->bytes[i]);
+		copy->bytes[i] = toupper(copy->bytes[i]);
 	
 	string_rehash(copy, ctx);
 	return wrapstring(copy);
@@ -3507,15 +3078,11 @@ value_t stdstring_upper(sylt_t* ctx) {
 value_t stdstring_swap_case(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	
-	string_t* copy = string_new(
-		stringarg(0)->bytes,
-		stringarg(0)->len,
-		ctx);
+	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
 	for (size_t i = 0; i < copy->len; i++) {
 		char c = copy->bytes[i];
-		copy->bytes[i] = (isupper(c)) ?
-			tolower(c) : toupper(c);
+		copy->bytes[i] = (isupper(c)) ? tolower(c) : toupper(c);
 	}
 	
 	string_rehash(copy, ctx);
@@ -3573,8 +3140,7 @@ value_t stdstring_starts_with(sylt_t* ctx) {
 	
 	string_t* str = stringarg(0);
 	string_t* other = stringarg(1);
-	return wrapbool(string_starts_with(
-		str, other));
+	return wrapbool(string_starts_with(str, other));
 }
 
 value_t stdstring_ends_with(sylt_t* ctx) {
@@ -3583,15 +3149,13 @@ value_t stdstring_ends_with(sylt_t* ctx) {
 	
 	string_t* str = stringarg(0);
 	string_t* other = stringarg(1);
-	return wrapbool(string_ends_with(
-		str, other));
+	return wrapbool(string_ends_with(str, other));
 }
 
 value_t stdstring_trim_start(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* src = stringarg(0);
-	string_t* dst = string_new(
-		src->bytes, src->len, ctx);
+	string_t* dst = string_new(src->bytes, src->len, ctx);
 	
 	size_t len = 0;
 	for (size_t i = 0; i < dst->len; i++) {
@@ -3600,9 +3164,7 @@ value_t stdstring_trim_start(sylt_t* ctx) {
 		dst->bytes[len++] = src->bytes[i];
 	}
 	
-	dst->bytes = arr_resize(
-		dst->bytes, uint8_t,
-		dst->len, len, ctx);
+	dst->bytes = arr_resize(dst->bytes, uint8_t, dst->len, len, ctx);
 	dst->len = len;
 	
 	string_rehash(dst, ctx);
@@ -3612,20 +3174,16 @@ value_t stdstring_trim_start(sylt_t* ctx) {
 value_t stdstring_trim_end(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* src = stringarg(0);
-	string_t* dst = string_new(
-		src->bytes, src->len, ctx);
+	string_t* dst = string_new(src->bytes, src->len, ctx);
 	
 	size_t len = 0;
 	for (int i = dst->len - 1; i >= 0; i--) {
 		if (isspace(src->bytes[i]))
 			continue;
-		dst->bytes[dst->len - (++len)]
-			= src->bytes[i];
+		dst->bytes[dst->len - (++len)] = src->bytes[i];
 	}
 	
-	dst->bytes = arr_resize(
-		dst->bytes, uint8_t,
-		dst->len, len, ctx);
+	dst->bytes = arr_resize(dst->bytes, uint8_t, dst->len, len, ctx);
 	dst->len = len;
 	
 	string_rehash(dst, ctx);
@@ -3648,8 +3206,7 @@ value_t stdstring_replace(sylt_t* ctx) {
 	string_t* find = stringarg(1);
 	string_t* replace = stringarg(2);
 	
-	string_t* new_str =
-		string_lit("", ctx);
+	string_t* new_str = string_lit("", ctx);
 		
 	for (size_t i = 0; i < str->len;) {
 		bool found_match =
@@ -3669,9 +3226,7 @@ value_t stdstring_replace(sylt_t* ctx) {
 		}
 		
 		sylt_pushstring(ctx, new_str);
-		sylt_pushstring(ctx, string_new(
-			(unsigned char*)str->bytes + i,
-			1, ctx));
+		sylt_pushstring(ctx, string_new((unsigned char*)str->bytes + i, 1, ctx));
 		sylt_concat(ctx);
 		new_str = sylt_popstring(ctx);
 		i++;
@@ -3730,8 +3285,7 @@ value_t stdmath_log(sylt_t* ctx) {
 		result = num_func(log10f, log10)(x);
 	
 	} else {
-		result = num_func(logf, log)(x)
-			/ num_func(logf, log)(base);
+		result = num_func(logf, log)(x) / num_func(logf, log)(base);
 	}
 	
 	return wrapnum(result);
@@ -3743,32 +3297,26 @@ value_t stdmath_pow(sylt_t* ctx) {
 	
 	sylt_num_t base = numarg(0);
 	sylt_num_t exp = numarg(1);
-	sylt_num_t result =
-		num_func(powf, pow)(base, exp);
+	sylt_num_t result = num_func(powf, pow)(base, exp);
 	return wrapnum(result);
 }
 
 value_t stdmath_sqrt(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	sylt_num_t result =
-		num_func(sqrtf, sqrt)(numarg(0));
+	sylt_num_t result = num_func(sqrtf, sqrt)(numarg(0));
 	return wrapnum(result);
 }
 
 value_t stdmath_min(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
-	return wrapnum((numarg(0) < numarg(1))
-			? numarg(0)
-			: numarg(1));
+	return wrapnum((numarg(0) < numarg(1)) ? numarg(0) : numarg(1));
 }
 
 value_t stdmath_max(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
-	return wrapnum((numarg(0) > numarg(1))
-			? numarg(0)
-			: numarg(1));
+	return wrapnum((numarg(0) > numarg(1)) ? numarg(0) : numarg(1));
 }
 
 value_t stdmath_clamp(sylt_t* ctx) {
@@ -3800,20 +3348,17 @@ value_t stdmath_lerp(sylt_t* ctx) {
 
 value_t stdmath_floor(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(floorf, floor)(numarg(0)));
+	return wrapnum(num_func(floorf, floor)(numarg(0)));
 }
 
 value_t stdmath_ceil(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(ceilf, ceil)(numarg(0)));
+	return wrapnum(num_func(ceilf, ceil)(numarg(0)));
 }
 
 value_t stdmath_round(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(roundf, round)(numarg(0)));
+	return wrapnum(num_func(roundf, round)(numarg(0)));
 }
 
 value_t stdmath_rad(sylt_t* ctx) {
@@ -3828,74 +3373,62 @@ value_t stdmath_deg(sylt_t* ctx) {
 
 value_t stdmath_sin(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(sinf, sin)(numarg(0)));
+	return wrapnum(num_func(sinf, sin)(numarg(0)));
 }
 
 value_t stdmath_cos(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(cosf, cos)(numarg(0)));
+	return wrapnum(num_func(cosf, cos)(numarg(0)));
 }
 
 value_t stdmath_tan(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(tanf, tan)(numarg(0)));
+	return wrapnum(num_func(tanf, tan)(numarg(0)));
 }
 
 value_t stdmath_asin(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(asinf, asin)(numarg(0)));
+	return wrapnum(num_func(asinf, asin)(numarg(0)));
 }
 
 value_t stdmath_acos(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(acosf, acos)(numarg(0)));
+	return wrapnum(num_func(acosf, acos)(numarg(0)));
 }
 
 value_t stdmath_atan(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(atanf, atan)(numarg(0)));
+	return wrapnum(num_func(atanf, atan)(numarg(0)));
 }
 
 value_t stdmath_sinh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(sinhf, sinh)(numarg(0)));
+	return wrapnum(num_func(sinhf, sinh)(numarg(0)));
 }
 
 value_t stdmath_cosh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(coshf, cosh)(numarg(0)));
+	return wrapnum(num_func(coshf, cosh)(numarg(0)));
 }
 
 value_t stdmath_tanh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(tanhf, tanh)(numarg(0)));
+	return wrapnum(num_func(tanhf, tanh)(numarg(0)));
 }
 
 value_t stdmath_asinh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(asinhf, asinh)(numarg(0)));
+	return wrapnum(num_func(asinhf, asinh)(numarg(0)));
 }
 
 value_t stdmath_acosh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(acoshf, acosh)(numarg(0)));
+	return wrapnum(num_func(acoshf, acosh)(numarg(0)));
 }
 
 value_t stdmath_atanh(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	return wrapnum(
-		num_func(atanhf, atanh)(numarg(0)));
+	return wrapnum(num_func(atanhf, atanh)(numarg(0)));
 }
 
 value_t stdmath_rand(sylt_t* ctx) {
@@ -3921,7 +3454,6 @@ void std_setlib(
 	sylt_t* ctx, const char* lib)
 {
 	lib_dict = dict_new(ctx);
-	
 	if (strlen(lib) == 0)
 		lib_name = NULL;
 	else
@@ -3936,48 +3468,29 @@ void std_addlib(sylt_t* ctx) {
 		lib_name = string_lit("Prelude", ctx);
 	}
 	
-	dict_set(ctx->vm->gdict,
-		lib_name,
-		wrapdict(lib_dict),
-		ctx);
+	dict_set(ctx->vm->gdict, lib_name, wrapdict(lib_dict), ctx);
 }
 
 /* adds a value to the standard library */
-void std_add(
-	sylt_t* ctx,
-	const char* name,
-	value_t val)
-{
-	string_t* name_str = string_lit(
-		name, ctx);
+void std_add(sylt_t* ctx, const char* name, value_t val) {
+	string_t* name_str = string_lit(name, ctx);
 	dict_set(lib_dict, name_str, val, ctx);
 	
 	/* for prelude library */
 	if (!lib_name)
-		dict_set(ctx->vm->gdict,
-			name_str, val, ctx);
+		dict_set(ctx->vm->gdict, name_str, val, ctx);
 }
 
 /* adds a function to the standard library */
-void std_addf(
-	sylt_t* ctx,
-	const char* name,
-	cfunc_t cfunc,
-	int params)
-{
+void std_addf(sylt_t* ctx, const char* name, cfunc_t cfunc, int params) {
 	/* hide from GC */
-	sylt_pushstring(ctx,
-		string_lit(name, ctx));
+	sylt_pushstring(ctx, string_lit(name, ctx));
 	
-	sylt_pushfunc(ctx, func_new(
-		ctx,
-		sylt_peekstring(ctx, 0),
-		NULL));
+	sylt_pushfunc(ctx, func_new(ctx, sylt_peekstring(ctx, 0), NULL));
 	sylt_peekfunc(ctx, 0)->cfunc = cfunc;
 	sylt_peekfunc(ctx, 0)->params = params;
 	
-	sylt_pushclosure(ctx, closure_new(
-		ctx, sylt_peekfunc(ctx, 0)));
+	sylt_pushclosure(ctx, closure_new(ctx, sylt_peekfunc(ctx, 0)));
 	
 	std_add(ctx, name, sylt_peek(ctx, 0));
 	
@@ -3992,21 +3505,17 @@ void std_init(sylt_t* ctx) {
 	
 	/* prelude */
 	std_setlib(ctx, "");
-	std_add(ctx, "gdict",	
-		wrapdict(ctx->vm->gdict));
+	std_add(ctx, "gdict", wrapdict(ctx->vm->gdict));
 	std_addf(ctx, "print", std_print, 1);
 	std_addf(ctx, "printLn", std_print_ln, 1);
 	std_addf(ctx, "readIn", std_read_in, 0);
-	std_addf(ctx, "toString",
-		std_to_string, 1);
+	std_addf(ctx, "toString", std_to_string, 1);
 	std_addf(ctx, "toNum", std_to_num, 1);
-	std_addf(ctx, "floatEq",
-		std_float_eq, 3);
+	std_addf(ctx, "floatEq", std_float_eq, 3);
 	std_addf(ctx, "typeOf", std_type_of, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
-	std_addf(ctx, "unreachable",
-		std_unreachable, 0);
+	std_addf(ctx, "unreachable", std_unreachable, 0);
 	std_addf(ctx, "eval", std_eval, 1);
 	std_addlib(ctx);
 	
@@ -4022,105 +3531,69 @@ void std_init(sylt_t* ctx) {
 		
 	/* system */
 	std_setlib(ctx, "System");
-	std_add(ctx, "version",	
-		wrapstring(string_lit(
-			SYLT_VERSION_STR, ctx)));
-	std_add(ctx, "platform",	
-		wrapstring(string_lit(
-			get_platform(), ctx)));
-	std_addf(ctx, "memInfo",
-		stdsys_mem_info, 0);
-	std_addf(ctx, "memSizes",
-		stdsys_mem_sizes, 0);
-	std_addf(ctx, "src",
-		stdsys_src, 0);
+	std_add(ctx, "version",	wrapstring(string_lit(SYLT_VERSION_STR, ctx)));
+	std_add(ctx, "platform", wrapstring(string_lit(get_platform(), ctx)));
+	std_addf(ctx, "memInfo", stdsys_mem_info, 0);
+	std_addf(ctx, "memSizes", stdsys_mem_sizes, 0);
+	std_addf(ctx, "src", stdsys_src, 0);
 	std_addf(ctx, "halt", stdsys_halt, 1);
 	std_addf(ctx, "time", stdsys_time, 1);
-	std_addf(ctx, "timestamp",
-		stdsys_timestamp, 0);
-	std_addf(ctx, "cpuClock",
-		stdsys_cpu_clock, 0);
+	std_addf(ctx, "timestamp", stdsys_timestamp, 0);
+	std_addf(ctx, "cpuClock", stdsys_cpu_clock, 0);
 	std_addlib(ctx);
 		
 	/* list */
 	std_setlib(ctx, "List");
-	std_addf(ctx, "length",
-		stdlist_length, 1);
+	std_addf(ctx, "length", stdlist_length, 1);
 	std_addf(ctx, "add", stdlist_add, 3);
 	std_addf(ctx, "del", stdlist_del, 2);
 	std_addf(ctx, "push", stdlist_push, 2);
 	std_addf(ctx, "pop", stdlist_pop, 1);
 	std_addf(ctx, "first", stdlist_first, 1);
 	std_addf(ctx, "last", stdlist_last, 1);
-	std_addf(ctx, "count",
-		stdlist_count, 2);
-	std_addf(ctx, "contains",
-		stdlist_contains, 2);
-	std_addf(ctx, "rev",
-		stdlist_rev, 1);
-	std_addf(ctx, "range",
-		stdlist_range, 2);
+	std_addf(ctx, "count", stdlist_count, 2);
+	std_addf(ctx, "contains", stdlist_contains, 2);
+	std_addf(ctx, "rev", stdlist_rev, 1);
+	std_addf(ctx, "range", stdlist_range, 2);
 	std_addlib(ctx);
 	
 	/* dict */
 	std_setlib(ctx, "Dict");
-	std_addf(ctx, "length",
-		stddict_length, 1);
-	std_addf(ctx, "keys",
-		stddict_keys, 1);
-	std_addf(ctx, "values",
-		stddict_values, 1);
+	std_addf(ctx, "length", stddict_length, 1);
+	std_addf(ctx, "keys", stddict_keys, 1);
+	std_addf(ctx, "values", stddict_values, 1);
 	std_addlib(ctx);
 	
 	/* string */
 	std_setlib(ctx, "String");
-	std_add(ctx, "alpha",	
-		wrapstring(string_lit(
-			"abcdefghijklmnopqrstuvwxyz", 
-			ctx)));
-	std_add(ctx, "digits",	
-		wrapstring(string_lit(
-			"0123456789", ctx)));
-	std_addf(ctx, "length",
-		stdstring_length, 1);
-	std_addf(ctx, "chars",
-		stdstring_chars, 1);
-	std_addf(ctx, "join",
-		stdstring_join, 1);
-	std_addf(ctx, "split",
-		stdstring_split, 2);
-	std_addf(ctx, "lower",
-		stdstring_lower, 1);
-	std_addf(ctx, "upper",
-		stdstring_upper, 1);
-	std_addf(ctx, "swapCase",
-		stdstring_swap_case, 1);
-	std_addf(ctx, "isLower",
-		stdstring_is_lower, 1);
-	std_addf(ctx, "isUpper",
-		stdstring_is_upper, 1);
-	std_addf(ctx, "isWhitespace",
-		stdstring_is_whitespace, 1);
-	std_addf(ctx, "startsWith",
-		stdstring_starts_with, 2);
-	std_addf(ctx, "endsWith",
-		stdstring_ends_with, 2);
-	std_addf(ctx, "trimStart",
-		stdstring_trim_start, 1);
-	std_addf(ctx, "trimEnd",
-		stdstring_trim_end, 1);
-	std_addf(ctx, "trim",
-		stdstring_trim, 1);
-	std_addf(ctx, "replace",
-		stdstring_replace, 3);
+	std_add(ctx, "alpha", wrapstring(string_lit(
+		"abcdefghijklmnopqrstuvwxyz", 
+		ctx)));
+	std_add(ctx, "digits", wrapstring(string_lit(
+		"0123456789", ctx)));
+	std_addf(ctx, "length", stdstring_length, 1);
+	std_addf(ctx, "chars", stdstring_chars, 1);
+	std_addf(ctx, "join", stdstring_join, 1);
+	std_addf(ctx, "split", stdstring_split, 2);
+	std_addf(ctx, "lower", stdstring_lower, 1);
+	std_addf(ctx, "upper", stdstring_upper, 1);
+	std_addf(ctx, "swapCase", stdstring_swap_case, 1);
+	std_addf(ctx, "isLower", stdstring_is_lower, 1);
+	std_addf(ctx, "isUpper", stdstring_is_upper, 1);
+	std_addf(ctx, "isWhitespace", stdstring_is_whitespace, 1);
+	std_addf(ctx, "startsWith", stdstring_starts_with, 2);
+	std_addf(ctx, "endsWith", stdstring_ends_with, 2);
+	std_addf(ctx, "trimStart", stdstring_trim_start, 1);
+	std_addf(ctx, "trimEnd", stdstring_trim_end, 1);
+	std_addf(ctx, "trim", stdstring_trim, 1);
+	std_addf(ctx, "replace", stdstring_replace, 3);
 	std_addlib(ctx);
 	
 	/* math */
 	std_setlib(ctx, "Math");
 	std_add(ctx, "pi", wrapnum(M_PI));
 	std_add(ctx, "e", wrapnum(M_E));
-	std_addf(ctx, "numSign",
-		stdmath_num_sign, 1);
+	std_addf(ctx, "numSign", stdmath_num_sign, 1);
 	std_addf(ctx, "abs", stdmath_abs, 1);
 	std_addf(ctx, "log", stdmath_log, 2);
 	std_addf(ctx, "pow", stdmath_pow, 2);
@@ -4147,8 +3620,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "acosh", stdmath_acosh, 1);
 	std_addf(ctx, "atanh", stdmath_atanh, 1);
 	std_addf(ctx, "rand", stdmath_rand, 2);
-	std_addf(ctx, "seedRand",
-		stdmath_seed_rand, 1);
+	std_addf(ctx, "seedRand", stdmath_seed_rand, 1);
 	std_addlib(ctx);
 	
 	/* parts of the stdlib are implemented 
@@ -4281,12 +3753,7 @@ typedef struct comp_s {
 	sylt_t* ctx;
 } comp_t;
 
-void comp_init(
-	comp_t* cmp,
-	comp_t* parent,
-	comp_t* child,
-	sylt_t* ctx)
-{
+void comp_init(comp_t* cmp, comp_t* parent, comp_t* child, sylt_t* ctx) {
 	cmp->parent = parent;
 	cmp->child = child;
 	cmp->func = NULL;
@@ -4302,33 +3769,22 @@ void comp_init(
 }
 
 void comp_free(comp_t* cmp) {
-	arr_free(
-		cmp->syms,
-		symbol_t,
-		cmp->nsyms,
-		cmp->ctx);
+	arr_free(cmp->syms, symbol_t, cmp->nsyms, cmp->ctx);
 }
 
-void comp_load(
-	comp_t* cmp,
-	string_t* src,
-	string_t* name)
-{
+void comp_load(comp_t* cmp, string_t* src, string_t* name) {
 	cmp->func = func_new(cmp->ctx, name, src);
 	if (cmp->parent) {
 		/* parent_name/ */
-		sylt_pushstring(cmp->ctx,
-			cmp->parent->func->path);
-		sylt_pushstring(cmp->ctx,
-			string_lit("/", cmp->ctx));
+		sylt_pushstring(cmp->ctx, cmp->parent->func->path);
+		sylt_pushstring(cmp->ctx, string_lit("/", cmp->ctx));
 		sylt_concat(cmp->ctx);
 		
 		/* parent_name/child_name */
 		sylt_pushstring(cmp->ctx, name);
 		sylt_concat(cmp->ctx);
 		
-		cmp->func->path =
-			sylt_popstring(cmp->ctx);
+		cmp->func->path = sylt_popstring(cmp->ctx);
 	}
 	
 	cmp->pos = (char*)cmp->func->src->bytes;
@@ -4336,13 +3792,10 @@ void comp_load(
 	
 	if (list_count(cmp->included,
 		wrapstring(name)) == 0)
-		list_push(cmp->included,
-			wrapstring(name), cmp->ctx);
+		list_push(cmp->included, wrapstring(name), cmp->ctx);
 }
 
-void comp_copy_parse_state(
-	comp_t* dst, const comp_t* src)
-{
+void comp_copy_parse_state(comp_t* dst, const comp_t* src) {
 	dst->pos = src->pos;
 	dst->line = src->line;
 	dst->prev = src->prev;
@@ -4369,25 +3822,15 @@ void comp_simstack(comp_t* cmp, int n) {
 
 /* should not be used directly; use the
  * emit_ functions below instead */
-void emit_op(
-	comp_t* cmp,
-	op_t op,
-	const uint8_t* args,
-	size_t nargs)
-{
+void emit_op(comp_t* cmp, op_t op, const uint8_t* args, size_t nargs) {
 	comp_simstack(cmp, OPINFO[op].effect);
 	
 	/* write the instruction opcode */
-	func_write(cmp->func,
-		op, cmp->prev.line, cmp->ctx);
+	func_write(cmp->func, op, cmp->prev.line, cmp->ctx);
 	
 	/* write the arguments */
-	for (size_t i = 0; i < nargs; i++) {
-		func_write(cmp->func,
-			args[i],
-			cmp->prev.line,
-			cmp->ctx);
-	}
+	for (size_t i = 0; i < nargs; i++)
+		func_write(cmp->func, args[i], cmp->prev.line, cmp->ctx);
 }
 
 /* emits an instruction with no operands */
@@ -4431,23 +3874,18 @@ void emit_value(
 		return;
 	}
 	case TYPE_BOOL: {
-		emit_nullary(cmp, (getbool(val))
-			? OP_PUSH_TRUE
-			: OP_PUSH_FALSE);
+		emit_nullary(cmp, (getbool(val)) ? OP_PUSH_TRUE : OP_PUSH_FALSE);
 		sylt_pop(cmp->ctx); /* GC */
 		return;
 	}
 	default: break;
 	}
 	
-	size_t slot = func_write_data(
-		cmp->func, val, cmp->ctx);
-		
-	if (val.tag == TYPE_FUNCTION) {
+	size_t slot = func_write_data(cmp->func, val, cmp->ctx);
+	if (val.tag == TYPE_FUNCTION)
 		emit_unary(cmp, OP_PUSH_FUNC, slot);
-	} else {
+	else
 		emit_unary(cmp, OP_PUSH, slot);
-	}
 
 	sylt_pop(cmp->ctx); /* GC */
 }
@@ -4466,35 +3904,28 @@ int emit_jump(comp_t* cmp, op_t opcode) {
  * jump over and then backpatches the
  * jump target short to the correct offset */
 void patch_jump(comp_t* cmp, int addr) {
-	int dist =
-		cmp->func->ncode - addr - 2;
+	int dist = cmp->func->ncode - addr - 2;
 	if (dist > MAX_JUMP) {
 		halt(cmp->ctx, E_JUMP_LIMIT);
 		return;
 	}
 	
 	/* encode short as two bytes */
-	cmp->func->code[addr] =
-		(dist >> 8) & 0xff;
-	cmp->func->code[addr + 1] =
-		dist & 0xff;
+	cmp->func->code[addr] = (dist >> 8) & 0xff;
+	cmp->func->code[addr + 1] = dist & 0xff;
 }
 
 void emit_loop(comp_t* cmp, int addr) {
-	func_write(cmp->func, OP_JMP_BACK,
-		cmp->prev.line, cmp->ctx);
+	func_write(cmp->func, OP_JMP_BACK, cmp->prev.line, cmp->ctx);
 	
-	int dist =
-		cmp->func->ncode - addr + 2;
+	int dist = cmp->func->ncode - addr + 2;
 	if (dist > MAX_JUMP) {
 		halt(cmp->ctx, E_JUMP_LIMIT);
 		return;
 	}
 	
-	func_write(cmp->func, (dist >> 8) & 0xff,
-		cmp->prev.line, cmp->ctx);
-	func_write(cmp->func, dist & 0xff,
-		cmp->prev.line, cmp->ctx);
+	func_write(cmp->func, (dist >> 8) & 0xff, cmp->prev.line, cmp->ctx);
+	func_write(cmp->func, dist & 0xff, cmp->prev.line, cmp->ctx);
 }
 
 /* adds a name to the symbol table
@@ -4514,13 +3945,7 @@ int add_symbol(comp_t* cmp, string_t* name) {
 	sym.depth = cmp->depth;
 	sym.capped = false;
 	
-	cmp->syms = arr_resize(
-		cmp->syms,
-		symbol_t,
-		cmp->nsyms,
-		cmp->nsyms + 1,
-		cmp->ctx);
-	
+	cmp->syms = arr_resize(cmp->syms, symbol_t, cmp->nsyms, cmp->nsyms + 1, cmp->ctx);
 	cmp->syms[cmp->nsyms++] = sym;
 	return cmp->nsyms - 1;
 }
@@ -4545,16 +3970,13 @@ int find_symbol(comp_t* cmp, string_t* name) {
 
 /* adds an upvalue to the upvalue array
  * and returns its index */
-int add_upvalue(
-	comp_t* cmp, uint8_t index, bool is_local)
-{
+int add_upvalue(comp_t* cmp, uint8_t index, bool is_local) {
 	size_t n = cmp->func->upvalues;
 	
 	/* check if one already exists */
 	for (size_t i = 0; i < n; i++) {
 		cmp_upvalue_t upval = cmp->upvals[i];
-		if (upval.index == index
-			&& upval.is_local == is_local)
+		if (upval.index == index && upval.is_local == is_local)
 			return i;
 		
 	}
@@ -4571,30 +3993,23 @@ int add_upvalue(
 
 /* returns the index of an upvalue in the
  * upvalue array or -1 if not found */
-int find_upvalue(
-	comp_t* cmp, string_t* name)
-{
+int find_upvalue(comp_t* cmp, string_t* name) {
 	if (!cmp->parent)
 		return -1;
 	
 	/* search for a local variable in the
 	 * enclosing function */
-	int local =
-		find_symbol(cmp->parent, name);
+	int local = find_symbol(cmp->parent, name);
 	if (local != -1) {
-		cmp->parent->syms[local].capped =
-			true;
+		cmp->parent->syms[local].capped = true;
 		return add_upvalue(cmp, local, true);
 	}
 	
 	/* recursively search for an upvalue
 	 * higher up */
-	int upvalue =
-		find_upvalue(cmp->parent, name);
-	if (upvalue != -1) {
-		return
-			add_upvalue(cmp, upvalue, false);
-	}
+	int upvalue = find_upvalue(cmp->parent, name);
+	if (upvalue != -1)
+		return add_upvalue(cmp, upvalue, false);
 	
 	return -1;
 }
@@ -4610,9 +4025,7 @@ void comp_close_scope(comp_t* cmp) {
 	/* count the number of local variables */
 	int locals = 0;
 	int index = cmp->nsyms - 1;
-	while (index >= 0 &&
-		cmp->syms[index].depth > cmp->depth)
-	{
+	while (index >= 0 && cmp->syms[index].depth > cmp->depth) {
 		locals++;
 		index--;
 	}
@@ -4625,12 +4038,8 @@ void comp_close_scope(comp_t* cmp) {
 	emit_nullary(cmp, OP_STORE_RET);
 	
 	/* pop the locals */
-	while (cmp->nsyms > 0 &&
-		cmp->syms[cmp->nsyms - 1].depth
-			> cmp->depth)
-	{
-		symbol_t* name =
-			&cmp->syms[cmp->nsyms - 1];
+	while (cmp->nsyms > 0 && cmp->syms[cmp->nsyms - 1].depth > cmp->depth) {
+		symbol_t* name = &cmp->syms[cmp->nsyms - 1];
 		cmp->nsyms--;
 		
 		if (name->capped)
@@ -4640,12 +4049,7 @@ void comp_close_scope(comp_t* cmp) {
 	}
 	
 	/* shrink symbol table */
-	cmp->syms = arr_resize(
-		cmp->syms,
-		symbol_t,
-		cmp->nsyms + locals,
-		cmp->nsyms,
-		cmp->ctx);
+	cmp->syms = arr_resize(cmp->syms, symbol_t, cmp->nsyms + locals, cmp->nsyms, cmp->ctx);
 		
 	/* restore the return value */
 	emit_nullary(cmp, OP_LOAD_RET);
@@ -4656,10 +4060,7 @@ void comp_close_scope(comp_t* cmp) {
 #define token(tag) \
 	(token_t){ \
 		tag, \
-		string_new( \
-			(uint8_t*)start, \
-			cmp->pos - start, \
-			cmp->ctx), \
+		string_new((uint8_t*)start, cmp->pos - start, cmp->ctx), \
 		cmp->line}
 #define step() cmp->pos++
 #define peek() (*cmp->pos)
@@ -4669,8 +4070,7 @@ void comp_close_scope(comp_t* cmp) {
 #define next_is(c) (peek_next() == (c))
 #define eof() is('\0')
 #define match(c) \
-	((!eof() && is(c)) ? \
-		step(), true : false)
+	((!eof() && is(c)) ? step(), true : false)
 
 /* scans the source code for the next token */
 token_t scan(comp_t* cmp) {
@@ -4678,13 +4078,12 @@ token_t scan(comp_t* cmp) {
 	while (!eof()) {
 		if (!isspace(peek())) {
 			/* single-line comment */
-			if (is('#') && next_is('#')) {
+			if (is('#') && next_is('#'))
 				while (!is('\n') && !eof())
 					step();
 				
-			} else {
+			else
 				break;
-			}
 		}
 		
 		if (is('\n'))
@@ -4701,37 +4100,22 @@ token_t scan(comp_t* cmp) {
 	/* symbol name or keyword */
 	if (isalpha(peek()) || is('_')) {
 		
-		while (isalnum(peek()) ||
-			is('_') || is('/'))
-			step();
+		while (isalnum(peek()) || is('_') || is('/')) step();
 		
 		size_t len = cmp->pos - start;
-		#define keyword(lit) \
-			(len == strlen(lit) && !strncmp( \
-				start, (lit), strlen(lit)))
+		#define keyword(lit) (len == strlen(lit) && !strncmp(start, (lit), strlen(lit)))
 		
-		if (keyword("nil"))
-			return token(T_NIL);
-		if (keyword("true"))
-			return token(T_TRUE);
-		if (keyword("false"))
-			return token(T_FALSE);
-		if (keyword("let"))
-			return token(T_LET);
-		if (keyword("fun"))
-			return token(T_FUN);
-		if (keyword("if"))
-			return token(T_IF);
-		if (keyword("else"))
-			return token(T_ELSE);
-		if (keyword("while"))
-			return token(T_WHILE);
-		if (keyword("and"))
-			return token(T_AND);
-		if (keyword("or"))
-			return token(T_OR);
-		if (keyword("using"))
-			return token(T_USING);
+		if (keyword("nil")) return token(T_NIL);
+		if (keyword("true")) return token(T_TRUE);
+		if (keyword("false")) return token(T_FALSE);
+		if (keyword("let")) return token(T_LET);
+		if (keyword("fun")) return token(T_FUN);
+		if (keyword("if")) return token(T_IF);
+		if (keyword("else")) return token(T_ELSE);
+		if (keyword("while")) return token(T_WHILE);
+		if (keyword("and")) return token(T_AND);
+		if (keyword("or")) return token(T_OR);
+		if (keyword("using")) return token(T_USING);
 			
 		#undef keyword
 		
@@ -4776,43 +4160,35 @@ token_t scan(comp_t* cmp) {
 	
 	switch (*step()) {
 	case '+':
-		if (match('+'))
-			return token(T_PLUS_PLUS);
+		if (match('+')) return token(T_PLUS_PLUS);
 		return token(T_PLUS);
 	case '-':
-		if (match('>'))
-			return token(T_MINUS_GT);
+		if (match('>')) return token(T_MINUS_GT);
 		return token(T_MINUS);
 	case '*': return token(T_STAR);
 	case '/': return token(T_SLASH);
 	case '%': return token(T_PERCENT);
 	case '<':
-		if (match('='))
-			return token(T_LT_EQ);
-		if (match('-'))
-			return token(T_LT_MINUS);
+		if (match('=')) return token(T_LT_EQ);
+		if (match('-')) return token(T_LT_MINUS);
 		return token(T_LT);
 	case '>':
-		if (match('='))
-			return token(T_GT_EQ);
+		if (match('=')) return token(T_GT_EQ);
 		return token(T_GT);
 	case '=': return token(T_EQ);
 	case '!':
-		if (match('='))
-			return token(T_BANG_EQ);
+		if (match('=')) return token(T_BANG_EQ);
 		return token(T_BANG);
 	case '(': return token(T_LPAREN);
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
 	case '}': return token(T_RCURLY);
 	case '[': 
-		if (match('|'))
-			return token(T_LSQUARE_PIPE);
+		if (match('|')) return token(T_LSQUARE_PIPE);
 		return token(T_LSQUARE);
 	case ']': return token(T_RSQUARE);
 	case '|': 
-		if (match(']'))
-			return token(T_PIPE_RSQUARE);
+		if (match(']')) return token(T_PIPE_RSQUARE);
 		break;
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
@@ -4842,10 +4218,7 @@ void step(comp_t* cmp) {
 	cmp->prev = cmp->cur;
 	
 	#if DBG_PRINT_TOKENS
-	sylt_dprintf("%-4d '%.*s'\n",
-		cmp->prev.tag,
-		cmp->prev.len,
-		cmp->prev.start);
+	sylt_dprintf("%-4d '%.*s'\n", cmp->prev.tag, cmp->prev.len, cmp->prev.start);
 	#endif
 	
 	cmp->cur = scan(cmp);
@@ -4947,10 +4320,8 @@ static parserule_t RULES[] = {
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
 	[T_LSQUARE] = {list, index, PREC_UPOST},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
-	[T_LSQUARE_PIPE] = 
-		{dict, NULL, PREC_UPOST},
-	[T_PIPE_RSQUARE] =
-		{NULL, NULL, PREC_NONE},
+	[T_LSQUARE_PIPE] = {dict, NULL, PREC_UPOST},
+	[T_PIPE_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
 	[T_DOT] = {NULL, dot, PREC_UPOST},
@@ -4963,16 +4334,14 @@ void expr(comp_t* cmp, prec_t prec) {
 	/* move to the next token */
 	step(cmp);
 	
-	parsefn_t prefix =
-		RULES[cmp->prev.tag].prefix;
+	parsefn_t prefix = RULES[cmp->prev.tag].prefix;
 	
 	/* first token in an expression
 	 * must have a prefix rule */
 	if (!prefix) {
 		halt(cmp->ctx,
 			"expected expression, got '%.*s'",
-			(int)cmp->prev.lex->len,
-			cmp->prev.lex->bytes);
+			(int)cmp->prev.lex->len, cmp->prev.lex->bytes);
 		return;
 	}
 	
@@ -4981,8 +4350,7 @@ void expr(comp_t* cmp, prec_t prec) {
 	/* parse the rest of the expression */
 	while (prec <= RULES[cmp->cur.tag].prec) {
 		step(cmp);
-		parsefn_t infix =
-			RULES[cmp->prev.tag].infix;
+		parsefn_t infix = RULES[cmp->prev.tag].infix;
 		infix(cmp);
 	}
 }
@@ -4990,15 +4358,9 @@ void expr(comp_t* cmp, prec_t prec) {
 /* parses a keyword literal */
 void literal(comp_t* cmp) {
 	switch (cmp->prev.tag) {
-	case T_NIL:
-		emit_value(cmp, nil());
-		break;
-	case T_TRUE:
-		emit_value(cmp, wrapbool(true));
-		break;
-	case T_FALSE:
-		emit_value(cmp, wrapbool(false));
-		break;
+	case T_NIL: emit_value(cmp, nil()); break;
+	case T_TRUE: emit_value(cmp, wrapbool(true)); break;
+	case T_FALSE: emit_value(cmp, wrapbool(false)); break;
 	default: unreachable();
 	}
 }
@@ -5039,8 +4401,7 @@ void name(comp_t* cmp) {
 	}
 	
 	/* runtime lookup */
-	index = func_write_data(cmp->func,
-		wrapstring(name), cmp->ctx);
+	index = func_write_data(cmp->func, wrapstring(name), cmp->ctx);
 	if (assign)
 		emit_unary(cmp, OP_STORE_NAME, index);
 	else
@@ -5050,9 +4411,7 @@ void name(comp_t* cmp) {
 /* parses a list literal */
 void list(comp_t* cmp) {
 	int len = 0;
-	while (!check(cmp, T_RSQUARE)
-		&& !check(cmp, T_EOF))
-	{
+	while (!check(cmp, T_RSQUARE) && !check(cmp, T_EOF)) {
 		expr(cmp, PREC_OR);
 		len++;
 		
@@ -5060,20 +4419,16 @@ void list(comp_t* cmp) {
 			break;
 	}
 	
-	eat(cmp, T_RSQUARE,
-		"unterminated list, expected ']'");
+	eat(cmp, T_RSQUARE, "unterminated list, expected ']'");
 	emit_unary(cmp, OP_PUSH_LIST, len);
 }
 
 /* parses a dictionary literal */
 void dict(comp_t* cmp) {
 	int len = 0;
-	while (!check(cmp, T_PIPE_RSQUARE)
-		&& !check(cmp, T_EOF))
-	{
+	while (!check(cmp, T_PIPE_RSQUARE) && !check(cmp, T_EOF)) {
 		expr(cmp, PREC_OR); /* key */
-		eat(cmp, T_COLON,
-			"expected ':' after item key");
+		eat(cmp, T_COLON, "expected ':' after item key");
 		expr(cmp, PREC_OR); /* value */
 		
 		len++;
@@ -5082,8 +4437,7 @@ void dict(comp_t* cmp) {
 			break;
 	}
 	
-	eat(cmp, T_PIPE_RSQUARE,
-		"unterminated dict, expected '|]'");
+	eat(cmp, T_PIPE_RSQUARE, "unterminated dict, expected '|]'");
 	emit_unary(cmp, OP_PUSH_DICT, len * 2);
 }
 
@@ -5094,10 +4448,7 @@ void string(comp_t* cmp) {
 	
 	/* allocate an empty string the same size
 	 * as the length of the string literal */
-	string_t* dst = string_new(
-		NULL,
-		token.lex->len - 2,
-		cmp->ctx);
+	string_t* dst = string_new(NULL, token.lex->len - 2, cmp->ctx);
 	size_t write = 0;
 	
 	const uint8_t* src = token.lex->bytes;
@@ -5119,54 +4470,31 @@ void string(comp_t* cmp) {
 		case 'x': {
 			/* make sure we have two digits */
 			if (end - read < seqlen) {
-				size_t needed =
-					seqlen - (end - read);
+				size_t needed = seqlen - (end - read);
 			
-				halt(cmp->ctx,
-					"expected %ld more "
-					"character%s after \\%c",
-				needed,
-				(needed > 1) ? "s" : "",
-				code);
+				halt(cmp->ctx, "expected %ld more character%s after \\%c",
+					needed, (needed > 1) ? "s" : "", code);
 			}
 			
 			/* parse hexadecimal byte */
-			char* start =
-				(char*)src + read + 2;
+			char* start = (char*)src + read + 2;
 			char* end = start + 2;
-			unsigned long byte = strtoul(
-				start, &end, 16);
+			unsigned long byte = strtoul(start, &end, 16);
 			
 			/* parsing failed */
 			if (end < start + 2)
-				halt(cmp->ctx,
-					"invalid character in "
-					"\\x escape: '%c'", *end);
+				halt(cmp->ctx, "invalid character in \\x escape: '%c'", *end);
 				
 			dst->bytes[write++] = byte;
 			break;
 		}
-		case '\\':
-			dst->bytes[write++] = '\\';
-			break;
-		case '\"':
-			dst->bytes[write++] = '\"';
-			break;
-		case 't':
-			dst->bytes[write++] = '\t';
-			break;
-		case 'n':
-			dst->bytes[write++] = '\n';
-			break;
-		case 'r':
-			dst->bytes[write++] = '\r';
-			break;
-		case '0':
-			dst->bytes[write++] = '\0';
-			break;
-		default:
-			halt(cmp->ctx,
-				E_ESCAPE_SEQ(code));
+		case '\\': dst->bytes[write++] = '\\'; break;
+		case '\"': dst->bytes[write++] = '\"'; break;
+		case 't': dst->bytes[write++] = '\t'; break;
+		case 'n': dst->bytes[write++] = '\n'; break;
+		case 'r': dst->bytes[write++] = '\r'; break;
+		case '0': dst->bytes[write++] = '\0'; break;
+		default: halt(cmp->ctx, E_ESCAPE_SEQ(code));
 		}
 			
 		read += seqlen;
@@ -5174,12 +4502,7 @@ void string(comp_t* cmp) {
 	
 	/* shrink to fit */
 	if (write < dst->len) {
-		dst->bytes = arr_resize(
-			dst->bytes,
-			uint8_t,
-			dst->len,
-			write,
-			cmp->ctx);
+		dst->bytes = arr_resize(dst->bytes, uint8_t, dst->len, write, cmp->ctx);
 		dst->len = write;
 	}
 	
@@ -5189,8 +4512,7 @@ void string(comp_t* cmp) {
 
 /* parses a numeric literal */
 void number(comp_t* cmp) {
-	sylt_num_t num = num_func(strtof, strtod)
-		((char*)cmp->prev.lex->bytes, NULL);
+	sylt_num_t num = num_func(strtof, strtod)((char*)cmp->prev.lex->bytes, NULL);
 	
 	emit_value(cmp, wrapnum(num));
 }
@@ -5198,8 +4520,7 @@ void number(comp_t* cmp) {
 /* parses a parenthesized expression */
 void grouping(comp_t* cmp) {
 	expr(cmp, ANY_PREC);
-	eat(cmp, T_RPAREN,
-		"expected closing ')'");
+	eat(cmp, T_RPAREN, "expected closing ')'");
 }
 
 /* parses a unary expression */
@@ -5248,16 +4569,13 @@ void binary(comp_t* cmp) {
 	case T_EQ: opcode = OP_EQ; break;
 	case T_BANG_EQ: opcode = OP_NEQ; break;
 	/* special */
-	case T_PLUS_PLUS:
-		opcode = OP_CONCAT;
-		break;
+	case T_PLUS_PLUS: opcode = OP_CONCAT; break;
 	/* control flow */
 	case T_AND: {
 		/* if the left-hand side expression
 		 * is false we jump past the 
 		 * right-hand side expression */
-		int jump = emit_jump(cmp,
-			OP_JMP_IF_NOT);
+		int jump = emit_jump(cmp, OP_JMP_IF_NOT);
 		
 		emit_nullary(cmp, OP_POP);
 		expr(cmp, PREC_AND);
@@ -5289,9 +4607,7 @@ void call(comp_t* cmp) {
 	int argc = 0;
 	
 	/* parse argument list */
-	while (!check(cmp, T_RPAREN)
-		&& !check(cmp, T_EOF))
-	{
+	while (!check(cmp, T_RPAREN) && !check(cmp, T_EOF)) {
 		if (argc >= MAX_PARAMS) {
 			halt(cmp->ctx, E_TOO_MANY_ARGS);
 			unreachable();
@@ -5324,27 +4640,20 @@ void index(comp_t* cmp) {
 }
 
 void dot(comp_t* cmp) {
-	eat(cmp, T_NAME,
-		"expected name after '.'");
+	eat(cmp, T_NAME, "expected name after '.'");
 	string_t* name = cmp->prev.lex;
 	emit_value(cmp, wrapstring(name));
 	emit_nullary(cmp, OP_LOAD_ITEM);
 }
 
 string_t* load_file(const char*, sylt_t*);
-void compile_and_run(
-	sylt_t*,
-	string_t*,
-	string_t*,
-	comp_t*);
+void compile_and_run(sylt_t*, string_t*, string_t*, comp_t*);
 
 /* parses a using expression */
 void using(comp_t* cmp) {
-	eat(cmp, T_NAME,
-		"expected file name after 'using'");
+	eat(cmp, T_NAME, "expected file name after 'using'");
 	
-	string_t* ext = string_lit(
-		".sylt", cmp->ctx);
+	string_t* ext = string_lit(".sylt", cmp->ctx);
 	
 	/* no extension looks cleaner */
 	if (string_ends_with(cmp->prev.lex, ext))
@@ -5369,19 +4678,14 @@ void using(comp_t* cmp) {
 	import.included = cmp->included;
 	
 	compile_and_run(cmp->ctx,
-		load_file(
-			(const char*)path->bytes,
-			cmp->ctx),
-		path,
-		&import);
+		load_file((const char*)path->bytes, cmp->ctx), path, &import);
 }
 
 void parse_func(comp_t*, string_t*);
 
 /* parses a variable or function binding */
 void let(comp_t* cmp) {
-	eat(cmp, T_NAME,
-		"expected variable name after 'let'");
+	eat(cmp, T_NAME, "expected variable name after 'let'");
 	string_t* name = cmp->prev.lex;
 	
 	bool is_local = cmp->depth > 0;
@@ -5398,20 +4702,14 @@ void let(comp_t* cmp) {
 		parse_func(cmp, name);
 		
 		if (!is_local) {
-			int index = func_write_data(
-				cmp->func,
-				wrapstring(name),
-				cmp->ctx);
-			emit_unary(
-				cmp, OP_ADD_NAME, index);
+			int index = func_write_data(cmp->func, wrapstring(name), cmp->ctx);
+			emit_unary(cmp, OP_ADD_NAME, index);
 		}
 	} else {
 		/* parse a variable declaration 
 		 * in the form of 
 		 * let name = expr */
-		eat(cmp, T_EQ,
-			"expected '=' after "
-			"variable name");
+		eat(cmp, T_EQ, "expected '=' after variable name");
 		
 		/* compile the right hand side
 	 	* of the expression */
@@ -5420,12 +4718,8 @@ void let(comp_t* cmp) {
 		if (is_local) {
 			add_symbol(cmp, name);
 		} else {
-			int index = func_write_data(
-				cmp->func,
-				wrapstring(name),
-				cmp->ctx);
-			emit_unary(
-				cmp, OP_ADD_NAME, index);
+			int index = func_write_data(cmp->func, wrapstring(name), cmp->ctx);
+			emit_unary(cmp, OP_ADD_NAME, index);
 		}
 	}
 	
@@ -5435,8 +4729,7 @@ void let(comp_t* cmp) {
 
 /* parses an anonymous function */
 void fun(comp_t* cmp) {
-	eat(cmp, T_LPAREN,
-		"expected '(' after 'fun' keyword");
+	eat(cmp, T_LPAREN, "expected '(' after 'fun' keyword");
 	parse_func(cmp, NULL);
 }
 
@@ -5469,8 +4762,7 @@ void parse_func(
 			unreachable();
 		}
 			
-		eat(&fcmp, T_NAME,
-			"expected parameter name");
+		eat(&fcmp, T_NAME, "expected parameter name");
 		add_symbol(&fcmp, fcmp.prev.lex);
 		fcmp.func->params++;
 			
@@ -5478,15 +4770,12 @@ void parse_func(
 			break;
 	}
 		
-	eat(&fcmp, T_RPAREN,
-		"expected ')' or a parameter name");
+	eat(&fcmp, T_RPAREN, "expected ')' or a parameter name");
 	
 	if (is_lambda)
-		eat(&fcmp, T_MINUS_GT,
-			"expected '->' after ')'");
+		eat(&fcmp, T_MINUS_GT, "expected '->' after ')'");
 	else
-		eat(&fcmp, T_EQ,
-			"expected '=' after ')'");
+		eat(&fcmp, T_EQ, "expected '=' after ')'");
 			
 	/* function body */
 	expr(&fcmp, ANY_PREC);
@@ -5498,20 +4787,12 @@ void parse_func(
 	emit_value(cmp, wrapfunc(func));
 	
 	/* write arguments to OP_PUSHFUNC */
-	for (int i = 0;
-		i < func->upvalues; i++)
-	{
+	for (int i = 0; i < func->upvalues; i++) {
 		cmp_upvalue_t* upval =
 			&fcmp.upvals[i];
 			
-		func_write(cmp->func,
-			upval->is_local,
-			cmp->prev.line,
-			cmp->ctx);
-		func_write(cmp->func,
-			upval->index,
-			cmp->prev.line,
-			cmp->ctx);
+		func_write(cmp->func, upval->is_local, cmp->prev.line, cmp->ctx);
+		func_write(cmp->func, upval->index, cmp->prev.line, cmp->ctx);
 	}
 	
 	comp_copy_parse_state(cmp, &fcmp);
@@ -5522,16 +4803,13 @@ void parse_func(
 /* parses an if/else expression */
 void if_else(comp_t* cmp) {
 	/* (condition) */
-	eat(cmp, T_LPAREN,
-		"expected '(' after 'if'");
+	eat(cmp, T_LPAREN, "expected '(' after 'if'");
 	expr(cmp, ANY_PREC);
-	eat(cmp, T_RPAREN,
-		"expected ')' after if condition");
+	eat(cmp, T_RPAREN, "expected ')' after if condition");
 	
 	/* jump to else branch if
 	 * the condition is false */
-	int then_addr =
-		emit_jump(cmp, OP_JMP_IF_NOT);
+	int then_addr = emit_jump(cmp, OP_JMP_IF_NOT);
 		
 	/* 'then' branch */
 	emit_nullary(cmp, OP_POP); /* condition */
@@ -5539,8 +4817,7 @@ void if_else(comp_t* cmp) {
 	
 	/* unconditionally jump over the 
 	 * else branch */
-	int else_addr =
-		emit_jump(cmp, OP_JMP);
+	int else_addr = emit_jump(cmp, OP_JMP);
 	patch_jump(cmp, then_addr);
 	
 	/* 'else' branch */
@@ -5558,11 +4835,9 @@ void while_loop(comp_t* cmp) {
 	int loop_start = cmp->func->ncode;
 	
 	/* (condition) */
-	eat(cmp, T_LPAREN,
-		"expected '(' after 'while'");
+	eat(cmp, T_LPAREN, "expected '(' after 'while'");
 	expr(cmp, ANY_PREC);
-	eat(cmp, T_RPAREN,
-		"expected ')' after while condition");
+	eat(cmp, T_RPAREN, "expected ')' after while condition");
 		
 	int jmp = emit_jump(cmp, OP_JMP_IF_NOT);
 	emit_nullary(cmp, OP_POP);
@@ -5591,9 +4866,7 @@ void block(comp_t* cmp) {
 		return;
 	}
 	
-	while (!check(cmp, T_RCURLY)
-		&& !check(cmp, T_EOF))
-	{
+	while (!check(cmp, T_RCURLY) && !check(cmp, T_EOF)) {
 		expr(cmp, ANY_PREC);
 		
 		/* pop the result of every expression
@@ -5610,9 +4883,7 @@ void block(comp_t* cmp) {
 
 /* == GC == */
 
-void gc_set_state(
-	sylt_t* ctx, gc_state_t state)
-{
+void gc_set_state(sylt_t* ctx, gc_state_t state) {
 	ctx->mem.gc.state = state;
 }
 
@@ -5636,11 +4907,7 @@ void gc_mark(sylt_t*, const char*, int);
 void gc_sweep(sylt_t*);
 
 /* runs the garbage collector */
-void gc_collect(
-	sylt_t* ctx,
-	const char* func_name,
-	int line)
-{
+void gc_collect(sylt_t* ctx, const char* func_name, int line) {
 	#if DBG_NO_GC
 	return;
 	#endif
@@ -5658,8 +4925,7 @@ void gc_collect(
 	gc_sweep(ctx);
 	gc_set_state(ctx, GC_STATE_IDLE);
 	
-	ctx->mem.gc.trigger = ctx->mem.bytes *
-		GC_THRESHOLD_CLIMB;
+	ctx->mem.gc.trigger = ctx->mem.bytes * GC_THRESHOLD_CLIMB;
 	ctx->mem.gc.cycles++;
 }
 
@@ -5668,11 +4934,7 @@ void gc_mark_compiler(sylt_t*);
 void gc_trace_refs(sylt_t*);
 
 /* marks all root objects */
-void gc_mark(
-	sylt_t* ctx,
-	const char* func_name,
-	int line)
-{
+void gc_mark(sylt_t* ctx, const char* func_name, int line) {
 	#if DBG_PRINT_GC_STATE
 	sylt_dprintf(
 		"     gc @ %s:%d, ",
@@ -5734,11 +4996,8 @@ void gc_mark_compiler(sylt_t* ctx) {
 		obj_mark((obj_t*)cmp->func->src, ctx);
 		obj_mark((obj_t*)cmp->prev.lex, ctx);
 		obj_mark((obj_t*)cmp->cur.lex, ctx);
-		for (size_t i = 0;
-			i < cmp->nsyms; i++)
-			obj_mark(
-				(obj_t*)cmp->syms[i].name,
-				ctx);
+		for (size_t i = 0; i < cmp->nsyms; i++)
+			obj_mark((obj_t*)cmp->syms[i].name, ctx);
 		
 		cmp = cmp->child;
 	} while (cmp);
@@ -5749,8 +5008,7 @@ void gc_mark_compiler(sylt_t* ctx) {
  * from them */
 void gc_trace_refs(sylt_t* ctx) {
 	while (ctx->mem.gc.nmarked > 0) {
-		obj_t* obj = ctx->mem.gc.marked[
-			--ctx->mem.gc.nmarked];
+		obj_t* obj = ctx->mem.gc.marked[--ctx->mem.gc.nmarked];
 		obj_deep_mark(obj, ctx);
 	}
 }
@@ -5823,9 +5081,7 @@ void gc_free_all(sylt_t* ctx) {
 	}
 }
 
-string_t* load_file(
-	const char* path, sylt_t* ctx)
-{
+string_t* load_file(const char* path, sylt_t* ctx) {
 	if (!path) {
 		halt(ctx, E_OPEN_FAILED("NULL"));
 		unreachable();
@@ -5962,23 +5218,16 @@ void sylt_free(sylt_t* ctx) {
 	
 	/* ensure that no memory was leaked */
 	assert(ctx->mem.gc.pause_depth == 0);
-	ptrdiff_t bytesleft =
-		ctx->mem.bytes - sizeof(sylt_t);
+	ptrdiff_t bytesleft = ctx->mem.bytes - sizeof(sylt_t);
 	if (bytesleft)
-		sylt_dprintf("%ld bytes leaked\n",
-			bytesleft);
+		sylt_dprintf("%ld bytes leaked\n", bytesleft);
 	assert(!bytesleft);
 	
 	set_state(ctx, SYLT_STATE_FREE);
 	ptr_free(ctx, sylt_t, ctx);
 }
 
-void compile_and_run(
-	sylt_t* ctx,
-	string_t* src,
-	string_t* name,
-	comp_t* cmp)
-{
+void compile_and_run(sylt_t* ctx, string_t* src, string_t* name, comp_t* cmp) {
 	set_state(ctx, SYLT_STATE_COMPILING);
 	comp_load(cmp, src, name);
 	
@@ -5997,8 +5246,7 @@ void compile_and_run(
 	set_state(ctx, SYLT_STATE_COMPILED);
 	
 	/* load program */
-	sylt_pushclosure(ctx,
-		closure_new(ctx, cmp->func));
+	sylt_pushclosure(ctx, closure_new(ctx, cmp->func));
 	sylt_call(ctx, 0);
 	
 	/* run program */
@@ -6007,9 +5255,7 @@ void compile_and_run(
 
 /* executes a sylt program from a
  * string, returning true if successful */
-bool sylt_xstring(
-	sylt_t* ctx, const char* src)
-{
+bool sylt_xstring(sylt_t* ctx, const char* src) {
 	if (!ctx || !src)
 		return false;
 		
@@ -6018,10 +5264,7 @@ bool sylt_xstring(
 		return false;
 	}
 	
-	compile_and_run(ctx,
-		string_lit(src, ctx),
-		string_lit("<input>", ctx),
-	ctx->cmp);
+	compile_and_run(ctx, string_lit(src, ctx), string_lit("<input>", ctx), ctx->cmp);
 	return true;
 }
 
@@ -6038,11 +5281,7 @@ bool sylt_xfile(
 		return false;
 	}
 	
-	compile_and_run(ctx,
-		load_file(path, ctx),
-		string_lit(path, ctx),
-		ctx->cmp);
-	
+	compile_and_run(ctx, load_file(path, ctx), string_lit(path, ctx), ctx->cmp);
 	return true;
 }
 
@@ -6061,8 +5300,7 @@ void run_tests(sylt_t* ctx) {
 }
 
 void print_usage(void) {
-	sylt_printf(
-		"usage: sylt [path|flag(s)]\n");
+	sylt_printf("usage: sylt [path|flag(s)]\n");
 	sylt_printf("available flags:\n");
 	sylt_printf("-help  show this\n");
 	sylt_printf("-test  run tests\n");
@@ -6080,8 +5318,7 @@ int main(int argc, char *argv[]) {
 	
 	int path = -1;
 	for (int i = 1; i < argc; i++) {
-		string_t* arg = string_lit(
-			argv[i], ctx);
+		string_t* arg = string_lit(argv[i], ctx);
 		
 		if (arg->bytes[0] != '-') {
 			path = i;

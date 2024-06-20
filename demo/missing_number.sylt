@@ -7,7 +7,7 @@ printLn(numbers)
 
 let missing = nil
 
-rep(fun(index) -> {
+rep(fun index -> {
     let num = numbers[index]
     let next = numbers[index + 1]
 

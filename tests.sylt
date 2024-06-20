@@ -185,16 +185,16 @@ let equality() = {
 		235,	    	## Num
 		[123],	  	## List
 		"'_'",	  	## String
-		fun(x) -> x,	## Func
+		fun x -> x,	## Func
 	]
 	
-	List.iter(fun(skip, value) -> {
+	List.iter(fun skip, value -> {
 		## equal to itself
 		ensure(value = value)
 		
 		## not equal to a value of any other
 		## type
-		List.iter(fun(index, other) ->
+		List.iter(fun index, other ->
 			if (index != skip)
 				ensure(value != other),
 		values)
@@ -383,7 +383,7 @@ let functions() = {
 	ensure(f()() = "jewel")
 	
 	## anonymous functions using 'fun'
-	let anon = fun(r, s, t) -> r * s * t
+	let anon = fun r, s, t -> r * s * t
 	ensure(anon(2, 4, 8) = 64)
 	
 	## recursion
@@ -449,7 +449,7 @@ let preludeLib() = {
 	ensure(toNum("") = 0)
 	ensure(toNum("error") = 0)
 	ensure(toNum([1, 2, 4]) = 0)
-	ensure(toNum(fun(_) -> {}) = 0)
+	ensure(toNum(fun _ -> {}) = 0)
 	
 	## typeOf
 	ensure(typeOf(nil) = "Nil")
@@ -457,11 +457,11 @@ let preludeLib() = {
 	ensure(typeOf(1) = "Num")
 	ensure(typeOf([]) = "List")
 	ensure(typeOf("") = "String")
-	ensure(typeOf(fun() -> {}) = "Function")
+	ensure(typeOf(fun -> {}) = "Function")
 	
 	## rep
 	let nums = []
-	rep(fun(i) ->
+	rep(fun i ->
 		List.push(nums, (i + 1) * 3), 3)
 	ensure(nums = [3, 6, 9])
 }
@@ -561,7 +561,7 @@ let listLib() = {
 	## iter
 	let indices = [0, 1, 2]
 	let copy = []
-	List.iter(fun(index, value) -> {
+	List.iter(fun index, value -> {
 		ensure(index = indices[index])
 		List.push(copy, value)
 	}, indices)
@@ -570,12 +570,12 @@ let listLib() = {
 	## forEach
 	let items = [1, 2, 3]
 	let copy = []
-	List.forEach(fun(value) ->
+	List.forEach(fun value ->
 		List.push(copy, value), items)
 	ensure(items = copy)
 	
 	## map
-	let list = List.map(twice, [4, 8, 16])
+	let list = List.map(fun n -> n * 2, [4, 8, 16])
 	ensure(list = [8, 16, 32])
 	
 	## filter
@@ -611,19 +611,19 @@ let listLib() = {
 	
 	## any
 	let set = [true, true, false]
-	ensure(List.any(fun(v) -> v, set))
-	ensure(List.any(fun(v) -> !v, set))
+	ensure(List.any(fun v -> v, set))
+	ensure(List.any(fun v -> !v, set))
 	List.pop(set) ## = [true, true]
-	ensure(List.any(fun(v) -> v, set))
-	ensure(!List.any(fun(v) -> !v, set))
+	ensure(List.any(fun v -> v, set))
+	ensure(!List.any(fun v -> !v, set))
 	
 	## all
 	let set = [5, 7]
-	ensure(List.all(fun(n) -> n >= 5, set))
-	ensure(List.all(fun(n) -> !(n < 5), set))
+	ensure(List.all(fun n -> n >= 5, set))
+	ensure(List.all(fun n -> !(n < 5), set))
 	List.push(set, 3) ## = [5, 7, 3]
-	ensure(!List.all(fun(n) -> n >= 5, set))
-	ensure(!List.all(fun(n) -> !(n < 5), set))
+	ensure(!List.all(fun n -> n >= 5, set))
+	ensure(!List.all(fun n -> !(n < 5), set))
 }
 
 let dictLib() = {
@@ -775,15 +775,12 @@ let mathLib() = {
 		3, 14, 2000, 18000, 2000000,
 	]
 	
-	let testLog(base, target) = {
+	List.forEach(fun base -> {
 		let power = Math.log(target, base)
 		let result = Math.pow(base, power)
 		ensure(floatEq(
 			result, target, 0.0000001))
-	}
-	
-	List.forEach(fun(base) ->
-		testLog(base, target), bases)
+	}, bases)
 	
 	## sqrt
 	ensure(Math.sqrt(256) = 16)
@@ -920,7 +917,7 @@ let tests = List.flatten([
 ])
 
 ## let's go!
-List.forEach(fun(test) ->
+List.forEach(fun test ->
 	if (typeOf(test) = "String") {
 		print(test)
 		printLn(":")

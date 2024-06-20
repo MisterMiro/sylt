@@ -8,7 +8,7 @@ let chars = String.chars(String.alpha ++ String.digits)
 ## every time we run the program
 Math.seedRand(System.timestamp())
 
-rep(fun(_) -> {
+rep(fun _ -> {
 	let n = Math.rand(0, List.length(chars))
 	str <- str ++ chars[n]
 }, length)

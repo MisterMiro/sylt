@@ -5,7 +5,7 @@ let source_code = System.src().text
 ## split the code into a list of lines so we can display line numbers
 let lines = String.split(source_code, "\n")
 
-List.iter(fun(i, code) -> {
+List.iter(fun i, code -> {
 	print(String.rightPad(toString(i + 1), 5, " "))
 	print(" ")
 	printLn(code)

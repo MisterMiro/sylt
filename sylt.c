@@ -473,25 +473,20 @@ void* ptr_resize(
 
 /* useful macros for allocating pointers */
 #define ptr_alloc(p, t, ctx) \
-	((p) = ptr_resize(NULL, 0, sizeof(t), \
-		#p, __func__, __LINE__, ctx))
+	((p) = ptr_resize(NULL, 0, sizeof(t), #p, __func__, __LINE__, ctx))
+	
 #define ptr_free(p, t, ctx) \
-	ptr_resize(p, sizeof(t), 0, \
-		#p, __func__, __LINE__, ctx)
+	ptr_resize(p, sizeof(t), 0, #p, __func__, __LINE__, ctx)
 
 /* macros for handling dynamic arrays */
 #define arr_alloc(p, t, n, ctx) \
-	((p) = ptr_resize( \
-		NULL, 0, sizeof(t) * n, \
-		#p, __func__, __LINE__, ctx))
+	((p) = ptr_resize(NULL, 0, sizeof(t) * n, #p, __func__, __LINE__, ctx))
+
 #define arr_resize(p, t, os, ns, ctx) \
-	ptr_resize(p, \
-		sizeof(t) * (os), \
-		sizeof(t) * (ns), \
-		#p, __func__, __LINE__, ctx)
+	ptr_resize(p, sizeof(t) * (os), sizeof(t) * (ns), #p, __func__, __LINE__, ctx)
+
 #define arr_free(p, t, os, ctx) \
-	ptr_resize(p, sizeof(t) * (os), 0,\
-		#p, __func__, __LINE__, ctx)
+	ptr_resize(p, sizeof(t) * (os), 0, #p, __func__, __LINE__, ctx)
 
 /* == opcodes == */
 
@@ -821,30 +816,15 @@ typedef struct vm_s {
 
 /* macros for creating a value_t
  * struct from a raw value */
-#define nil() \
-	(value_t){TYPE_NIL, {.num = 0}}
-#define wrapbool(v) \
-	(value_t){TYPE_BOOL, {.num = (v)}}
-#define wrapnum(v) \
-	(value_t){TYPE_NUM, {.num = (v)}}
-#define wraplist(v) \
-	(value_t){TYPE_LIST, \
-		{.obj = (obj_t*)(v)}}
-#define wrapdict(v) \
-	(value_t){TYPE_DICT, \
-		{.obj = (obj_t*)(v)}}
-#define wrapstring(v) \
-	(value_t){TYPE_STRING, \
-		{.obj = (obj_t*)(v)}}
-#define wrapfunc(v) \
-	(value_t){TYPE_FUNCTION, \
-		{.obj = (obj_t*)(v)}}
-#define wrapclosure(v) \
-	(value_t){TYPE_CLOSURE, \
-		{.obj = (obj_t*)(v)}}
-#define wrapupvalue(v) \
-	(value_t){TYPE_UPVALUE, \
-		{.obj = (obj_t*)(v)}}
+#define nil() (value_t){TYPE_NIL, {.num = 0}}
+#define wrapbool(v) (value_t){TYPE_BOOL, {.num = (v)}}
+#define wrapnum(v) (value_t){TYPE_NUM, {.num = (v)}}
+#define wraplist(v) (value_t){TYPE_LIST, {.obj = (obj_t*)(v)}}
+#define wrapdict(v) (value_t){TYPE_DICT, {.obj = (obj_t*)(v)}}
+#define wrapstring(v) (value_t){TYPE_STRING, {.obj = (obj_t*)(v)}}
+#define wrapfunc(v) (value_t){TYPE_FUNCTION, {.obj = (obj_t*)(v)}}
+#define wrapclosure(v) (value_t){TYPE_CLOSURE, {.obj = (obj_t*)(v)}}
+#define wrapupvalue(v) (value_t){TYPE_UPVALUE, {.obj = (obj_t*)(v)}}
 
 /* macros for getting the raw value from
  * a value_t. the type must be
@@ -4744,7 +4724,6 @@ void let(comp_t* cmp) {
 
 /* parses an anonymous function */
 void fun(comp_t* cmp) {
-	eat(cmp, T_LPAREN, "expected '(' after 'fun' keyword");
 	parse_func(cmp, NULL);
 }
 
@@ -4769,9 +4748,7 @@ void parse_func(
 	comp_open_scope(cmp);
 		
 	/* parse parameter list */
-	while (!check(&fcmp, T_RPAREN)
-		&& !check(&fcmp, T_EOF))
-	{
+	while (!check(&fcmp, T_RPAREN) && !check(&fcmp, T_MINUS_GT) && !check(&fcmp, T_EOF)) {
 		if (fcmp.func->params >= MAX_PARAMS) {
 			halt(fcmp.ctx, E_TOO_MANY_PARAMS);
 			unreachable();
@@ -4784,13 +4761,13 @@ void parse_func(
 		if (!match(&fcmp, T_COMMA))
 			break;
 	}
-		
-	eat(&fcmp, T_RPAREN, "expected ')' or a parameter name");
 	
-	if (is_lambda)
+	if (is_lambda) {
 		eat(&fcmp, T_MINUS_GT, "expected '->' after ')'");
-	else
+	} else {
+		eat(&fcmp, T_RPAREN, "expected ')' or a parameter name");
 		eat(&fcmp, T_EQ, "expected '=' after ')'");
+	}
 			
 	/* function body */
 	expr(&fcmp, ANY_PREC);

@@ -1,11 +1,9 @@
-## demonstrates looping by a function calling itself
+## demonstrates looping by calling a function from inside itself
 
-let times = 3
-
-let loop(num) = {
-    if (num <= times) {
-        printLn(num)
-        loop(num + 1)
+let loop(n) = {
+    if (n <= 3) {
+        printLn(n)
+        loop(n + 1)
     }
 }
 

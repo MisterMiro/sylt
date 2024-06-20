@@ -12,5 +12,5 @@ printLn(y)
     let y = "evening"
 }
 
-printLn(x) ## "goodbye"
-printLn(y) ## still "morning"
+printLn(x) ## prints "goodbye"
+printLn(y) ## still prints "morning"

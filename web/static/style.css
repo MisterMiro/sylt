@@ -38,6 +38,14 @@ body {
     float: right;
 }
 
+textarea {
+    background: black;
+    color: white;
+    width: 1024px;
+    height: 256px;
+    font-family: 'Courier New', Courier, monospace;
+}
+
 .demos {
     float: right;
     padding: 8px;
@@ -45,12 +53,4 @@ body {
 
 .demos a {
     text-decoration: none;
-}
-
-textarea {
-    background: black;
-    color: white;
-    width: 1024px;
-    height: 256px;
-    font-family: 'Courier New', Courier, monospace;
 }

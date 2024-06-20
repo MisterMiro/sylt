@@ -26,24 +26,22 @@
             <br>
         {% endfor %}
     </div>
+        
+    <!-- code input -->
+    <form method="POST">
+        <textarea name="code" wrap="off" placeholder="printLn(&quot;Hello, World!&quot;)">{% if code: %}{{ code }}{% endif %}</textarea>
+        <br>
+        <input type="submit" value="Run code">
 
-    <div class="page">
-        <!-- code input -->
-        <form method="POST">
-            <textarea name="code" wrap="off" placeholder="printLn(&quot;Hello, World!&quot;)">{% if code: %}{{ code }}{% endif %}</textarea>
-            <br>
-            <input type="submit" value="Run code">
+        {% if disassemble: %}
+            <input type="checkbox" id="disassemble" name="disassemble" checked>
+        {% else %}
+            <input type="checkbox" id="disassemble" name="disassemble">
+        {% endif %}
+        <label for="disassemble">Show bytecode</label>
+    </form>
 
-            {% if disassemble: %}
-                <input type="checkbox" id="disassemble" name="disassemble" checked>
-            {% else %}
-                <input type="checkbox" id="disassemble" name="disassemble">
-            {% endif %}
-            <label for="disassemble">Show bytecode</label>
-        </form>
-
-        <!-- program output -->
-        <textarea readonly placeholder="Program output...">{{ output }}</textarea>
-    </div>
+    <!-- program output -->
+    <textarea readonly placeholder="Program output...">{{ output }}</textarea>
 </body>
 </html>

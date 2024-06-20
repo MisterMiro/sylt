@@ -75,8 +75,7 @@
 static void dbg_print_flags(void) {
 	#define pflag(flag) \
 		if (flag) \
-			sylt_dprintf( \
-				"note: %s is set\n", #flag)
+			sylt_dprintf("%s enabled\n", #flag)
 			
 	pflag(DBG_ASSERTIONS);
 	pflag(DBG_NO_GC);
@@ -108,8 +107,7 @@ static void dbg_print_flags(void) {
 
 #if DBG_ASSERTIONS
 #define dbgerr(msg) \
-	sylt_dprintf("%s in %s:%d", \
-		(msg), __FILE__, __LINE__); \
+	sylt_dprintf("%s in %s:%d", (msg), __FILE__, __LINE__); \
 	exit(EXIT_FAILURE);
 #define assert(cond) \
 	if (!(cond)) { \
@@ -213,13 +211,10 @@ typedef struct {
  * while allocating it */
 static jmp_buf err_jump;
 
-static void set_state(
-	sylt_t* ctx, sylt_state_t state)
-{
+static void set_state(sylt_t* ctx, sylt_state_t state) {
 	ctx->state = state;
 	#if DBG_PRINT_SYLT_STATE
-	sylt_dprintf("[%p: %s]\n",
-		ctx, SYLT_STATE_NAME[state]);
+	sylt_dprintf("[%p: %s]\n", ctx, SYLT_STATE_NAME[state]);
 	#endif
 }
 
@@ -227,11 +222,8 @@ static void set_state(
 
 sylt_t* sylt_new(void);
 void sylt_free(sylt_t* ctx);
-
-bool sylt_xstring(sylt_t* ctx,
-	const char* src);
-bool sylt_xfile(sylt_t* ctx,
-	const char* path);
+bool sylt_xstring(sylt_t* ctx, const char* src);
+bool sylt_xfile(sylt_t* ctx, const char* path);
 	
 /* == error messages == */
 
@@ -3197,6 +3189,30 @@ value_t stdstring_trim(sylt_t* ctx) {
 	return res;
 }
 
+value_t stdstring_find(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_STRING);
+	typecheck(ctx, arg(2), TYPE_NUM);
+
+	string_t* str = stringarg(0);
+	string_t* find = stringarg(1);
+	size_t start = (size_t)numarg(2);
+
+	for (size_t i = start; i < str->len; i++) {
+		bool found_match =
+			find->len <= str->len - i
+			&& strncmp(
+				(const char*)str->bytes + i,
+				(const char*)find->bytes,
+				find->len) == 0;
+		
+		if (found_match)
+			return wrapnum(i);
+	}
+
+	return nil();
+}
+
 value_t stdstring_replace(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_STRING);
@@ -3205,7 +3221,6 @@ value_t stdstring_replace(sylt_t* ctx) {
 	string_t* str = stringarg(0);
 	string_t* find = stringarg(1);
 	string_t* replace = stringarg(2);
-	
 	string_t* new_str = string_lit("", ctx);
 		
 	for (size_t i = 0; i < str->len;) {
@@ -3567,8 +3582,7 @@ void std_init(sylt_t* ctx) {
 	/* string */
 	std_setlib(ctx, "String");
 	std_add(ctx, "alpha", wrapstring(string_lit(
-		"abcdefghijklmnopqrstuvwxyz", 
-		ctx)));
+		"abcdefghijklmnopqrstuvwxyz",  ctx)));
 	std_add(ctx, "digits", wrapstring(string_lit(
 		"0123456789", ctx)));
 	std_addf(ctx, "length", stdstring_length, 1);
@@ -3586,6 +3600,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "trimStart", stdstring_trim_start, 1);
 	std_addf(ctx, "trimEnd", stdstring_trim_end, 1);
 	std_addf(ctx, "trim", stdstring_trim, 1);
+	std_addf(ctx, "find", stdstring_find, 3);
 	std_addf(ctx, "replace", stdstring_replace, 3);
 	std_addlib(ctx);
 	

@@ -2,7 +2,7 @@
 
 let length = 12
 let str = ""
-let chars = String.chars(String.alpha ++ String.digits)
+let chars = String.chars(String.alpha + String.digits)
 
 ## seed the RNG using the current time so we get different random values
 ## every time we run the program
@@ -10,7 +10,7 @@ Math.seedRand(System.timestamp())
 
 rep(fun _ -> {
 	let n = Math.rand(0, List.length(chars))
-	str <- str ++ chars[n]
+	str <- str + chars[n]
 }, length)
 
 printLn(str)

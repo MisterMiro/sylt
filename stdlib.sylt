@@ -101,7 +101,7 @@ let impl = {
 	let flatten(ls) = {
 		let flat = []
 		List.forEach(fun item ->
-			if (typeOf(item) = "List") flat <- flat ++ List.flatten(item)
+			if (typeOf(item) = "List") flat <- flat + List.flatten(item)
 			else List.push(flat, item), ls)
 		flat
 	}
@@ -142,15 +142,15 @@ let impl = {
 		let n = (w - String.length(str)) / String.length(ch)
 		
 		let text = ""
-		rep(fun _ -> text <- text ++ ch, n)
-		text ++ str
+		rep(fun _ -> text <- text + ch, n)
+		text + str
 	}
 
 	let rightPad(str, w, ch) = {
 		let n = (w - String.length(str)) / String.length(ch)
 		
 		let text = str
-		rep(fun _ -> text <- text ++ ch, n)
+		rep(fun _ -> text <- text + ch, n)
 		text
 	}
 
@@ -158,9 +158,9 @@ let impl = {
 		let n = (w - String.length(str)) / String.length(ch)
 		
 		let text = ""
-		rep(fun _ -> text <- text ++ ch, n / 2)
-		text <- text ++ str
-		rep(fun _ -> text <- text ++ ch, n / 2)
+		rep(fun _ -> text <- text + ch, n / 2)
+		text <- text + str
+		rep(fun _ -> text <- text + ch, n / 2)
 		text
 	}
 
@@ -183,15 +183,15 @@ let impl = {
 					## end of expression
 					let value = eval(expr)
 					let value = toString(value)
-					text <- text ++ value
+					text <- text + value
 							
 					i <- i + String.length(expr)
 					expr <- ""
 				}
 				
 			} else {
-				if (inExpr) expr <- expr ++ chars[i]
-				else text <- text ++ chars[i]
+				if (inExpr) expr <- expr + chars[i]
+				else text <- text + chars[i]
 				i <- incr(i)
 			}
 		}

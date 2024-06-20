@@ -6,7 +6,7 @@ rep(fun num -> {
     
     let output = ""
     if (num % 3 = 0) output <- "Fizz"
-    if (num % 5 = 0) output <- output ++ "Buzz"
+    if (num % 5 = 0) output <- output + "Buzz"
     if (output = "") output <- toString(num)
 
     printLn(output)

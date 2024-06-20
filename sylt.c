@@ -1447,8 +1447,7 @@ void sylt_concat(sylt_t* ctx) {
 }
 
 /* appends src to dst */
-void string_append(string_t** dst, const string_t* src, sylt_t* ctx)
-{
+void string_append(string_t** dst, const string_t* src, sylt_t* ctx) {
 	assert(dst && *dst && src);
 	
 	sylt_pushstring(ctx, *dst);
@@ -2337,11 +2336,17 @@ void vm_exec(vm_t* vm) {
 		}
 		/* == arithmetic == */
 		case OP_ADD: {
-			typecheck(vm->ctx, peek(0), TYPE_NUM);
-			typecheck(vm->ctx, peek(1), TYPE_NUM);
-			sylt_num_t b = getnum(pop());
-			sylt_num_t a = getnum(pop());
-			push(wrapnum(a + b));
+			if (peek(0).tag != TYPE_NUM || peek(1).tag != TYPE_NUM) {
+				sylt_concat(vm->ctx);
+				
+			} else {
+				typecheck(vm->ctx, peek(0), TYPE_NUM);
+				typecheck(vm->ctx, peek(1), TYPE_NUM);
+				sylt_num_t b = getnum(pop());
+				sylt_num_t a = getnum(pop());
+				push(wrapnum(a + b));
+			}
+			
 			break;
 		}
 		case OP_SUB: {

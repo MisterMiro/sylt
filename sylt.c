@@ -3423,7 +3423,9 @@ value_t stdmath_atanh(sylt_t* ctx) {
 	return wrapnum(num_func(atanhf, atanh)(numarg(0)));
 }
 
-value_t stdmath_rand(sylt_t* ctx) {
+/* == rand library == */
+
+value_t stdrand_range(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_NUM);
 	sylt_num_t min = numarg(0);
@@ -3433,7 +3435,7 @@ value_t stdmath_rand(sylt_t* ctx) {
     return wrapnum(min + r * (max - min));
 }
 
-value_t stdmath_seed_rand(sylt_t* ctx) {
+value_t stdrand_set_seed(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	srand(numarg(0));
 	return nil();
@@ -3558,10 +3560,12 @@ void std_init(sylt_t* ctx) {
 	
 	/* string */
 	std_setlib(ctx, "String");
-	std_add(ctx, "alpha", wrapstring(string_lit(
+	std_add(ctx, "letters", wrapstring(string_lit(
 		"abcdefghijklmnopqrstuvwxyz",  ctx)));
 	std_add(ctx, "digits", wrapstring(string_lit(
 		"0123456789", ctx)));
+	std_add(ctx, "punctuation", wrapstring(string_lit(
+		"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", ctx)));
 	std_addf(ctx, "length", stdstring_length, 1);
 	std_addf(ctx, "chars", stdstring_chars, 1);
 	std_addf(ctx, "join", stdstring_join, 1);
@@ -3611,8 +3615,12 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "asinh", stdmath_asinh, 1);
 	std_addf(ctx, "acosh", stdmath_acosh, 1);
 	std_addf(ctx, "atanh", stdmath_atanh, 1);
-	std_addf(ctx, "rand", stdmath_rand, 2);
-	std_addf(ctx, "seedRand", stdmath_seed_rand, 1);
+	std_addlib(ctx);
+
+	/* rand */
+	std_setlib(ctx, "Rand");
+	std_addf(ctx, "range", stdrand_range, 2);
+	std_addf(ctx, "setSeed", stdrand_set_seed, 1);
 	std_addlib(ctx);
 	
 	/* parts of the stdlib are implemented 

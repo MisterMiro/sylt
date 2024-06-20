@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request
 import subprocess
 import sys
-from os import listdir
+import os
 
 app = Flask(__name__)
 
@@ -16,7 +16,7 @@ def prettify_demo_name(file):
 # returns a list of all demos
 def get_demo_list():
     demos = []
-    for file in listdir(sylt_demos):
+    for file in os.listdir(sylt_demos):
         demos.append((sylt_demos + file, prettify_demo_name(file)))
 
     demos.append(("", ""))

@@ -1,4 +1,4 @@
-## prints the first 25 prime numbers
+## code for checking whether a number is prime
 
 let isPrime(n) = {
     let check(n, i) = {

@@ -530,8 +530,6 @@ typedef enum {
 	OP_EQ,
 	OP_NEQ,
 	OP_NOT,
-	/* special */
-	OP_CONCAT,
 	/* control flow */
 	OP_JMP,
 	OP_JMP_IF,
@@ -589,7 +587,6 @@ static opinfo_t OPINFO[] = {
 	[OP_EQ] = {"eq", 0, -1},
 	[OP_NEQ] = {"neq", 0, -1},
 	[OP_NOT] = {"not", 0, 0},
-	[OP_CONCAT] = {"concat", 0, -1},
 	[OP_JMP] = {"jmp", 2, 0},
 	[OP_JMP_IF] = {"jmpIf", 2, 0},
 	[OP_JMP_IF_NOT] = {"jmpIfNot", 2, 0},
@@ -2338,7 +2335,7 @@ void vm_exec(vm_t* vm) {
 		case OP_ADD: {
 			if (peek(0).tag != TYPE_NUM || peek(1).tag != TYPE_NUM) {
 				sylt_concat(vm->ctx);
-				
+
 			} else {
 				typecheck(vm->ctx, peek(0), TYPE_NUM);
 				typecheck(vm->ctx, peek(1), TYPE_NUM);
@@ -2450,11 +2447,6 @@ void vm_exec(vm_t* vm) {
 		case OP_NOT: {
 			typecheck(vm->ctx, peek(0), TYPE_BOOL);
 			push(wrapbool(!getbool(pop())));
-			break;
-		}
-		/* == special == */
-		case OP_CONCAT: {
-			sylt_concat(vm->ctx);
 			break;
 		}
 		/* == control flow == */
@@ -3648,7 +3640,6 @@ typedef enum {
 	T_STRING,
 	T_NUMBER,
 	T_PLUS,
-	T_PLUS_PLUS,
 	T_MINUS,
 	T_MINUS_GT,
 	T_STAR,
@@ -4159,9 +4150,7 @@ token_t scan(comp_t* cmp) {
 	}
 	
 	switch (*step()) {
-	case '+':
-		if (match('+')) return token(T_PLUS_PLUS);
-		return token(T_PLUS);
+	case '+': return token(T_PLUS);
 	case '-':
 		if (match('>')) return token(T_MINUS_GT);
 		return token(T_MINUS);
@@ -4300,7 +4289,6 @@ static parserule_t RULES[] = {
 	[T_STRING] = {string, NULL, PREC_NONE},
 	[T_NUMBER] = {number, NULL, PREC_NONE},
 	[T_PLUS] = {NULL, binary, PREC_TERM},
-	[T_PLUS_PLUS] = {NULL, binary, PREC_TERM},
 	[T_MINUS] = {unary, binary, PREC_TERM},
 	[T_MINUS_GT] = {NULL, NULL, PREC_NONE},
 	[T_STAR] = {NULL, binary, PREC_FACTOR},
@@ -4568,8 +4556,6 @@ void binary(comp_t* cmp) {
 	/* equality */
 	case T_EQ: opcode = OP_EQ; break;
 	case T_BANG_EQ: opcode = OP_NEQ; break;
-	/* special */
-	case T_PLUS_PLUS: opcode = OP_CONCAT; break;
 	/* control flow */
 	case T_AND: {
 		/* if the left-hand side expression

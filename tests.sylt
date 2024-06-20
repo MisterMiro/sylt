@@ -242,10 +242,7 @@ let boolOr() = {
 }
 
 let concat() = {
-	## String
 	ensure("Hello " + "Word" = "Hello Word")
-	
-	## List
 	ensure([1, 2] + [3, 4] = [1, 2, 3, 4])
 }
 

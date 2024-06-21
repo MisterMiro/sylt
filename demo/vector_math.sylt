@@ -1,29 +1,31 @@
 ## simple 3-dimensional vector library
 
-let makeVec3(x, y, z) = [|
-    "x": x,
-    "y": y,
-    "z": z,
+let makeVec3(x y z) = [|
+    "x": x
+    "y": y
+    "z": z
 |]
 
-let vec3Dot(a, b) = a.x * b.x + a.y * b.y + a.z * b.z
+let vec3Dot(a b) = a.x * b.x + a.y * b.y + a.z * b.z
 
-let vec3Cross(a, b) = makeVec3(
-    a.y * b.z - a.z * b.y,
-    a.z * b.x - a.x * b.z,
+let vec3Cross(a b) = makeVec3(
+    a.y * b.z - a.z * b.y
+    a.z * b.x - a.x * b.z
     a.x * b.y - a.y * b.x)
 
-let vec3Length(v) = Math.sqrt(vec3Dot(v, v))
+let vec3Length(v) = Math.sqrt(vec3Dot(v v))
 
 let vec3Norm(v) = {
     let length = vec3Length(v)
-    makeVec3(v.x / length, v.y / length, v.z / length),
+    makeVec3(v.x / length
+        v.y / length
+        v.z / length)
 }
 
-let vec3Add(a, b) = makeVec3(a.x + b.x, a.y + b.y, a.z + b.z)
-let vec3Sub(v, other) = makeVec3(a.x - b.x, a.y - b.y, a.z - b.z)
-let vec3Scale(v, s) = makeVec3(v.x * s, v.y * s, v.z * s)
+let vec3Add(a b) = makeVec3((a.x + b.x) (a.y + b.y) (a.z + b.z))
+let vec3Sub(v other) = makeVec3((a.x - b.x) (a.y - b.y) (a.z - b.z))
+let vec3Scale(v s) = makeVec3((v.x * s) (v.y * s) (v.z * s))
 
-let pos = makeVec3(-10, 3, 5)
+let pos = makeVec3(-10 3 5)
 pos = vec3Norm(pos)
 printLn(pos)

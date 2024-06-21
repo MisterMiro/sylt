@@ -20,7 +20,7 @@ def get_demo_list():
         demos.append((sylt_demos + file, prettify_demo_name(file)))
 
     demos.append(("", ""))
-    demos.append(("stdlib.sylt", "Standard library"))
+    demos.append(("src/stdlib.sylt", "Standard library"))
     demos.append(("tests.sylt", "Tests"))
     return demos
 
@@ -77,7 +77,7 @@ def docs():
                 html += "<h2>" + line[6:] + "</h2>\n"
             
             if line.startswith("name: "):
-                html += "<div class=\"doc-function\"><p>" + line[6:] + "</p></div>\n"
+                html += "<hr><div class=\"doc-function\"><p>" + line[6:] + "</p></div>\n"
 
             if line.startswith("args: "):
                 html += "<div class=\"doc-function\"><b>" + line[6:] + "</b></div>\n"

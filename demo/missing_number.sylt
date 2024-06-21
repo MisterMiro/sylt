@@ -1,7 +1,7 @@
 ## finds the gap in a series of (almost) consecutive numbers
 
-let numbers = List.range(1, 5)
-List.del(numbers, 3)
+let numbers = List.range(1 5)
+List.del(numbers 3)
 printLn(numbers)
 
 let missing = nil
@@ -12,6 +12,6 @@ rep(fun index -> {
 
     if (next > num + 1)
         missing <- num + 1
-}, List.length(numbers) - 1)
+} List.length(numbers) - 1)
 
 printLn(missing)

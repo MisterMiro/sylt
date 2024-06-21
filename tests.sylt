@@ -180,25 +180,25 @@ let comparison() = {
 let equality() = {
 	## contains a value of each type
 	let values = [
-		nil,        ## Nil
-		true,       ## Bool
-		235,	    ## Num
-		[123],	  	## List
-		"'_'",	  	## String
-		fun x -> x,	## Func
+		nil        ## Nil
+		true       ## Bool
+		235	    ## Num
+		[123]	  	## List
+		"'_'"	  	## String
+		fun x -> x	## Func
 	]
 	
-	List.iter(fun skip, value -> {
+	List.iter(fun skip value -> {
 		## equal to itself
 		ensure(value = value)
 		
 		## not equal to a value of any other
 		## type
-		List.iter(fun index, other ->
+		List.iter(fun index other ->
 			if (index != skip)
-				ensure(value != other),
+				ensure(value != other)
 		values)
-	}, values)
+	} values)
 	
 	## perform more type-specific tests
 	ensure(true != false)
@@ -243,7 +243,7 @@ let boolOr() = {
 
 let concat() = {
 	ensure("Hello " + "Word" = "Hello Word")
-	ensure([1, 2] + [3, 4] = [1, 2, 3, 4])
+	ensure([1 2] + [3 4] = [1 2 3 4])
 }
 
 let variables() = {
@@ -324,7 +324,7 @@ let blocks() = {
 }
 
 let lists() = {
-	let list = [1, 2, 3]
+	let list = [1 2 3]
 	
 	## indexing
 	ensure(list[0] = 1 and list[1] = 2 and list[2] = 3)
@@ -336,11 +336,11 @@ let lists() = {
 	## assignment
 	list[0] <- list[-1]
 	list[1] <- list[-1]
-	ensure(list = [3, 3, 3])
+	ensure(list = [3 3 3])
 }
 
 let dicts() = {
-	let dict = [|"a": 1, "b": 2, "c": 3|]
+	let dict = [|"a": 1 "b": 2 "c": 3|]
 	
 	## dot access
 	ensure(dict["a"] = dict.a)
@@ -352,15 +352,15 @@ let functions() = {
 	ensure(empty() = nil)
 	
 	## argument passing
-	let add(a, b) = a + b
-	ensure(add(3, 4) = 7)
+	let add(a b) = a + b
+	ensure(add(3 4) = 7)
 	
 	## arguments + local variables
-	let add(a, b) = {
+	let add(a b) = {
 		let stack_mate = 18
 		a + b
 	}
-	ensure(add(3, 4) = 7)
+	ensure(add(3 4) = 7)
 	
 	## accessing variable outside of
 	## a functions stack window
@@ -378,8 +378,8 @@ let functions() = {
 	ensure(f()() = "jewel")
 	
 	## anonymous functions using 'fun'
-	let anon = fun r, s, t -> r * s * t
-	ensure(anon(2, 4, 8) = 64)
+	let anon = fun r s t -> r * s * t
+	ensure(anon(2 4 8) = 64)
 	
 	## recursion
 	let clear(ls) =
@@ -388,7 +388,7 @@ let functions() = {
 			clear(ls)
 		}
 		
-	let nums = [1, 2, 3]
+	let nums = [1 2 3]
 	clear(nums)
 	ensure(nums = [])
 }
@@ -418,11 +418,11 @@ let whileLoop() = {
 	let list = []
 	let n = 1
 	let res = while (n <= 3) {
-		List.push(list, n)
+		List.push(list n)
 		n <- n + 1
 	}
 	ensure(res = nil)
-	ensure(list = [1, 2, 3])
+	ensure(list = [1 2 3])
 }
 
 let preludeLib() = {
@@ -430,7 +430,7 @@ let preludeLib() = {
 	ensure(toString(nil) = "nil")
 	ensure(toString(true) = "true" and toString(false) = "false")
 	ensure(toString(707) = "707")
-	ensure(toString(["bananas", 18, true]) = "[\"bananas\", 18, true]")
+	ensure(toString(["bananas" 18 true]) = "[\"bananas\" 18 true]")
 	ensure(toString(printLn) = "printLn")
 	
 	## toNum
@@ -441,7 +441,7 @@ let preludeLib() = {
 	ensure(toNum("1337.25") = 1337.25)
 	ensure(toNum("") = 0)
 	ensure(toNum("error") = 0)
-	ensure(toNum([1, 2, 4]) = 0)
+	ensure(toNum([1 2 4]) = 0)
 	ensure(toNum(fun _ -> {}) = 0)
 	
 	## typeOf
@@ -454,8 +454,8 @@ let preludeLib() = {
 	
 	## rep
 	let nums = []
-	rep(fun i -> List.push(nums, (i + 1) * 3), 3)
-	ensure(nums = [3, 6, 9])
+	rep(fun i -> List.push(nums (i + 1) * 3) 3)
+	ensure(nums = [3 6 9])
 }
 
 let fileLib() = {
@@ -463,19 +463,19 @@ let fileLib() = {
 	let str = "Hey\n"
 	
 	## open + write + close
-	let handle = File.open(path, "w")
-	File.write(handle, str)
+	let handle = File.open(path "w")
+	File.write(handle str)
 	File.close(handle)
 	
 	## size
-	let handle = File.open(path, "r")
+	let handle = File.open(path "r")
 	let size = File.size(handle)
 	ensure(size = String.length(str))
 	File.close(handle)
 	
 	## read
-	let handle = File.open(path, "r")
-	let contents = File.read(handle, size)
+	let handle = File.open(path "r")
+	let contents = File.read(handle size)
 	ensure(contents = str)
 	File.close(handle)
 	
@@ -487,38 +487,38 @@ let listLib() = {
 	## length
 	ensure(List.length([]) = 0)
 	ensure(List.length([1]) = 1)
-	ensure(List.length([1, 2]) = 2)
+	ensure(List.length([1 2]) = 2)
 	
 	## add
-	let x = [1, 3, 4]
-	List.add(x, 1, 2)
-	ensure(x = [1, 2, 3, 4])
+	let x = [1 3 4]
+	List.add(x 1 2)
+	ensure(x = [1 2 3 4])
 	
-	List.add(x, -1, 5)
-	ensure(x = [1, 2, 3, 4, 5])
+	List.add(x -1 5)
+	ensure(x = [1 2 3 4 5])
 	
-	let x = [1, 2, 3]
-	List.add(x, 0, 1)
-	ensure(x = [1, 1, 2, 3])
+	let x = [1 2 3]
+	List.add(x 0 1)
+	ensure(x = [1 1 2 3])
 	
 	## del
-	let x = [1, 2, 3]
-	List.del(x, 1)
-	ensure(x = [1, 3])
+	let x = [1 2 3]
+	List.del(x 1)
+	ensure(x = [1 3])
 	
-	List.del(x, 0)
+	List.del(x 0)
 	ensure(x = [3])
 	
-	List.del(x, 0)
+	List.del(x 0)
 	ensure(x = [])
 	
 	## push + pop
 	let x = []
 	
-	List.push(x, 3) ## = [3]
+	List.push(x 3) ## = [3]
 	ensure(x = [3] and List.length(x) = 1)
-	List.push(x, 7) ## = [3, 7]
-	ensure(x = [3, 7] and List.length(x) = 2)
+	List.push(x 7) ## = [3 7]
+	ensure(x = [3 7] and List.length(x) = 2)
 	
 	List.pop(x) ## = [3]
 	ensure(x = [3] and List.length(x) = 1)
@@ -526,112 +526,112 @@ let listLib() = {
 	ensure(x = [] and List.length(x) = 0)
 	
 	## first + last
-	let list = ["first", "middle", "last"]
+	let list = ["first" "middle" "last"]
 	ensure(List.first(list) = "first")
 	ensure(List.last(list) = "last")
 	
 	## count
-	let bits = [1, 0, 0, 1, 0, 1, 1, 1]
-	ensure(List.count(bits, 1) = 5)
+	let bits = [1 0 0 1 0 1 1 1]
+	ensure(List.count(bits 1) = 5)
 	
 	## contains
-	let list = ["a", "B", "c"]
-	ensure(List.contains(list, "B"))
-	ensure(!List.contains(list, "b"))
+	let list = ["a" "B" "c"]
+	ensure(List.contains(list "B"))
+	ensure(!List.contains(list "b"))
 	
 	## rev
-	let normal = [1, 2, 3]
-	ensure(List.rev(normal) = [3, 2, 1])
+	let normal = [1 2 3]
+	ensure(List.rev(normal) = [3 2 1])
 	ensure(List.rev([]) = [])
 	ensure(List.rev([1]) = [1])
 	
 	## range
-	let a = List.range(-3, 3)
-	let b = [-3, -2, -1, 0, 1, 2, 3]
+	let a = List.range(-3 3)
+	let b = [-3 -2 -1 0 1 2 3]
 	ensure(a = b)
 	
 	## iter
-	let indices = [0, 1, 2]
+	let indices = [0 1 2]
 	let copy = []
-	List.iter(fun index, value -> {
+	List.iter(fun index value -> {
 		ensure(index = indices[index])
-		List.push(copy, value)
-	}, indices)
+		List.push(copy value)
+	} indices)
 	ensure(indices = copy)
 	
 	## forEach
-	let items = [1, 2, 3]
+	let items = [1 2 3]
 	let copy = []
-	List.forEach(fun value -> List.push(copy, value), items)
+	List.forEach(fun value -> List.push(copy value) items)
 	ensure(items = copy)
 	
 	## map
-	let list = List.map(fun n -> n * 2, [4, 8, 16])
-	ensure(list = [8, 16, 32])
+	let list = List.map(fun n -> n * 2 [4 8 16])
+	ensure(list = [8 16 32])
 	
 	## filter
-	let list = [1, 0, 0, 1, 1, 0]
-	list <- List.filter(isOne, list)
-	ensure(list = [1, 1, 1])
+	let list = [1 0 0 1 1 0]
+	list <- List.filter(isOne list)
+	ensure(list = [1 1 1])
 	
 	## fold
-	let list = [2, 4, 6]
-	ensure(List.fold(mul, 1, list) = 48)
+	let list = [2 4 6]
+	ensure(List.fold(mul 1 list) = 48)
 	
 	## sum
-	let list = [1, 2, 3]
+	let list = [1 2 3]
 	ensure(List.sum(list) = 6)
 	
 	## average
-	let list = [1, 2, 3]
+	let list = [1 2 3]
 	ensure(List.average(list) = 2)
 	ensure(List.average([]) = 0)
 	
 	## mean
-	let vals = [0, 5, 10, 0]
+	let vals = [0 5 10 0]
 	ensure(List.mean(vals) = 7.5)
 	
 	## flatten
-	let mess = [1, [2, [3, 4]], 5]
+	let mess = [1 [2 [3 4]] 5]
 	let clean = List.flatten(mess)
-	ensure(clean = [1, 2, 3, 4, 5])
+	ensure(clean = [1 2 3 4 5])
 	
 	## dedup
-	let list = [7, 7, 8, 9, 9]
-	ensure(List.dedup(list) = [7, 8, 9])
+	let list = [7 7 8 9 9]
+	ensure(List.dedup(list) = [7 8 9])
 	
 	## any
-	let set = [true, true, false]
-	ensure(List.any(fun v -> v, set))
-	ensure(List.any(fun v -> !v, set))
-	List.pop(set) ## = [true, true]
-	ensure(List.any(fun v -> v, set))
-	ensure(!List.any(fun v -> !v, set))
+	let set = [true true false]
+	ensure(List.any(fun v -> v set))
+	ensure(List.any(fun v -> !v set))
+	List.pop(set) ## = [true true]
+	ensure(List.any(fun v -> v set))
+	ensure(!List.any(fun v -> !v set))
 	
 	## all
-	let set = [5, 7]
-	ensure(List.all(fun n -> n >= 5, set))
-	ensure(List.all(fun n -> !(n < 5), set))
-	List.push(set, 3) ## = [5, 7, 3]
-	ensure(!List.all(fun n -> n >= 5, set))
-	ensure(!List.all(fun n -> !(n < 5), set))
+	let set = [5 7]
+	ensure(List.all(fun n -> n >= 5 set))
+	ensure(List.all(fun n -> !(n < 5) set))
+	List.push(set 3) ## = [5 7 3]
+	ensure(!List.all(fun n -> n >= 5 set))
+	ensure(!List.all(fun n -> !(n < 5) set))
 }
 
 let dictLib() = {
 	let dict = [|
-		"door": "window",
-		"car": "helicopter",
-		"box": "pyramid",
+		"door": "window"
+		"car": "helicopter"
+		"box": "pyramid"
 	|]
 	
 	## length
 	ensure(Dict.length(dict) = 3)
 	
 	## keys
-	ensure(Dict.keys(dict) = ["door", "car", "box"])
+	ensure(Dict.keys(dict) = ["door" "car" "box"])
 		
 	## values
-	ensure(Dict.values(dict) = ["window", "helicopter", "pyramid"])
+	ensure(Dict.values(dict) = ["window" "helicopter" "pyramid"])
 }
 
 let stringLib() = {
@@ -644,21 +644,21 @@ let stringLib() = {
 	ensure(String.digits = str)
 
 	## punctuation
-	let str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+	let str = "!\"#$%&'()*+-./:;<=>?@[\\]^_`{|}~"
 	ensure(String.punctuation = str)
 	
 	## length
 	ensure(String.length(String.digits) = 10)
 
 	## chars + join
-	ensure(String.chars("Abc") = ["A", "b", "c"])
-	ensure(String.join(["A", "b", "c"]) = "Abc")
-	ensure(String.join([1, "2", 34, "5"]) = "12345")
+	ensure(String.chars("Abc") = ["A" "b" "c"])
+	ensure(String.join(["A" "b" "c"]) = "Abc")
+	ensure(String.join([1 "2" 34 "5"]) = "12345")
 		
 	## split
-	ensure(String.split("lol", "") = ["lol"])
-	ensure(String.split("lol", " ") = ["lol"])
-	ensure(String.split("abc,rst,xyz", ",") = ["abc", "rst", "xyz"])
+	ensure(String.split("lol" "") = ["lol"])
+	ensure(String.split("lol" " ") = ["lol"])
+	ensure(String.split("abcrstxyz" "") = ["abc" "rst" "xyz"])
 		
 	## lower + upper + swapCase
 	let str = "MiXeD!"
@@ -672,12 +672,12 @@ let stringLib() = {
 	ensure(String.isWhitespace(" \t\n\r"))
 	
 	## startsWith
-	ensure(String.startsWith(String.letters, "abc"))
-	ensure(!String.startsWith(String.letters, "xyz"))
+	ensure(String.startsWith(String.letters "abc"))
+	ensure(!String.startsWith(String.letters "xyz"))
 		
 	## endsWith
-	ensure(String.endsWith(String.letters, "xyz"))
-	ensure(!String.endsWith(String.letters, "abc"))
+	ensure(String.endsWith(String.letters "xyz"))
+	ensure(!String.endsWith(String.letters "abc"))
 		
 	## trimStart
 	ensure(String.trimStart("\t\n hi") = "hi")
@@ -693,26 +693,26 @@ let stringLib() = {
 	
 	## replace
 	let str = "Country: SE"
-	str <- String.replace(str, "SE", "Sweden")
+	str <- String.replace(str "SE" "Sweden")
 	ensure(str = "Country: Sweden")
 	
-	str <- String.replace(str, "Sweden", "SE")
+	str <- String.replace(str "Sweden" "SE")
 	ensure(str = "Country: SE")
 	
 	str <- "leet"
-	str <- String.replace(str, "l", "1")
-	str <- String.replace(str, "e", "3")
-	str <- String.replace(str, "t", "7")
+	str <- String.replace(str "l" "1")
+	str <- String.replace(str "e" "3")
+	str <- String.replace(str "t" "7")
 	ensure(str = "1337")
 	
 	## leftPad
-	ensure(String.leftPad("test", 10, "-=") = "-=-=-=test")
+	ensure(String.leftPad("test" 10 "-=") = "-=-=-=test")
 
 	## rightPad
-	ensure(String.rightPad("test", 10, "*") = "test******")
+	ensure(String.rightPad("test" 10 "*") = "test******")
 	
 	## centerPad
-	ensure(String.centerPad("test", 10, "|") = "|||test|||")
+	ensure(String.centerPad("test" 10 "|") = "|||test|||")
 		
 	## fmt
 	ensure(String.fmt("x=%1 + 2%") = "x=3")
@@ -720,18 +720,18 @@ let stringLib() = {
 
 let mathLib() = {
 	## pi
-	ensure(floatEq(Math.pi, 3.141592, 0.00001))
+	ensure(floatEq(Math.pi 3.141592 0.00001))
 	
 	## euler's number
-	ensure(floatEq(Math.e, 2.718281, 0.00001))
+	ensure(floatEq(Math.e 2.718281 0.00001))
 	
 	## floatEq
 	let val = 0.005
 	let epsilon = 0.01
 	
-	ensure(floatEq(0, val, epsilon))
-	ensure(floatEq(0, epsilon - 0.0000001, epsilon))
-	ensure(!floatEq(0, epsilon, epsilon))
+	ensure(floatEq(0 val epsilon))
+	ensure(floatEq(0 epsilon - 0.0000001 epsilon))
+	ensure(!floatEq(0 epsilon epsilon))
 	
 	## numSign
 	ensure(Math.numSign(-80) = -1)
@@ -745,41 +745,41 @@ let mathLib() = {
 	let target = 8
 	let bases = [
 		## common
-		2, Math.e, 10,
+		2 Math.e 10
 		## uncommon
-		3, 14, 2000, 18000, 2000000,
+		3 14 2000 18000 2000000
 	]
 	
 	List.forEach(fun base -> {
-		let power = Math.log(target, base)
-		let result = Math.pow(base, power)
-		ensure(floatEq(result, target, 0.0000001))
-	}, bases)
+		let power = Math.log(target base)
+		let result = Math.pow(base power)
+		ensure(floatEq(result target 0.0000001))
+	} bases)
 	
 	## sqrt
 	ensure(Math.sqrt(256) = 16)
-	ensure(Math.pow(32, 0.5) = Math.sqrt(32))
+	ensure(Math.pow(32 0.5) = Math.sqrt(32))
 	
 	## min + max
-	ensure(Math.min(-1, 1) = -1)
-	ensure(Math.max(-1, 1) = 1)
+	ensure(Math.min(-1 1) = -1)
+	ensure(Math.max(-1 1) = 1)
 	
 	## clamp
 	let x = 2
-	ensure(Math.clamp(x, -5, 5) = x)
+	ensure(Math.clamp(x -5 5) = x)
 	
 	let x = 20
-	ensure(Math.clamp(x, 1, 4) = 4)
+	ensure(Math.clamp(x 1 4) = 4)
 	
 	let x = -12
-	ensure(Math.clamp(x, -8, 3) = -8)
+	ensure(Math.clamp(x -8 3) = -8)
 	
 	## lerp
-	ensure(Math.lerp(-10, 10, 0) = -10)
-	ensure(Math.lerp(-10, 10, 0.25) = -5)
-	ensure(Math.lerp(-10, 10, 0.5) = 0)
-	ensure(Math.lerp(-10, 10, 0.75) = 5)
-	ensure(Math.lerp(-10, 10, 1) = 10)
+	ensure(Math.lerp(-10 10 0) = -10)
+	ensure(Math.lerp(-10 10 0.25) = -5)
+	ensure(Math.lerp(-10 10 0.5) = 0)
+	ensure(Math.lerp(-10 10 0.75) = 5)
+	ensure(Math.lerp(-10 10 1) = 10)
 	
 	## floor + ceil + round
 	let checkRounding(n) = {
@@ -800,78 +800,78 @@ let mathLib() = {
 		)
 	}
 	
-	List.forEach(checkRounding, [-1, 0, 1])
+	List.forEach(checkRounding [-1 0 1])
 	
 	## rad + deg
-	ensure(floatEq(Math.rad(1), 0.0175, 0.001))
-	ensure(floatEq(Math.deg(1), 57.296, 0.001))
+	ensure(floatEq(Math.rad(1) 0.0175 0.001))
+	ensure(floatEq(Math.deg(1) 57.296 0.001))
 	
 	## sin + cos + tan
-	ensure(floatEq(Math.sin(90), 0.8939, 0.001))
-	ensure(floatEq(Math.cos(90), -0.4480, 0.001))
-	ensure(floatEq(Math.tan(90), -1.9952, 0.001))
+	ensure(floatEq(Math.sin(90) 0.8939 0.001))
+	ensure(floatEq(Math.cos(90) -0.4480 0.001))
+	ensure(floatEq(Math.tan(90) -1.9952 0.001))
 			
 	## asin + acos + atan
-	ensure(floatEq(Math.asin(1), 1.5708, 0.001))
-	ensure(floatEq(Math.acos(1), 0, 0.001))
-	ensure(floatEq(Math.atan(1), 0.785398, 0.001))
+	ensure(floatEq(Math.asin(1) 1.5708 0.001))
+	ensure(floatEq(Math.acos(1) 0 0.001))
+	ensure(floatEq(Math.atan(1) 0.785398 0.001))
 		
 	## sinh + cosh + tanh
-	ensure(floatEq(Math.sinh(1), 1.1752, 0.001))
-	ensure(floatEq(Math.cosh(1), 1.5430, 0.001))
-	ensure(floatEq(Math.tanh(1), 0.7615, 0.001))
+	ensure(floatEq(Math.sinh(1) 1.1752 0.001))
+	ensure(floatEq(Math.cosh(1) 1.5430 0.001))
+	ensure(floatEq(Math.tanh(1) 0.7615 0.001))
 	
 	## asinh + acosh + atanh
-	ensure(floatEq(Math.asinh(0.8), 0.7326, 0.001))
-	ensure(floatEq(Math.acosh(1.2), 0.6223, 0.001))
-	ensure(floatEq(Math.atanh(0.8), 1.0986, 0.001))
+	ensure(floatEq(Math.asinh(0.8) 0.7326 0.001))
+	ensure(floatEq(Math.acosh(1.2) 0.6223 0.001))
+	ensure(floatEq(Math.atanh(0.8) 1.0986 0.001))
 }
 
 ## tests to run
 
 let tests = List.flatten([
-	"Parsing",	## category name
+	"Parsing"	## category name
 	[			## functions to test
-		names,
-		strings,
-		numbers,
-		precedence,
-	],
-	"Operators",
+		names
+		strings
+		numbers
+		precedence
+	]
+	"Operators"
 	[
-		addition,
-		subtraction,
-		multiplication,
-		division,
-		remainder,
-		unaryMinus,
-		arithmetic,
-		comparison,
-		equality,
-		boolNot,
-		boolAnd,
-		boolOr,
-		concat,
-	],
-	"General",
+		addition
+		subtraction
+		multiplication
+		division
+		remainder
+		unaryMinus
+		arithmetic
+		comparison
+		equality
+		boolNot
+		boolAnd
+		boolOr
+		concat
+	]
+	"General"
 	[
-		variables,
-		blocks,
-		lists,
-		dicts,
-		functions,
-		ifElse,
-		whileLoop,
-	],
-	"Standard library",
+		variables
+		blocks
+		lists
+		dicts
+		functions
+		ifElse
+		whileLoop
+	]
+	"Standard library"
 	[
-		preludeLib,
-		fileLib,
-		listLib,
-		dictLib,
-		stringLib,
-		mathLib,
-	],
+		preludeLib
+		fileLib
+		listLib
+		dictLib
+		stringLib
+		mathLib
+	]
 ])
 
 ## let's go!
@@ -882,10 +882,10 @@ List.forEach(fun test ->
 		
 	} else {
 		print("  ")
-		print(String.rightPad(toString(test), 20, "."))
+		print(String.rightPad(toString(test) 20 "."))
 		
 		test()
 		printLn("OK")
-	}, tests)
+	} tests)
 
 printLn("All tests passed!")

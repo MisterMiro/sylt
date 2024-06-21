@@ -37,7 +37,7 @@
 
 /* path to standard library relative to
  * executable */
-#define SYLT_STDLIB_PATH "stdlib.sylt"
+#define SYLT_STDLIB_PATH "src/stdlib.sylt"
 
 /* number of bytes that need to be allocated
  * before triggering the first GC cycle
@@ -1682,7 +1682,7 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 			sylt_concat(ctx);
 			
 			if (i < ls->len - 1) {
-				sylt_pushstring(ctx, string_lit(", ", ctx));
+				sylt_pushstring(ctx, string_lit(" ", ctx));
 				sylt_concat(ctx);
 			}
 		}
@@ -1717,7 +1717,7 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 			sylt_concat(ctx);
 			
 			if (n < dc->len - 1) {
-				sylt_pushstring(ctx, string_lit(", ", ctx));
+				sylt_pushstring(ctx, string_lit(" ", ctx));
 				sylt_concat(ctx);
 			}
 			
@@ -4417,9 +4417,6 @@ void list(comp_t* cmp) {
 	while (!check(cmp, T_RSQUARE) && !check(cmp, T_EOF)) {
 		expr(cmp, PREC_OR);
 		len++;
-		
-		if (!match(cmp, T_COMMA))
-			break;
 	}
 	
 	eat(cmp, T_RSQUARE, "unterminated list, expected ']'");
@@ -4433,11 +4430,7 @@ void dict(comp_t* cmp) {
 		expr(cmp, PREC_OR); /* key */
 		eat(cmp, T_COLON, "expected ':' after item key");
 		expr(cmp, PREC_OR); /* value */
-		
 		len++;
-		
-		if (!match(cmp, T_COMMA))
-			break;
 	}
 	
 	eat(cmp, T_PIPE_RSQUARE, "unterminated dict, expected '|]'");
@@ -4616,9 +4609,6 @@ void call(comp_t* cmp) {
 			
 		expr(cmp, ANY_PREC);
 		argc++;
-			
-		if (!match(cmp, T_COMMA))
-			break;
 	}
 	
 	eat(cmp, T_RPAREN, "expected ')'");
@@ -4770,9 +4760,6 @@ void parse_func(
 		eat(&fcmp, T_NAME, "expected parameter name");
 		add_symbol(&fcmp, fcmp.prev.lex);
 		fcmp.func->params++;
-			
-		if (!match(&fcmp, T_COMMA))
-			break;
 	}
 	
 	if (is_lambda) {

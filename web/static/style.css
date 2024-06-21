@@ -1,6 +1,6 @@
 body {
     margin: 0px;
-    padding: 0px; 
+    padding: 0px;
     outline: none;
     border: 0px;
     font-family: Verdana, sans-serif;
@@ -28,6 +28,17 @@ body {
     margin-right: 20px;
     display: inline-block;
     font-family: 'Courier New', Courier, monospace;
+}
+
+.header-link {
+    background: linear-gradient(rgb(37, 12, 147), rgb(38, 19, 125));
+    font-size: 30px;
+    width: 200px;
+    padding: 4px;
+}
+
+.header-link a {
+    font-size: 32px;
 }
 
 .header-icon {
@@ -65,8 +76,8 @@ textarea {
 }
 
 .doc-comment p {
-    background-color: rgb(239, 239, 239);
-    color: rgb(63, 151, 75);
+    background-color: rgb(245, 245, 245);
+    color: rgb(33, 81, 40);
     width: 1024px;
     margin-top: 0px;
     margin-bottom: 0px;

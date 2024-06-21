@@ -10,4 +10,4 @@ rep(fun num -> {
     if (output = "") output <- toString(num)
 
     printLn(output)
-}, 100)
+} 100)

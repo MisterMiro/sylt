@@ -9,8 +9,8 @@ let chars = String.chars(String.letters + String.digits)
 Rand.setSeed(System.timestamp())
 
 rep(fun _ -> {
-	let n = Rand.range(0, List.length(chars))
+	let n = Rand.range(0 List.length(chars))
 	str <- str + chars[n]
-}, length)
+} length)
 
 printLn(str)

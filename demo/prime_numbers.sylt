@@ -1,16 +1,16 @@
 ## code for checking whether a number is prime
 
 let isPrime(n) = {
-    let check(n, i) = {
+    let check(n i) = {
         if (n = i) true
         else if (n % i = 0) false
-        else check(n, incr(i))
+        else check(n incr(i))
     }
 
     if (n < 2) false
-    else check(n, 2)
+    else check(n 2)
 }
 
-let numbers = List.range(0, 100)
-numbers <- List.filter(isPrime, numbers)
+let numbers = List.range(0 100)
+numbers <- List.filter(isPrime numbers)
 printLn(numbers)

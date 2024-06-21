@@ -2771,15 +2771,6 @@ value_t stdsys_mem_info(sylt_t* ctx) {
 	return wrapdict(dc);
 }
 
-value_t stdsys_src(sylt_t* ctx) {
-	dict_t* dc = dict_new(ctx);
-	dict_set(dc,string_lit("text", ctx), wrapstring(ctx->vm->fp->func->src), ctx);
-	dict_set(dc, string_lit("name", ctx), wrapstring(ctx->vm->fp->func->name), ctx);
-	dict_set(dc, string_lit("path", ctx), wrapstring(ctx->vm->fp->func->path), ctx);
-	dict_set(dc, string_lit("line", ctx), wrapnum(vm_line(ctx->vm)), ctx);
-	return wrapdict(dc);
-}
-
 value_t stdsys_mem_sizes(sylt_t* ctx) {
 	dict_t* dc = dict_new(ctx);
 	dict_set(dc, string_lit("char", ctx), wrapnum(sizeof(char)), ctx);
@@ -2795,6 +2786,21 @@ value_t stdsys_mem_sizes(sylt_t* ctx) {
 	dict_set(dc, string_lit("closure_t", ctx), wrapnum(sizeof(closure_t)), ctx);
 	dict_set(dc, string_lit("upvalue_t", ctx), wrapnum(sizeof(upvalue_t)), ctx);
 	return wrapdict(dc);
+}
+
+value_t stdsys_src(sylt_t* ctx) {
+	dict_t* dc = dict_new(ctx);
+	dict_set(dc,string_lit("text", ctx), wrapstring(ctx->vm->fp->func->src), ctx);
+	dict_set(dc, string_lit("name", ctx), wrapstring(ctx->vm->fp->func->name), ctx);
+	dict_set(dc, string_lit("path", ctx), wrapstring(ctx->vm->fp->func->path), ctx);
+	dict_set(dc, string_lit("line", ctx), wrapnum(vm_line(ctx->vm)), ctx);
+	return wrapdict(dc);
+}
+
+value_t stdsys_run(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	system((char*)stringarg(0)->bytes);
+	return nil();
 }
 
 value_t stdsys_halt(sylt_t* ctx) {
@@ -3530,6 +3536,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "memInfo", stdsys_mem_info, 0);
 	std_addf(ctx, "memSizes", stdsys_mem_sizes, 0);
 	std_addf(ctx, "src", stdsys_src, 0);
+	std_addf(ctx, "run", stdsys_run, 1);
 	std_addf(ctx, "halt", stdsys_halt, 1);
 	std_addf(ctx, "time", stdsys_time, 1);
 	std_addf(ctx, "timestamp", stdsys_timestamp, 0);
@@ -5096,8 +5103,7 @@ string_t* load_file(const char* path, sylt_t* ctx) {
 	size_t len = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 	
-	string_t* str = string_new(
-		NULL, len, ctx);
+	string_t* str = string_new(NULL, len, ctx);
 	
 	/* read the file contents */
 	fread(str->bytes, 1, len, fp);
@@ -5137,7 +5143,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		sylt_eprintf(":%d", vm_line(ctx->vm));
 		break;
 	}
-	default: unreachable();
+	default: break;
 	}
 	
 	sylt_eprintf(": %s\n", msg);

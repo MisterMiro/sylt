@@ -1,0 +1,38 @@
+let makeVec3(x, y, z) = [|
+    "x": x,
+    "y": y,
+    "z": z,
+|]
+
+let vec3Dot(a, b) = a.x * b.x + a.y * b.y + a.z * b.z
+
+let vec3Cross(a, b) = makeVec3(
+    a.y * b.z - a.z * b.y,
+    a.z * b.x - a.x * b.z,
+    a.x * b.y - a.y * b.x)
+
+let vec3Length(v) = Math.sqrt(vec3Dot(v, v))
+
+let vec3Norm(v) = {
+    let length = vec3Length(v)
+    v.x <- v.x / length
+    v.y <- v.y / length
+    v.z <- v.z / length
+    v
+}
+
+let vec3Add(v, other) = {
+    v.x <- v.x + other.x
+    v.y <- v.y + other.y
+    v.z <- v.z + other.z
+}
+
+let vec3Scale(v, s) = {
+    v.x <- v.x * s
+    v.y <- v.y * s
+    v.z <- v.z * s
+}
+
+let pos = makeVec3(-10, 3, 5)
+pos = vec3Norm(pos)
+printLn(pos)

@@ -4637,6 +4637,13 @@ void dot(comp_t* cmp) {
 	eat(cmp, T_NAME, "expected name after '.'");
 	string_t* name = cmp->prev.lex;
 	emit_value(cmp, wrapstring(name));
+
+	if (match(cmp, T_LT_MINUS)) {
+		expr(cmp, PREC_ASSIGN);
+		emit_nullary(cmp, OP_STORE_ITEM);
+		return;
+	}
+
 	emit_nullary(cmp, OP_LOAD_ITEM);
 }
 

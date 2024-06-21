@@ -1,5 +1,4 @@
-## given a list of size n - 1 such that it only contains distinct integers in the range of 1 to n,
-## return the missing item
+## finds the gap in a series of (almost) consecutive numbers
 
 let numbers = List.range(1, 5)
 List.del(numbers, 3)

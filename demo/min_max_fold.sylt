@@ -4,5 +4,5 @@ let numbers = [3, 4, 20, 25, 8, 1, 10]
 let largest = List.fold(Math.max, 0, numbers)
 let smallest = List.fold(Math.min, largest, numbers)
 
-printLn(largest) ## 25
-printLn(smallest) ## 1
+printLn(largest)
+printLn(smallest)

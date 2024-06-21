@@ -65,3 +65,24 @@ def index_submit():
 
     demos = get_demo_list()
     return render_template("index.html", demos=demos, code=code, disassemble=disassemble, output=output)
+
+@app.route("/docs")
+def docs():
+    html = ""
+    with open("docs.txt", "r") as file:
+        for line in file.readlines():
+            if line.startswith("title: "):
+                html += "<h2>" + line[6:] + "</h2>"
+            
+            if line.startswith("name: "):
+                html += "<br>"
+                html += "<p>" + line[6:]
+
+            if line.startswith("args: "):
+                html += "<b>" + line[6:] + "</b></p>"
+
+            if line.startswith("comment: "):
+                html += "<div class=\"comment\"><p>" + line[9:] + "</p></div>"
+
+
+    return render_template("docs.html", html=html)

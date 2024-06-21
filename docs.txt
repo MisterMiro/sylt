@@ -1,0 +1,515 @@
+title: Prelude library
+
+name: gdict
+args:
+comment: A dictionary containing all global variables.
+
+name: print
+args: value
+comment: Prints a value to standard output.
+
+name: printLn
+args: value
+comment: Prints a value followed by a newline to standard output.
+
+name: readIn
+args:
+comment: Returns input read from standard input.
+
+name: toString
+args: value
+comment: Converts a value to its string representation.
+
+name: toNum
+args: value
+comment: Attempts to convert a value to a number, returning 0 on failure.
+
+name: floatEq
+args: a b epsilon
+comment: Returns true if a and b are equal to within a tolerance of epsilon.
+
+name: typeOf
+args: value
+comment: Returns the type of the value as a string.
+
+name: ensure
+args: condition
+comment: Halts if the condition is false.
+
+name: todo
+args:
+comment: Halts if unfinished code is executed.
+
+name: unreachable
+args:
+comment: Halts if supposedly unreachable code is executed.
+
+name: eval
+args: src
+comment: Runs some code in a separate interpreter, returning the result.
+
+name: isZero
+args: num
+comment: Returns true if num is 0.
+
+name: isOne
+args: num
+comment: Returns true if num is 1.
+
+name: isPositive
+args: num
+comment: Returns true if num is greater than or equal to 0.
+
+name: isNegative
+args: num
+comment: Returns true if num is less than 0.
+
+name: isEven
+args: num
+comment: Returns true if num is even.
+
+name: isOdd
+args: num
+comment: Returns true if num is odd.
+
+name: incr
+args: num
+comment: Returns num + 1.
+
+name: decr
+args: num
+comment: Returns num - 1.
+
+name: add
+args: a b
+comment: Returns a + b.
+
+name: sub
+args: a b
+comment: Returns a - b.
+
+name: mul
+args: a b
+comment: Returns a * b.
+
+name: div
+args: a b
+comment: Returns a / b.
+
+name: rem
+args: a b
+comment: Returns a % b.
+
+name: rep
+args: f times
+comment: Calls a function f n times with the current iteration as the argument.
+
+name: printEach
+args: values
+comment: Prints each value in a list on a new line.
+
+
+title: File library
+name: open
+args: path mode
+comment: 
+
+name: close
+args: handle
+comment: 
+
+name: write
+args: handle value
+comment: 
+
+name: read
+args: handle bytes
+comment: 
+
+name: size
+args: handle
+comment: 
+
+name: del
+args: path
+comment: 
+
+    
+title: System library
+name: version
+args:
+comment: The current sylt version in the form of a string.
+
+name: platform
+args:
+comment: The platform (operating system) name.
+
+name: memInfo
+args:
+comment: Returns a dictionary containing statistics about memory usage.
+
+name: memSizes
+args:
+comment: Returns a dictionary containing the byte sizes of all C types.
+
+name: src
+args:
+comment: Returns information about the current source code and line number.
+
+name: run
+args: command
+comment: Runs a command in the OS shell.
+
+name: halt
+args: message
+comment: Halts execution with an error message.
+
+name: time
+args: fmt
+comment: Returns the current time and/or date, formatted using %H-%M-%S notation.
+
+name: timestamp
+args:
+comment: Returns a numeric timestamp accurate to a second.
+
+name: cpuClock
+args:
+comment: Returns how much CPU time was used. 
+
+    
+title: List library
+name: length
+args: list
+comment: Returns the number of items in the list.
+
+name: add
+args: list index value
+comment: Inserts a value at the given index.
+
+name: del
+args: list index
+comment: Deletes the value at the given index.
+
+name: push
+args: list value
+comment: Appends a value to the back of a list.
+
+name: pop
+args: list
+comment: Deletes the last value in a list and returns it.
+
+name: first
+args: list
+comment: Returns the first item in a list.
+
+name: last
+args: list
+comment: Returns the last item in a list.
+
+name: count
+args: list value
+comment: Counts how many times a unique value occurs in a list.
+
+name: contains
+args: list value
+comment: Returns true if the list contains a value.
+
+name: rev
+args: list
+comment: Returns a reversed copy of the list.
+
+name: range
+args: min max
+comment: Returns a list containing all numbers from min up to max.
+
+name: iter
+args: f list
+comment: Calls f for each item in the list, with the value as the first and index as the second argument.
+
+name: forEach
+args: f list
+comment: Calls f for each item in the list with the value as the argument.
+
+name: map
+args: f list
+comment: 
+
+name: filter
+args: f list
+comment: 
+
+name: fold
+args: f init list
+comment: 
+
+name: sum
+args: list
+comment: Returns the sum of all numbers in the list.
+
+name: average
+args: list
+comment: Returns the average value in the list.
+
+name: mean
+args: list
+comment: Returns the mean value in the list.
+
+name: sortBy
+args: f list
+comment: Sorts the list by comparing each adjacent pair in the list using the function f.
+
+name: sort
+args: list
+comment: Sorts the list in ascending order.
+
+name: flatten
+args: list
+comment: Returns a copy of the list with any nested lists flattened out to the same level.
+
+name: dedup
+args: list
+comment: Returns a copy of the list with all duplicate values removed.
+
+name: any
+args: f list
+comment: Returns true if any value in the list satisfies the predicate f.
+
+name: all
+args: list
+comment: Returns true if all values in the list satisfy the predicate f.
+
+
+title: Dict library
+name: length
+args: dict
+comment: Returns the number of items (keys) in the dictionary.
+
+name: keys
+args: dict
+comment: Returns all keys in a dictionary as a list.
+
+name: values
+args: dict
+comment: Returns all values in a dictionary as a list.
+
+
+title: String library
+name: letters
+args:
+comment: A string containing all lowercase letters, a-z.
+
+name: digits
+args:
+comment: A string containing all digits, 0-9.
+
+name: punctuation
+args:
+comment: A string containing all ASCII punctuation characters.
+
+name: length
+args: string
+comment: The number of characters (bytes) in the string.
+
+name: chars
+args: string
+comment: A list of all characters in the string.
+
+name: join
+args: list
+comment: 
+
+name: split
+args: string sep
+comment: 
+
+name: lower
+args: string
+comment: 
+
+name: upper
+args: string
+comment: 
+
+name: swapCase
+args: string
+comment: 
+
+name: isLower
+args: string
+comment: 
+
+name: isUpper
+args: string
+comment: 
+
+name: isWhitespace
+args: string
+comment: 
+
+name: startsWith
+args: string start
+comment: 
+
+name: endsWith
+args: string end
+comment: 
+
+name: trimStart
+args: string
+comment: 
+
+name: trimEnd
+args: string
+comment: 
+
+name: trim
+args: string
+comment: 
+
+name: find
+args: string find
+comment: 
+
+name: replace
+args: string find replace
+comment: 
+
+name: leftPad
+args: string w ch
+comment: 
+
+name: rightPad
+args: string w ch
+comment: 
+
+name: centerPad
+args: string w ch
+comment: 
+
+name: fmt
+args: string
+comment: 
+
+
+title: Math library
+name: pi
+args:
+comment: 
+
+name: e
+args:
+comment: 
+
+name: numSign
+args: x
+comment: 
+
+name: abs
+args: x
+comment: 
+
+name: log
+args: x base
+comment: 
+
+name: pow
+args: base exp
+comment: 
+
+name: sqrt
+args: x
+comment: 
+
+name: min
+args: a b
+comment: 
+
+name: max
+args: a b
+comment: 
+
+name: clamp
+args: x min max
+comment: 
+
+name: lerp
+args: a b t
+comment: 
+
+name: floor
+args: x
+comment: 
+
+name: ceil
+args: x
+comment: 
+
+name: round
+args: x
+comment: 
+
+name: rad
+args: degrees
+comment: 
+
+name: deg
+args: radians
+comment: 
+
+name: sin
+args: x
+comment: 
+
+name: cos
+args: x
+comment: 
+
+name: tan
+args: x
+comment: 
+
+name: asin
+args: x
+comment: 
+
+name: acos
+args: x
+comment: 
+
+name: atan
+args: x
+comment: 
+
+name: sinh
+args: x
+comment: 
+
+name: cosh
+args: x
+comment: 
+
+name: tanh
+args: x
+comment: 
+
+name: asinh
+args: x
+comment: 
+
+name: acosh
+args: x
+comment: 
+
+name: atanh
+args: x
+comment: 
+
+
+title: Rand library
+name: range
+args: min max
+comment: 
+
+name: setSeed
+args: seed
+comment: 

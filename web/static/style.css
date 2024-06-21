@@ -54,3 +54,14 @@ textarea {
 .demos a {
     text-decoration: none;
 }
+
+#page {
+    padding: 8px;
+}
+
+.comment {
+    background: #fff;
+    color: rgb(4, 116, 19);
+    width: 1024px;
+    display: inline-block;
+}

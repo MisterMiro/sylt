@@ -112,27 +112,27 @@ comment: Prints each value in a list on a new line.
 title: File library
 name: open
 args: path mode
-comment: 
+comment: Opens a file in the selected mode and returns a handle to it.
 
 name: close
 args: handle
-comment: 
+comment: Closes an open file handle.
 
 name: write
 args: handle value
-comment: 
+comment: Writes a value to a file.
 
 name: read
 args: handle bytes
-comment: 
+comment: Reads n bytes from a file.
 
 name: size
 args: handle
-comment: 
+comment: Returns the size in bytes of a file.
 
 name: del
 args: path
-comment: 
+comment: Deletes a file.
 
     
 title: System library
@@ -232,15 +232,15 @@ comment: Calls f for each item in the list with the value as the argument.
 
 name: map
 args: f list
-comment: 
+comment: Returns a new list with all values passed through f.
 
 name: filter
 args: f list
-comment: 
+comment: Returns a new list with all values filtered through f.
 
 name: fold
 args: f init list
-comment: 
+comment: Folds the list down to a single value by calling f, with the initial value set to init.
 
 name: sum
 args: list
@@ -296,11 +296,11 @@ comment: Returns all values in a dictionary as a list.
 title: String library
 name: letters
 args:
-comment: A string containing all lowercase letters, a-z.
+comment: A string containing all lowercase letters a-z.
 
 name: digits
 args:
-comment: A string containing all digits, 0-9.
+comment: A string containing all digits 0-9.
 
 name: punctuation
 args:
@@ -316,200 +316,200 @@ comment: A list of all characters in the string.
 
 name: join
 args: list
-comment: 
+comment: Joins a list of values into a string.
 
 name: split
 args: string sep
-comment: 
+comment: Splits a string into a list of substrings based on a separator.
 
 name: lower
 args: string
-comment: 
+comment: Returns the all-lowercase version of a string.
 
 name: upper
 args: string
-comment: 
+comment: Returns the all-uppercase version of a string.
 
 name: swapCase
 args: string
-comment: 
+comment: Swaps all uppercase and lowercase letters in a string.
 
 name: isLower
 args: string
-comment: 
+comment: Returns true if all characters in the string are lowercase.
 
 name: isUpper
 args: string
-comment: 
+comment: Returns true if all characters in the string are uppercase.
 
 name: isWhitespace
 args: string
-comment: 
+comment: Returns true if all characters in the string are whitespace.
 
 name: startsWith
 args: string start
-comment: 
+comment: Returns true if the string starts with the given phrase.
 
 name: endsWith
 args: string end
-comment: 
+comment: Returns true if the string ends with the given phrase.
 
 name: trimStart
 args: string
-comment: 
+comment: Removes all leading whitespace.
 
 name: trimEnd
 args: string
-comment: 
+comment: Removes all trailing whitespace.
 
 name: trim
 args: string
-comment: 
+comment: Removes both leading and trailing whitespace.
 
 name: find
-args: string find
-comment: 
+args: string find pos
+comment: Finds and returns the index of a substring starting at pos, returning -1 if not found.
 
 name: replace
 args: string find replace
-comment: 
+comment: Replaces all occurrences of a substring with another.
 
 name: leftPad
 args: string w ch
-comment: 
+comment: Left-pads the string with the string ch so that it is w characters wide.
 
 name: rightPad
 args: string w ch
-comment: 
+comment: Right-pads the string with the string ch so that it is w characters wide.
 
 name: centerPad
 args: string w ch
-comment: 
+comment: Center-pads the string with the string ch so that it is w characters wide.
 
 name: fmt
 args: string
-comment: 
+comment: Performs string formatting, replacing all occurrences of %value% with the actual value.
 
 
 title: Math library
 name: pi
 args:
-comment: 
+comment: The constant pi.
 
 name: e
 args:
-comment: 
+comment: Euler's number.
 
 name: numSign
 args: x
-comment: 
+comment: Returns 1 if a number is positive, 0 if zero, and -1 if negative.
 
 name: abs
 args: x
-comment: 
+comment: Returns the absolute value of a number.
 
 name: log
 args: x base
-comment: 
+comment: Returns the exponent needed to raise a base to in order to produce x.
 
 name: pow
 args: base exp
-comment: 
+comment: Returns base raised to the power of exp.
 
 name: sqrt
 args: x
-comment: 
+comment: Returns the square root of x.
 
 name: min
 args: a b
-comment: 
+comment: Returns the smallest value of a and b.
 
 name: max
 args: a b
-comment: 
+comment: Returns the largest value of a and b.
 
 name: clamp
 args: x min max
-comment: 
+comment: Returns x clamped to between min and max.
 
 name: lerp
 args: a b t
-comment: 
+comment: Linearly interpolates between a and b based on t.
 
 name: floor
 args: x
-comment: 
+comment: Rounds x down.
 
 name: ceil
 args: x
-comment: 
+comment: Rounds x up.
 
 name: round
 args: x
-comment: 
+comment: Rounds x to the nearest integer.
 
 name: rad
 args: degrees
-comment: 
+comment: Converts degrees to radians.
 
 name: deg
 args: radians
-comment: 
+comment: Converts radians to degrees.
 
 name: sin
 args: x
-comment: 
+comment: Returns the sine of x.
 
 name: cos
 args: x
-comment: 
+comment: Returns the cosine of x.
 
 name: tan
 args: x
-comment: 
+comment: Returns the tangent of x.
 
 name: asin
 args: x
-comment: 
+comment: Returns the arc-sine of x.
 
 name: acos
 args: x
-comment: 
+comment: Returns the arc-cosine of x.
 
 name: atan
 args: x
-comment: 
+comment: Returns the arc-tangent of x.
 
 name: sinh
 args: x
-comment: 
+comment: Returns the hyperbolic sine of x.
 
 name: cosh
 args: x
-comment: 
+comment: Returns the hyperbolic cosine of x.
 
 name: tanh
 args: x
-comment: 
+comment: Returns the hyperbolic tanget of x.
 
 name: asinh
 args: x
-comment: 
+comment: Returns the hyperbolic arc-sine of x.
 
 name: acosh
 args: x
-comment: 
+comment: Returns the hyperbolic arc-cosine of x.
 
 name: atanh
 args: x
-comment: 
+comment: Returns the hyperbolic arc-tangent of x. 
 
 
 title: Rand library
 name: range
 args: min max
-comment: 
+comment: Returns a random number from min up to max.
 
 name: setSeed
 args: seed
-comment: 
+comment: Sets the seed of the random number generator.

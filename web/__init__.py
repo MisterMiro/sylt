@@ -71,18 +71,19 @@ def docs():
     html = ""
     with open("docs.txt", "r") as file:
         for line in file.readlines():
+            line = line.strip()
+
             if line.startswith("title: "):
-                html += "<h2>" + line[6:] + "</h2>"
+                html += "<h2>" + line[6:] + "</h2>\n"
             
             if line.startswith("name: "):
-                html += "<br>"
-                html += "<p>" + line[6:]
+                html += "<div class=\"doc-function\"><p>" + line[6:] + "</p></div>\n"
 
             if line.startswith("args: "):
-                html += "<b>" + line[6:] + "</b></p>"
+                html += "<div class=\"doc-function\"><b>" + line[6:] + "</b></div>\n"
 
             if line.startswith("comment: "):
-                html += "<div class=\"comment\"><p>" + line[9:] + "</p></div>"
+                html += "<div class=\"doc-comment\"><p>" + line[9:] + "</p></div>\n<br>"
 
 
     return render_template("docs.html", html=html)

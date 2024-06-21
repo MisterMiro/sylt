@@ -59,9 +59,18 @@ textarea {
     padding: 8px;
 }
 
-.comment {
-    background: #fff;
-    color: rgb(4, 116, 19);
-    width: 1024px;
+.doc-function {
+    font-family: 'Courier New', Courier, monospace;
     display: inline-block;
+}
+
+.doc-comment p {
+    background-color: rgb(239, 239, 239);
+    color: rgb(63, 151, 75);
+    width: 1024px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+    display: inline-block;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 90%;
 }

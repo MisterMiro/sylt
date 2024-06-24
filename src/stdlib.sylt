@@ -187,3 +187,12 @@ let impl = do
 	Dict.set("centerPad" centerPad lib)
 	Dict.set("fmt" fmt lib)
 end
+
+let impl = do
+	let fiftyFifty() = Rand.range(0 1) > 0.5
+	let scramble(ls) = List.sortBy(fun _ _ -> fiftyFifty ls)
+
+	let lib = Dict.get("Rand" gdict)
+	Dict.set("fiftyFifty" fiftyFifty lib)
+	Dict.set("scramble" scramble lib)
+end

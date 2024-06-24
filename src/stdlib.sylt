@@ -6,12 +6,12 @@ ensure(System.version = "Sylt Dev 0.1")
 ## Prelude   |
 ## ===========
 
-let isZero(n) = n = 0
-let isOne(n) = n = 1
-let isPositive(n) = n >= 0
-let isNegative(n) = n < 0
-let isEven(n) = n % 2 = 0
-let isOdd(n) = n % 2 = 1
+let isZero(num) = Math.numSign(num) = Math.Sign.Zero
+let isOne(num) = num = 1
+let isPositive(num) = Math.numSign(num) = Math.Sign.Positive
+let isNegative(num) = Math.numSign(num) = Math.Sign.Negative
+let isEven(num) = num % 2 = 0
+let isOdd(num) = num % 2 = 1
 
 let add(a b) = a + b
 let sub(a b) = a - b
@@ -188,6 +188,18 @@ let impl = do
 	Dict.set("rightPad" rightPad lib)
 	Dict.set("centerPad" centerPad lib)
 	Dict.set("fmt" fmt lib)
+end
+
+let impl = do
+	let Sign = makeEnum(["Negative" "Zero" "Positive"])
+
+	let numSign(num) = if num < 0: Sign.Negative
+		else if num = 0: Sign.Zero
+		else Sign.Positive
+
+	let lib = Dict.get("Math" gdict)
+	Dict.set("Sign" Sign lib)
+	Dict.set("numSign" numSign lib)
 end
 
 let impl = do

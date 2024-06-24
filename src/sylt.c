@@ -2860,9 +2860,9 @@ value_t stdlist_swap(sylt_t* ctx) {
 }
 
 value_t stdlist_add(sylt_t* ctx) {
-	typecheck(ctx, arg(1), TYPE_NUM);
+	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(2), TYPE_LIST);
-	list_insert(listarg(2), numarg(1), arg(0), ctx);
+	list_insert(listarg(2), numarg(0), arg(1), ctx);
 	return nil();
 }
 
@@ -3259,16 +3259,6 @@ value_t stdstring_replace(sylt_t* ctx) {
 #define M_E 2.7182818284590452353602874713526
 #endif
 
-value_t stdmath_num_sign(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	sylt_num_t x = numarg(0);
-	if (x < 0)
-		return wrapnum(-1);
-	if (x == 0)
-		return wrapnum(0);
-	return wrapnum(1);
-}
-
 value_t stdmath_abs(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	sylt_num_t result =
@@ -3611,7 +3601,6 @@ void std_init(sylt_t* ctx) {
 	std_setlib(ctx, "Math");
 	std_add(ctx, "pi", wrapnum(M_PI));
 	std_add(ctx, "e", wrapnum(M_E));
-	std_addf(ctx, "numSign", stdmath_num_sign, 1);
 	std_addf(ctx, "abs", stdmath_abs, 1);
 	std_addf(ctx, "log", stdmath_log, 2);
 	std_addf(ctx, "pow", stdmath_pow, 2);
@@ -3741,9 +3730,9 @@ typedef enum {
 	/* multiplication: * / % */
 	PREC_FACTOR,
 	/* unary prefix: - ! */
-	PREC_UPRE,
+	PREC_UNARY_PREFIX,
 	/* unary postfix: () . */
-	PREC_UPOST,
+	PREC_UNARY_POSTFIX,
 } prec_t;
 
 const int ANY_PREC = PREC_ASSIGN;
@@ -4358,7 +4347,7 @@ static parserule_t RULES[] = {
 	[T_EQ] = {NULL, binary, PREC_EQ},
 	[T_BANG] = {unary, NULL, PREC_NONE},
 	[T_BANG_EQ] = {NULL, binary, PREC_EQ},
-	[T_LPAREN] = {grouping, call, PREC_UPOST},
+	[T_LPAREN] = {grouping, call, PREC_UNARY_POSTFIX},
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
 	[T_LCURLY] = {dict, NULL, PREC_NONE},
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
@@ -4366,7 +4355,7 @@ static parserule_t RULES[] = {
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
-	[T_DOT] = {NULL, dot, PREC_UPOST},
+	[T_DOT] = {NULL, dot, PREC_UNARY_POSTFIX},
 	[T_HASH] = {unary, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -4488,7 +4477,7 @@ void name(comp_t* cmp) {
 void list(comp_t* cmp) {
 	int len = 0;
 	while (!check(cmp, T_RSQUARE) && !check(cmp, T_EOF)) {
-		expr(cmp, PREC_OR, "list item or ']'");
+		expr(cmp, PREC_OR, "a list item or ']'");
 		len++;
 	}
 	
@@ -4500,7 +4489,7 @@ void list(comp_t* cmp) {
 void dict(comp_t* cmp) {
 	int len = 0;
 	while (!check(cmp, T_RCURLY) && !check(cmp, T_EOF)) {
-		expr(cmp, PREC_OR, "dictionary key or ']'"); /* key */
+		expr(cmp, PREC_OR, "a dictionary key or ']'"); /* key */
 		eat(cmp, T_COLON, "expected ':' after item key");
 		expr(cmp, PREC_OR, "key value"); /* value */
 		len++;
@@ -4598,7 +4587,7 @@ void unary(comp_t* cmp) {
 	token_type_t token = cmp->prev.tag;
 	
 	/* parse the operand */
-	expr(cmp, PREC_UPRE, "expression");
+	expr(cmp, PREC_UNARY_PREFIX, "right-hand side expression");
 	
 	op_t opcode = -1;
 	switch (token) {

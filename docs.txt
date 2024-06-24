@@ -92,6 +92,10 @@ name: rem
 args: a b
 comment: Returns a % b.
 
+name: makeEnum
+args: names
+comment: Returns a dictionary containing the given names with sequential integers as values.
+
 name: rep
 args: f times
 comment: Calls a function f n times with the current iteration as the argument.
@@ -406,9 +410,13 @@ name: e
 args:
 comment: Euler's number.
 
+name: Sign
+args:
+comment: Enumeration containing Sign.Negative, Sign.Zero, and Sign.Positive.
+
 name: numSign
 args: x
-comment: Returns 1 if a number is positive, 0 if zero, and -1 if negative.
+comment: Returns Sign.Positive, Sign.Negative, or Sign.Zero depending on the sign of the number.
 
 name: abs
 args: x

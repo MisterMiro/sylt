@@ -43,8 +43,7 @@ let impl = do
 
 	let filter(f ls) = do
 		let filtered = []
-		List.forEach(fun value ->
-			if f(value): List.push(filtered value) ls)
+		List.forEach(fun value -> if f(value): List.push(filtered value) ls)
 		filtered
 	end
 
@@ -55,16 +54,13 @@ let impl = do
 	end
 
 	let sum(ls) = List.fold(add 0 ls)
-
-	let average(ls) = if ls = []: 0
-		else List.sum(ls) / List.length(ls)
+	let average(ls) = if ls = []: 0 else List.sum(ls) / List.length(ls)
 		
 	let mean(ls) = 
 		if isOdd(List.length(ls)): List.get(List.length(ls) / 2 ls)
 		else List.average([
-				List.get(List.length(ls) / 2 - 1 ls)
-				List.get(List.length(ls) / 2 ls)
-			])
+			List.get(List.length(ls) / 2 - 1 ls)
+			List.get(List.length(ls) / 2 ls)])
 
 	let sortBy(f ls) = do
 		let bubbleSort(ls n) = do
@@ -77,8 +73,7 @@ let impl = do
 				end
 			end n - 1)
 
-			let done = swapped = 0
-			if !done: bubbleSort(ls n - 1)
+			if swapped != 0: bubbleSort(ls n - 1)
 		end
 
 		let n = List.length(ls)
@@ -128,29 +123,25 @@ end
 ## ===========
 
 let impl = do
-	let leftPad(str w ch) = do
-		let n = (w - String.length(str)) / String.length(ch)
-		
+	let leftPad(str w pattern) = do
 		let text = ""
-		rep(fun _ -> text <- text + ch n)
+		rep(fun _ -> text <- text + pattern (w - String.length(str)) / String.length(pattern))
 		text + str
 	end
 
-	let rightPad(str w ch) = do
-		let n = (w - String.length(str)) / String.length(ch)
-		
+	let rightPad(str w pattern) = do
 		let text = str
-		rep(fun _ -> text <- text + ch n)
+		rep(fun _ -> text <- text + pattern (w - String.length(str)) / String.length(pattern))
 		text
 	end
 
-	let centerPad(str w ch) = do
-		let n = (w - String.length(str)) / String.length(ch)
-		
+	let centerPad(str w pattern) = do
 		let text = ""
-		rep(fun _ -> text <- text + ch n / 2)
+		let n = (w - String.length(str)) / String.length(pattern)
+
+		rep(fun _ -> text <- text + pattern n / 2)
 		text <- text + str
-		rep(fun _ -> text <- text + ch n / 2)
+		rep(fun _ -> text <- text + pattern n / 2)
 		text
 	end
 

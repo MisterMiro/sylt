@@ -13,7 +13,6 @@ body {
 
 .header a {
     color: rgb(234, 234, 234);
-    font-size: 48px;
     text-decoration: none;
 }
 
@@ -23,6 +22,7 @@ body {
 
 .header-title {
     background: linear-gradient(rgb(23, 8, 90), rgb(31, 10, 122));
+    font-size: 48px;
     width: 300px;
     padding: 4px;
     margin-right: 20px;
@@ -39,14 +39,6 @@ body {
 
 .header-link a {
     font-size: 32px;
-}
-
-.header-icon {
-    background: linear-gradient(rgb(23, 8, 90), rgb(31, 10, 122));
-    font-size: 32px;
-    display: inline-block;
-    font-family: 'Courier New', Courier, monospace;
-    float: right;
 }
 
 textarea {
@@ -84,4 +76,10 @@ textarea {
     display: inline-block;
     font-family: 'Courier New', Courier, monospace;
     font-size: 90%;
+}
+
+hr {
+    color:rgb(176, 176, 176);
+    margin-top: 0px;
+    margin-bottom: 0px;
 }

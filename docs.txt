@@ -391,16 +391,16 @@ args: string find replace
 comment: Replaces all occurrences of a substring with another.
 
 name: leftPad
-args: string w ch
-comment: Left-pads the string with the string ch so that it is w characters wide.
+args: string w pattern
+comment: Left-pads the string with the pattern string so that it is w characters wide.
 
 name: rightPad
-args: string w ch
-comment: Right-pads the string with the string ch so that it is w characters wide.
+args: string w pattern
+comment: Right-pads the string with the pattern string so that it is w characters wide.
 
 name: centerPad
-args: string w ch
-comment: Center-pads the string with the string ch so that it is w characters wide.
+args: string w pattern
+comment: Center-pads the string with the pattern string so that it is w characters wide.
 
 name: fmt
 args: string

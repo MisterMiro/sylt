@@ -251,6 +251,8 @@ void halt(sylt_t*, const char*, ...);
 	"expected %s, got %s", user_type_name(ex), user_type_name(got)
 #define E_NOT_CALLABLE(tag) \
 	"cannot call a value of type %s", user_type_name(tag)
+#define E_NO_LENGTH(tag) \
+	"cannot get the length of a variable of type %s", user_type_name(tag)
 #define E_INDEX_TYPE(got) \
 	"cannot use [] to index a %s", user_type_name(got)
 #define E_CONCAT_TYPE(a, b) \
@@ -513,6 +515,7 @@ typedef enum {
 	OP_DIV,
 	OP_EDIV,
 	OP_UMIN,
+	OP_LENGTH,
 	/* comparison */
 	OP_LT,
 	OP_LTE,
@@ -572,6 +575,7 @@ static opinfo_t OPINFO[] = {
 	[OP_DIV] = {"div", 0, -1},
 	[OP_EDIV] = {"ediv", 0, -1},
 	[OP_UMIN] = {"umin", 0, 0},
+	[OP_LENGTH] = {"length", 0, 0},
 	[OP_LT] = {"lt", 0, -1},
 	[OP_LTE] = {"lte", 0, -1},
 	[OP_GT] = {"gt", 0, -1},
@@ -2356,6 +2360,18 @@ void vm_exec(vm_t* vm) {
 			push(wrapnum(-getnum(pop())));
 			break;
 		}
+		case OP_LENGTH: {
+			value_t length_of = pop();
+			if (length_of.tag == TYPE_LIST)
+				push(wrapnum(getlist(length_of)->len));
+			else if (length_of.tag == TYPE_DICT)
+				push(wrapnum(getdict(length_of)->len));
+			else if (length_of.tag == TYPE_STRING)
+				push(wrapnum(getstring(length_of)->len));
+			else
+				halt(vm->ctx, E_NO_LENGTH(length_of.tag));
+			break;
+		}
 		/* == comparison == */
 		case OP_LT: {
 			typecheck(vm->ctx, peek(0), TYPE_NUM);
@@ -2798,11 +2814,6 @@ value_t stdsys_cpu_clock(sylt_t* ctx) {
 
 /* == list lib == */
 
-value_t stdlist_length(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
-	return wrapnum(listarg(0)->len);
-}
-
 value_t stdlist_get(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	typecheck(ctx, arg(1), TYPE_LIST);
@@ -2900,11 +2911,6 @@ value_t stdlist_range(sylt_t* ctx) {
 
 /* == dict lib == */
 
-value_t stddict_length(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_DICT);
-	return wrapnum(dictarg(0)->len);
-}
-
 value_t stddict_get(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_DICT);
@@ -2956,11 +2962,6 @@ value_t stddict_values(sylt_t* ctx) {
 }
 
 /* == string lib == */
-
-value_t stdstring_length(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	return wrapnum(stringarg(0)->len);
-}
 
 value_t stdstring_chars(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
@@ -3547,7 +3548,6 @@ void std_init(sylt_t* ctx) {
 		
 	/* list */
 	std_setlib(ctx, "List");
-	std_addf(ctx, "length", stdlist_length, 1);
 	std_addf(ctx, "get", stdlist_get, 2);
 	std_addf(ctx, "set", stdlist_set, 3);
 	std_addf(ctx, "swap", stdlist_swap, 3);
@@ -3564,7 +3564,6 @@ void std_init(sylt_t* ctx) {
 	
 	/* dict */
 	std_setlib(ctx, "Dict");
-	std_addf(ctx, "length", stddict_length, 1);
 	std_addf(ctx, "get", stddict_get, 2);
 	std_addf(ctx, "set", stddict_set, 3);
 	std_addf(ctx, "keys", stddict_keys, 1);
@@ -3579,7 +3578,6 @@ void std_init(sylt_t* ctx) {
 		"0123456789", ctx)));
 	std_add(ctx, "punctuation", wrapstring(string_lit(
 		"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", ctx)));
-	std_addf(ctx, "length", stdstring_length, 1);
 	std_addf(ctx, "chars", stdstring_chars, 1);
 	std_addf(ctx, "join", stdstring_join, 1);
 	std_addf(ctx, "split", stdstring_split, 2);
@@ -3696,6 +3694,7 @@ typedef enum {
 	T_COMMA,
 	T_COLON,
 	T_DOT,
+	T_HASH,
 	T_EOF,
 } token_type_t;
 
@@ -4211,6 +4210,7 @@ token_t scan(comp_t* cmp) {
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
 	case '.': return token(T_DOT);
+	case '#': return token(T_HASH);
 	case '\0': return token(T_EOF);
 	default: halt(cmp->ctx,
 		E_UNEXPECTED_CHAR(cmp->pos[-1]));
@@ -4341,6 +4341,7 @@ static parserule_t RULES[] = {
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
 	[T_DOT] = {NULL, dot, PREC_UPOST},
+	[T_HASH] = {unary, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
 
@@ -4544,6 +4545,7 @@ void unary(comp_t* cmp) {
 	switch (token) {
 	case T_MINUS: opcode = OP_UMIN; break;
 	case T_BANG: opcode = OP_NOT; break;
+	case T_HASH: opcode = OP_LENGTH; break;
 	default: unreachable();
 	}
 	

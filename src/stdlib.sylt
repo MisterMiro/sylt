@@ -34,35 +34,35 @@ end
 ## ===========
 
 let impl = do
-	let iter(f ls) = rep(fun i -> f(i List.get(i ls)) List.length(ls))
-	let forEach(f ls) = rep(fun i -> f(List.get(i ls)) List.length(ls))
+	let iter(f ls) = rep(fun i -> f(i List.get(i ls)) #ls)
+	let forEach(f ls) = rep(fun i -> f(List.get(i ls)) #ls)
 
 	let map(f ls) = do
-		let mapped = []
-		List.forEach(fun value -> mapped <- mapped + f(value) ls)
-		mapped
+		let newList = []
+		List.forEach(fun value -> newList <- newList + f(value) ls)
+		newList
 	end
 
 	let filter(f ls) = do
-		let filtered = []
-		List.forEach(fun value -> if f(value): filtered <- filtered + value ls)
-		filtered
+		let newList = []
+		List.forEach(fun value -> if f(value): newList <- newList + value ls)
+		newList
 	end
 
 	let fold(f init ls) = do
-		let folded = init
-		List.forEach(fun value -> folded <- f(folded value) ls)
-		folded
+		let result = init
+		List.forEach(fun value -> result <- f(result value) ls)
+		result
 	end
 
 	let sum(ls) = List.fold(add 0 ls)
-	let average(ls) = if ls = []: 0 else List.sum(ls) / List.length(ls)
+	let average(ls) = if ls = []: 0 else List.sum(ls) / #ls
 		
 	let mean(ls) = 
-		if isOdd(List.length(ls)): List.get(List.length(ls) / 2 ls)
+		if isOdd(#ls): List.get(#ls / 2 ls)
 		else List.average([
-			List.get(List.length(ls) / 2 - 1 ls)
-			List.get(List.length(ls) / 2 ls)])
+			List.get(#ls / 2 - 1 ls)
+			List.get(#ls / 2 ls)])
 
 	let sortBy(f ls) = do
 		let bubbleSort(ls n) = do
@@ -78,7 +78,7 @@ let impl = do
 			if swapped != 0: bubbleSort(ls n - 1)
 		end
 
-		let n = List.length(ls)
+		let n = #ls
 		if n > 1: bubbleSort(ls n)
 	end
 
@@ -125,7 +125,7 @@ end
 let impl = do
 	let leftPad(str w pattern) = do
 		let text = ""
-		let n = (w - String.length(str)) / String.length(pattern)
+		let n = (w - #str) / #pattern
 
 		rep(fun _ -> text <- text + pattern n)
 		text + str
@@ -133,7 +133,7 @@ let impl = do
 
 	let rightPad(str w pattern) = do
 		let text = str
-		let n = (w - String.length(str)) / String.length(pattern)
+		let n = (w - #str) / #pattern
 
 		rep(fun _ -> text <- text + pattern n)
 		text
@@ -141,7 +141,7 @@ let impl = do
 
 	let centerPad(str w pattern) = do
 		let text = ""
-		let n = (w - String.length(str)) / String.length(pattern)
+		let n = (w - #str) / #pattern
 
 		rep(fun _ -> text <- text + pattern n / 2)
 		text <- text + str
@@ -156,7 +156,7 @@ let impl = do
 		
 		let index = 0
 		let isInExpr = false
-		while index < List.length(chars): do
+		while index < #chars: do
 			let character = List.get(index chars)
 
 			if character = "%" and !isInExpr:
@@ -164,8 +164,7 @@ let impl = do
 			else if character = "%" and isInExpr: do
 				isInExpr <- false
 
-				if String.length(expr) = 0:
-					text <- text + "%"
+				if #expr = 0: text <- text + "%"
 				else do
 					let result = eval(expr)
 					text <- text + toString(result)

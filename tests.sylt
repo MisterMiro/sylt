@@ -324,11 +324,19 @@ end
 
 let lists() = do
 	let list = [1 2 3]
+
+	ensure(#[] = 0)
+	ensure(#[1] = 1)
+	ensure(#[1 2] = 2)
+	ensure(#list = 3)
 end
 
 let dicts() = do
 	let dict = {"a": 1 "b": 2 "c": 3}
 	
+	## count operator
+	ensure(#dict = 3)
+
 	## dot access
 	ensure(Dict.get("a" dict) = dict.a)
 end
@@ -456,7 +464,7 @@ let fileLib() = do
 	## size
 	let handle = File.open(path "r")
 	let size = File.size(handle)
-	ensure(size = String.length(str))
+	ensure(size = #str)
 	File.close(handle)
 	
 	## read
@@ -470,11 +478,6 @@ let fileLib() = do
 end
 
 let listLib() = do
-	## length
-	ensure(List.length([]) = 0)
-	ensure(List.length([1]) = 1)
-	ensure(List.length([1 2]) = 2)
-
 	## get + set
 	let ls = [1 2 3]
 	ensure(List.get(0 ls) = 1)
@@ -517,14 +520,14 @@ let listLib() = do
 	## pop
 	let x = []
 	x <- x + 3
-	ensure(x = [3] and List.length(x) = 1)
+	ensure(x = [3] and #x = 1)
 	x <- x + 7
-	ensure(x = [3 7] and List.length(x) = 2)
+	ensure(x = [3 7] and #x = 2)
 	
 	List.pop(x) ## = [3]
-	ensure(x = [3] and List.length(x) = 1)
+	ensure(x = [3] and #x = 1)
 	List.pop(x) ## = []
-	ensure(x = [] and List.length(x) = 0)
+	ensure(x = [] and #x = 0)
 	
 	## first + last
 	let list = ["first" "middle" "last"]
@@ -627,10 +630,7 @@ let dictLib() = do
 		"car": "helicopter"
 		"box": "pyramid"
 	}
-	
-	## length
-	ensure(Dict.length(dict) = 3)
-	
+		
 	## keys
 	ensure(Dict.keys(dict) = ["door" "car" "box"])
 		
@@ -652,7 +652,7 @@ let stringLib() = do
 	ensure(String.punctuation = str)
 	
 	## length
-	ensure(String.length(String.digits) = 10)
+	ensure(#String.digits = 10)
 
 	## chars + join
 	ensure(String.chars("Abc") = ["A" "b" "c"])

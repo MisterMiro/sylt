@@ -104,10 +104,6 @@ name: rep
 args: f times
 comment: Calls a function f n times with the current iteration as the argument.
 
-name: printEach
-args: values
-comment: Prints each value in a list on a new line.
-
 
 title: File library
 name: open

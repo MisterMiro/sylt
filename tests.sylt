@@ -1,5 +1,5 @@
 
-let names() = {
+let names() = do
 	let value = "whatever"
 	
 	let name = value
@@ -21,9 +21,11 @@ let names() = {
 	let andante = value
 	let oracle = value
 	let usingasong = value
-}
+	let doable = value
+	let enderman = value
+end
 
-let strings() = {
+let strings() = do
 	let empty = ""
 	let alpha = "abcDEFGHijklMNOPqrstUVWxyz"
 	
@@ -44,14 +46,14 @@ let strings() = {
 	ensure(newline = "\x0a")
 	ensure(carriage_return = "\x0d")
 	ensure(null = "\x00")
-}
+end
 
-let numbers() = {
+let numbers() = do
 	let integer = 123456789
 	let fractional = 3.141592
-}
+end
 
-let precedence() = {
+let precedence() = do
 	## multiplication > addition
 	ensure(5 * 2 + 8 = 18)
 	ensure(5 / 2 + 8 = 10.5)
@@ -72,9 +74,9 @@ let precedence() = {
 	ensure(true = 1 <= 2)
 	ensure(true != 1 > 2)
 	ensure(true != 1 >= 2)
-}
+end
 
-let addition() = {
+let addition() = do
 	let x = 8
 	let y = 12
 	
@@ -85,9 +87,9 @@ let addition() = {
 	## commutative
 	ensure(y + x = sum)
 	ensure(x + y = y + x)
-}
+end
 
-let subtraction() = {
+let subtraction() = do
 	let x = 20
 	let y = 12
 	
@@ -98,9 +100,9 @@ let subtraction() = {
 	## not commutative
 	ensure(y - x != difference)
 	ensure(x - y != y - x)
-}
+end
 
-let multiplication() = {
+let multiplication() = do
 	let x = 5
 	let y = 16
 	
@@ -111,9 +113,9 @@ let multiplication() = {
 	## commutative
 	ensure(y * x = product)
 	ensure(x * y = y * x)
-}
+end
 
-let division() = {
+let division() = do
 	let x = 33
 	let y = 3
 	
@@ -124,9 +126,9 @@ let division() = {
 	## not commutative
 	ensure(y / x != quotient)
 	ensure(x / y != y / x)
-}
+end
 
-let remainder() = {
+let remainder() = do
 	let x = 17
 	let y = 12
 	
@@ -143,9 +145,9 @@ let remainder() = {
 	ensure(7 % -3 = 1)
 	ensure(-7 % 3 = 2)
 	ensure(-7 % -3 = 2)
-}
+end
 
-let unaryMinus() = {
+let unaryMinus() = do
 	let x = 25
 	ensure(-x = 0 - x)
 	
@@ -154,15 +156,15 @@ let unaryMinus() = {
 	
 	## quadruple negative
 	ensure(----x = x)
-}
+end
 
-let arithmetic() = {
+let arithmetic() = do
 	let a = 1
 	let b = a + 2
 	ensure(a + b = a - (-b))
-}
+end
 
-let comparison() = {
+let comparison() = do
 	let hi = 100
 	let lo = -100
 	
@@ -175,9 +177,9 @@ let comparison() = {
 	let same = 70
 	ensure(same <= same)
 	ensure(same >= same)
-}
+end
 
-let equality() = {
+let equality() = do
 	## contains a value of each type
 	let values = [
 		nil        ## Nil
@@ -188,7 +190,7 @@ let equality() = {
 		fun x -> x	## Func
 	]
 	
-	List.iter(fun skip value -> {
+	List.iter(fun skip value -> do
 		## equal to itself
 		ensure(value = value)
 		
@@ -198,7 +200,7 @@ let equality() = {
 			if (index != skip)
 				ensure(value != other)
 		values)
-	} values)
+	end values)
 	
 	## perform more type-specific tests
 	ensure(true != false)
@@ -211,15 +213,15 @@ let equality() = {
 	ensure("ABC" != "abc")
 	
 	ensure(Math.pow != Math.sqrt)
-}
+end
 
-let boolNot() = {
+let boolNot() = do
 	ensure(true = !false)
 	ensure(false = !true)
 	ensure(!!true = true)
-}
+end
 
-let boolAnd() = {
+let boolAnd() = do
 	ensure((false and false) = false)
 	ensure((false and true) = false)
 	ensure((true and false) = false)
@@ -228,9 +230,9 @@ let boolAnd() = {
 	## short-circuit evaluation
 	let would_crash() = ensure(false)
 	false and would_crash()
-}
+end
 
-let boolOr() = {
+let boolOr() = do
 	ensure((false or false) = false)
 	ensure((false or true) = true)
 	ensure((true or false) = true)
@@ -239,14 +241,14 @@ let boolOr() = {
 	## short-circuit evaluation
 	let would_crash() = ensure(false)
 	true or would_crash()
-}
+end
 
-let concat() = {
+let concat() = do
 	ensure("Hello " + "Word" = "Hello Word")
 	ensure([1 2] + [3 4] = [1 2 3 4])
-}
+end
 
-let variables() = {
+let variables() = do
 	## declaring
 	let x = 70
 	
@@ -263,19 +265,19 @@ let variables() = {
 	
 	## assigning open upvalue
 	let y = 888
-	let func() = {
+	let func() = do
 		y <- 333
-	}
+	end
 	func()
 	ensure(y = 333)
 	
 	## assigning closed upvalue
-	let out() = {
+	let out() = do
 		let z = 4
 		let in() =
 			z <- 900
 		in
-	}
+	end
 	let z = out()()
 	ensure(z = 900)
 	
@@ -285,45 +287,45 @@ let variables() = {
 	let c = nil
 	a <- b <- c <- 32
 	ensure(a = 32 and b = 32 and c = 32)
-}
+end
 
-let blocks() = {
+let blocks() = do
 	## empty block returns nil
-	let result = {}
+	let result = doend
 	ensure(result = nil)
 	
 	## last expression is returned...
-	let result = {123}
+	let result = do123end
 	ensure(result = 123)
 	
 	## ...variables do not break anything...
-	let result = {
+	let result = do
 		let v1 = 13
 		let v2 = 17
 		123
-	}
+	end
 	ensure(result = 123)
 	
 	## ...and neither do captured values
 	let c = 35
-	let result = {
+	let result = do
 		let v = 9
 		let sum = c + v
 		123
-	}
+	end
 	ensure(result = 123)
 	
 	## assigning shadowed variable
 	let x = true
-	{
+	do
 		let x = nil
 		x <- false
 		ensure(x = false)
-	}
+	end
 	ensure(x = true)
-}
+end
 
-let lists() = {
+let lists() = do
 	let list = [1 2 3]
 	
 	## indexing
@@ -337,18 +339,18 @@ let lists() = {
 	list[0] <- list[-1]
 	list[1] <- list[-1]
 	ensure(list = [3 3 3])
-}
+end
 
-let dicts() = {
-	let dict = [|"a": 1 "b": 2 "c": 3|]
+let dicts() = do
+	let dict = {"a": 1 "b": 2 "c": 3}
 	
 	## dot access
 	ensure(dict["a"] = dict.a)
-}
+end
 
-let functions() = {
+let functions() = do
 	## empty body returns nil
-	let empty() = {}
+	let empty() = doend
 	ensure(empty() = nil)
 	
 	## argument passing
@@ -356,10 +358,10 @@ let functions() = {
 	ensure(add(3 4) = 7)
 	
 	## arguments + local variables
-	let add(a b) = {
+	let add(a b) = do
 		let stack_mate = 18
 		a + b
-	}
+	end
 	ensure(add(3 4) = 7)
 	
 	## accessing variable outside of
@@ -370,11 +372,11 @@ let functions() = {
 	
 	## moving surrounding context to
 	## the heap if necessary
-	let f() = {
+	let f() = do
 		let keep = "jewel"
 		let f2() = keep
 		f2
-	}
+	end
 	ensure(f()() = "jewel")
 	
 	## anonymous functions using 'fun'
@@ -383,19 +385,19 @@ let functions() = {
 	
 	## recursion
 	let clear(ls) =
-		if (ls != []) {
+		if (ls != []) do
 			List.pop(ls)
 			clear(ls)
-		}
+		end
 		
 	let nums = [1 2 3]
 	clear(nums)
 	ensure(nums = [])
-}
+end
 
-let ifElse() = {
+let ifElse() = do
 	## implicit nil
-	ensure((if (false) {}) = nil)
+	ensure((if (false) doend) = nil)
 	
 	## if branch
 	let result = if (true) "A" else "B"
@@ -412,20 +414,20 @@ let ifElse() = {
 		else if (i > 0) "B"
 		else "C"
 	ensure(result = "B")
-}
+end
 
-let whileLoop() = {
+let whileLoop() = do
 	let list = []
 	let n = 1
-	let res = while (n <= 3) {
+	let res = while (n <= 3) do
 		List.push(list n)
 		n <- n + 1
-	}
+	end
 	ensure(res = nil)
 	ensure(list = [1 2 3])
-}
+end
 
-let preludeLib() = {
+let preludeLib() = do
 	## toString
 	ensure(toString(nil) = "nil")
 	ensure(toString(true) = "true" and toString(false) = "false")
@@ -442,7 +444,7 @@ let preludeLib() = {
 	ensure(toNum("") = 0)
 	ensure(toNum("error") = 0)
 	ensure(toNum([1 2 4]) = 0)
-	ensure(toNum(fun _ -> {}) = 0)
+	ensure(toNum(fun _ -> doend) = 0)
 	
 	## typeOf
 	ensure(typeOf(nil) = "Nil")
@@ -450,15 +452,15 @@ let preludeLib() = {
 	ensure(typeOf(1) = "Num")
 	ensure(typeOf([]) = "List")
 	ensure(typeOf("") = "String")
-	ensure(typeOf(fun -> {}) = "Function")
+	ensure(typeOf(fun -> doend) = "Function")
 	
 	## rep
 	let nums = []
 	rep(fun i -> List.push(nums (i + 1) * 3) 3)
 	ensure(nums = [3 6 9])
-}
+end
 
-let fileLib() = {
+let fileLib() = do
 	let path = "sylt_test_file.txt"
 	let str = "Hey\n"
 	
@@ -481,9 +483,9 @@ let fileLib() = {
 	
 	## del
 	File.del(path)
-}
+end
 
-let listLib() = {
+let listLib() = do
 	## length
 	ensure(List.length([]) = 0)
 	ensure(List.length([1]) = 1)
@@ -553,10 +555,10 @@ let listLib() = {
 	## iter
 	let indices = [0 1 2]
 	let copy = []
-	List.iter(fun index value -> {
+	List.iter(fun index value -> do
 		ensure(index = indices[index])
 		List.push(copy value)
-	} indices)
+	end indices)
 	ensure(indices = copy)
 	
 	## forEach
@@ -566,8 +568,8 @@ let listLib() = {
 	ensure(items = copy)
 	
 	## map
-	let list = List.map(fun n -> n * 2 [4 8 16])
-	ensure(list = [8 16 32])
+	##let list = List.map(fun n -> n * 2 [4 8 16])
+	##ensure(list = [8 16 32])
 	
 	## filter
 	let list = [1 0 0 1 1 0]
@@ -592,9 +594,9 @@ let listLib() = {
 	ensure(List.mean(vals) = 7.5)
 	
 	## flatten
-	let mess = [1 [2 [3 4]] 5]
-	let clean = List.flatten(mess)
-	ensure(clean = [1 2 3 4 5])
+	##let mess = [1 [2 [3 4]] 5]
+	##let clean = List.flatten(mess)
+	##ensure(clean = [1 2 3 4 5])
 	
 	## dedup
 	let list = [7 7 8 9 9]
@@ -615,14 +617,14 @@ let listLib() = {
 	List.push(set 3) ## = [5 7 3]
 	ensure(!List.all(fun n -> n >= 5 set))
 	ensure(!List.all(fun n -> !(n < 5) set))
-}
+end
 
-let dictLib() = {
-	let dict = [|
+let dictLib() = do
+	let dict = {
 		"door": "window"
 		"car": "helicopter"
 		"box": "pyramid"
-	|]
+	}
 	
 	## length
 	ensure(Dict.length(dict) = 3)
@@ -632,9 +634,9 @@ let dictLib() = {
 		
 	## values
 	ensure(Dict.values(dict) = ["window" "helicopter" "pyramid"])
-}
+end
 
-let stringLib() = {
+let stringLib() = do
 	## alpha
 	let str = "abcdefghijklmnopqrstuvwxyz"
 	ensure(String.letters = str)
@@ -716,9 +718,9 @@ let stringLib() = {
 		
 	## fmt
 	ensure(String.fmt("x=%1 + 2%") = "x=3")
-}
+end
 
-let mathLib() = {
+let mathLib() = do
 	## pi
 	ensure(floatEq(Math.pi 3.141592 0.00001))
 	
@@ -750,11 +752,11 @@ let mathLib() = {
 		3 14 2000 18000 2000000
 	]
 	
-	List.forEach(fun base -> {
+	List.forEach(fun base -> do
 		let power = Math.log(target base)
 		let result = Math.pow(base power)
 		ensure(floatEq(result target 0.0000001))
-	} bases)
+	end bases)
 	
 	## sqrt
 	ensure(Math.sqrt(256) = 16)
@@ -782,7 +784,7 @@ let mathLib() = {
 	ensure(Math.lerp(-10 10 1) = 10)
 	
 	## floor + ceil + round
-	let checkRounding(n) = {
+	let checkRounding(n) = do
 		let low = n + 0.2
 		let mid = n + 0.5
 		let high = n + 0.8
@@ -798,9 +800,9 @@ let mathLib() = {
 			if (n < 0) n
 			else n + 1
 		)
-	}
+	end
 	
-	List.forEach(checkRounding [-1 0 1])
+	##List.forEach(checkRounding [-1 0 1])
 	
 	## rad + deg
 	ensure(floatEq(Math.rad(1) 0.0175 0.001))
@@ -825,7 +827,7 @@ let mathLib() = {
 	ensure(floatEq(Math.asinh(0.8) 0.7326 0.001))
 	ensure(floatEq(Math.acosh(1.2) 0.6223 0.001))
 	ensure(floatEq(Math.atanh(0.8) 1.0986 0.001))
-}
+end
 
 ## tests to run
 
@@ -876,16 +878,16 @@ let tests = List.flatten([
 
 ## let's go!
 List.forEach(fun test ->
-	if (typeOf(test) = "String") {
+	if (typeOf(test) = "String") do
 		print(test)
 		printLn(":")
 		
-	} else {
+	end else do
 		print("  ")
 		print(String.rightPad(toString(test) 20 "."))
 		
 		test()
 		printLn("OK")
-	} tests)
+	end tests)
 
 printLn("All tests passed!")

@@ -3652,6 +3652,8 @@ typedef enum {
 	T_AND,
 	T_OR,
 	T_USING,
+	T_DO,
+	T_END,
 	T_STRING,
 	T_NUMBER,
 	T_PLUS,
@@ -3674,8 +3676,6 @@ typedef enum {
 	T_RCURLY,
 	T_LSQUARE,
 	T_RSQUARE,
-	T_LSQUARE_PIPE,
-	T_PIPE_RSQUARE,
 	T_COMMA,
 	T_COLON,
 	T_DOT,
@@ -3710,7 +3710,7 @@ typedef enum {
 	PREC_FACTOR,
 	/* unary prefix: - ! */
 	PREC_UPRE,
-	/* unary postfix: () [] */
+	/* unary postfix: () [] . */
 	PREC_UPOST,
 } prec_t;
 
@@ -4122,6 +4122,8 @@ token_t scan(comp_t* cmp) {
 		if (keyword("and")) return token(T_AND);
 		if (keyword("or")) return token(T_OR);
 		if (keyword("using")) return token(T_USING);
+		if (keyword("do")) return token(T_DO);
+		if (keyword("end")) return token(T_END);
 			
 		#undef keyword
 		
@@ -4187,13 +4189,8 @@ token_t scan(comp_t* cmp) {
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
 	case '}': return token(T_RCURLY);
-	case '[': 
-		if (match('|')) return token(T_LSQUARE_PIPE);
-		return token(T_LSQUARE);
+	case '[': return token(T_LSQUARE);
 	case ']': return token(T_RSQUARE);
-	case '|': 
-		if (match(']')) return token(T_PIPE_RSQUARE);
-		break;
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
 	case '.': return token(T_DOT);
@@ -4301,6 +4298,8 @@ static parserule_t RULES[] = {
 	[T_AND] = {NULL, binary, PREC_AND},
 	[T_OR] = {NULL, binary, PREC_OR},
 	[T_USING] = {using, NULL, PREC_NONE},
+	[T_DO] = {block, NULL, PREC_NONE},
+	[T_END] = {NULL, NULL, PREC_NONE},
 	[T_STRING] = {string, NULL, PREC_NONE},
 	[T_NUMBER] = {number, NULL, PREC_NONE},
 	[T_PLUS] = {NULL, binary, PREC_TERM},
@@ -4319,12 +4318,10 @@ static parserule_t RULES[] = {
 	[T_BANG_EQ] = {NULL, binary, PREC_EQ},
 	[T_LPAREN] = {grouping, call, PREC_UPOST},
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
-	[T_LCURLY] = {block, NULL, PREC_NONE},
+	[T_LCURLY] = {dict, NULL, PREC_NONE},
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
 	[T_LSQUARE] = {list, index, PREC_UPOST},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
-	[T_LSQUARE_PIPE] = {dict, NULL, PREC_UPOST},
-	[T_PIPE_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
 	[T_DOT] = {NULL, dot, PREC_UPOST},
@@ -4426,14 +4423,14 @@ void list(comp_t* cmp) {
 /* parses a dictionary literal */
 void dict(comp_t* cmp) {
 	int len = 0;
-	while (!check(cmp, T_PIPE_RSQUARE) && !check(cmp, T_EOF)) {
+	while (!check(cmp, T_RCURLY) && !check(cmp, T_EOF)) {
 		expr(cmp, PREC_OR); /* key */
 		eat(cmp, T_COLON, "expected ':' after item key");
 		expr(cmp, PREC_OR); /* value */
 		len++;
 	}
 	
-	eat(cmp, T_PIPE_RSQUARE, "unterminated dict, expected '|]'");
+	eat(cmp, T_RCURLY, "unterminated dict, expected '}'");
 	emit_unary(cmp, OP_PUSH_DICT, len * 2);
 }
 
@@ -4852,24 +4849,24 @@ void block(comp_t* cmp) {
 	comp_open_scope(cmp);
 	
 	/* empty block yields nil */
-	if (match(cmp, T_RCURLY)) {
+	if (match(cmp, T_END)) {
 		emit_value(cmp, nil());
 		comp_close_scope(cmp);
 		return;
 	}
 	
-	while (!check(cmp, T_RCURLY) && !check(cmp, T_EOF)) {
+	while (!check(cmp, T_END) && !check(cmp, T_EOF)) {
 		expr(cmp, ANY_PREC);
 		
 		/* pop the result of every expression
 		 * in a block except for the last one,
 		 * which becomes the return value
 		 * of the entire block */
-		if (!check(cmp, T_RCURLY))
+		if (!check(cmp, T_END))
 			emit_nullary(cmp, OP_POP);
 	}
 	
-	eat(cmp, T_RCURLY, "expected '}'");
+	eat(cmp, T_END, "expected 'end'");
 	comp_close_scope(cmp);
 }
 

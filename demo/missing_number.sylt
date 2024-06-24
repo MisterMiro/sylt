@@ -5,13 +5,14 @@ List.del(numbers 3)
 printLn(numbers)
 
 let missing = nil
+let index = 0
 
-rep(fun index -> {
+while (missing = nil) do
     let num = numbers[index]
     let next = numbers[index + 1]
 
-    if (next > num + 1)
-        missing <- num + 1
-} List.length(numbers) - 1)
+    if (next > num + 1) missing <- num + 1
+    else index <- incr(index)
+end
 
 printLn(missing)

@@ -106,6 +106,7 @@ comment: Calls a function f n times with the current iteration as the argument.
 
 
 title: File library
+
 name: open
 args: path mode
 comment: Opens a file in the selected mode and returns a handle to it.
@@ -132,6 +133,7 @@ comment: Deletes a file.
 
     
 title: System library
+
 name: version
 args:
 comment: The current sylt version in the form of a string.
@@ -174,6 +176,7 @@ comment: Returns how much CPU time was used.
 
     
 title: List library
+
 name: length
 args: list
 comment: Returns the number of items in the list.
@@ -288,6 +291,7 @@ comment: Returns true if all values in the list satisfy the predicate f.
 
 
 title: Dict library
+
 name: length
 args: dict
 comment: Returns the number of items (keys) in the dictionary.
@@ -310,6 +314,7 @@ comment: Returns all values in the dictionary as a list.
 
 
 title: String library
+
 name: letters
 args:
 comment: A string containing all lowercase letters a-z.
@@ -408,6 +413,7 @@ comment: Performs string formatting, replacing all occurrences of %value% with t
 
 
 title: Math library
+
 name: pi
 args:
 comment: The constant pi.
@@ -522,6 +528,7 @@ comment: Returns the hyperbolic arc-tangent of x.
 
 
 title: Rand library
+
 name: range
 args: min max
 comment: Returns a random number from min up to max.

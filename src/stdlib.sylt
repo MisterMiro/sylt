@@ -152,39 +152,37 @@ let impl = do
 	end
 
 	let fmt(str) = do
-		let chars = String.chars(str)
 		let text = ""
 		let expr = ""
+		let chars = String.chars(str)
 		
-		let i = 0
-		let inExpr = false
-		while (i < List.length(chars)) do
-			if List.get(i chars) = "%": do
-				inExpr <- !inExpr
-				
-				if inExpr:
-					## start of expression
-					i <- incr(i)
+		let index = 0
+		let isInExpr = false
+		while index < List.length(chars): do
+			let character = List.get(index chars)
+
+			if character = "%" and !isInExpr:
+				isInExpr <- true
+			else if character = "%" and isInExpr: do
+				isInExpr <- false
+
+				if String.length(expr) = 0:
+					text <- text + "%"
 				else do
-					## end of expression
-					let value = eval(expr)
-					let value = toString(value)
-					text <- text + value
-							
-					i <- i + String.length(expr)
+					let result = eval(expr)
+					text <- text + toString(result)
 					expr <- ""
 				end
-				
 			end
 			else do
-				if inExpr: expr <- expr + List.get(i chars)
-				else text <- text + List.get(i chars)
-				i <- incr(i)
+				if isInExpr: expr <- expr + character
+				else text <- text + character
 			end
+
+			index <- incr(index)
 		end
 		
-		if inExpr: Sys.halt("unterminated interpolation")
-		
+		if isInExpr: System.halt("unterminated interpolation")
 		text
 	end
 
@@ -197,9 +195,11 @@ end
 
 let impl = do
 	let fiftyFifty() = Rand.range(0 1) > 0.9999999 / 2
+	let oneIn(n) = Rand.range(0 n) <= 1
 	let scramble(ls) = List.sortBy(fun _ _ -> fiftyFifty() ls)
 
 	let lib = Dict.get("Rand" gdict)
 	Dict.set("fiftyFifty" fiftyFifty lib)
+	Dict.set("oneIn" oneIn lib)
 	Dict.set("scramble" scramble lib)
 end

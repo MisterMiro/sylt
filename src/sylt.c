@@ -3451,7 +3451,7 @@ value_t stdrand_range(sylt_t* ctx) {
     return wrapnum(min + r * (max - min));
 }
 
-value_t stdrand_set_seed(sylt_t* ctx) {
+value_t stdrand_seed(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
 	srand(numarg(0));
 	return nil();
@@ -3642,7 +3642,7 @@ void std_init(sylt_t* ctx) {
 	/* rand */
 	std_setlib(ctx, "Rand");
 	std_addf(ctx, "range", stdrand_range, 2);
-	std_addf(ctx, "setSeed", stdrand_set_seed, 1);
+	std_addf(ctx, "seed", stdrand_seed, 1);
 	std_addlib(ctx);
 	
 	/* parts of the stdlib are implemented 

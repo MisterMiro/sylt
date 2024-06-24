@@ -534,6 +534,6 @@ name: scramble
 args: list
 comment: Sorts the list in a random order.
 
-name: setSeed
+name: seed
 args: seed
 comment: Sets the seed of the random number generator.

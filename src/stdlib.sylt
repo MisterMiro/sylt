@@ -189,7 +189,7 @@ let impl = do
 end
 
 let impl = do
-	let fiftyFifty() = Rand.range(0 1) > 0.5
+	let fiftyFifty() = Rand.range(0 1) > 0.9999999 / 2
 	let scramble(ls) = List.sortBy(fun _ _ -> fiftyFifty() ls)
 
 	let lib = Dict.get("Rand" gdict)

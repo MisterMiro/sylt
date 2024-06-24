@@ -302,11 +302,11 @@ comment: Sets the value for the given key to newValue.
 
 name: keys
 args: dict
-comment: Returns all keys in a dictionary as a list.
+comment: Returns all keys in the dictionary as a list.
 
 name: values
 args: dict
-comment: Returns all values in a dictionary as a list.
+comment: Returns all values in the dictionary as a list.
 
 
 title: String library

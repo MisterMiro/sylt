@@ -196,10 +196,7 @@ let equality() = do
 		
 		## not equal to a value of any other
 		## type
-		List.iter(fun index other ->
-			if (index != skip)
-				ensure(value != other)
-		values)
+		List.iter(fun index other -> if index != skip: ensure(value != other) values)
 	end values)
 	
 	## perform more type-specific tests
@@ -372,11 +369,10 @@ let functions() = do
 	ensure(anon(2 4 8) = 64)
 	
 	## recursion
-	let clear(ls) =
-		if (ls != []) do
-			List.pop(ls)
-			clear(ls)
-		end
+	let clear(ls) = if ls != []: do
+		List.pop(ls)
+		clear(ls)
+	end
 		
 	let nums = [1 2 3]
 	clear(nums)
@@ -385,21 +381,21 @@ end
 
 let ifElse() = do
 	## implicit nil
-	ensure((if (false) do end) = nil)
+	ensure((if false: do end) = nil)
 	
 	## if branch
-	let result = if (true) "A" else "B"
+	let result = if true: "A" else "B"
 	ensure(result = "A")
 	
 	## else branch
-	let result = if (false) "A" else "B"
+	let result = if false: "A" else "B"
 	ensure(result = "B")
 	
 	## else if / chaining
 	let i = 10
 	let result =
-		if (i < 0) "A"
-		else if (i > 0) "B"
+		if i < 0: "A"
+		else if i > 0: "B"
 		else "C"
 	ensure(result = "B")
 end
@@ -800,10 +796,7 @@ let mathLib() = do
 		ensure(Math.round(low) = n)
 		ensure(Math.round(high) = n + 1)
 	
-		ensure(Math.round(mid) =
-			if (n < 0) n
-			else n + 1
-		)
+		ensure(Math.round(mid) = if n < 0: n else n + 1)
 	end
 	
 	##List.forEach(checkRounding [-1 0 1])
@@ -882,7 +875,7 @@ let tests = List.flatten([
 
 ## let's go!
 List.forEach(fun test ->
-	if (typeOf(test) = "String") do
+	if typeOf(test) = "String": do
 		print(test)
 		printLn(":")
 		

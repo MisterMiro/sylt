@@ -44,7 +44,7 @@ let impl = do
 	let filter(f ls) = do
 		let filtered = []
 		List.forEach(fun value ->
-			if (f(value)) List.push(filtered value) ls)
+			if f(value): List.push(filtered value) ls)
 		filtered
 	end
 
@@ -56,15 +56,12 @@ let impl = do
 
 	let sum(ls) = List.fold(add 0 ls)
 
-	let average(ls) =
-		if (ls = []) 0
+	let average(ls) = if ls = []: 0
 		else List.sum(ls) / List.length(ls)
 		
 	let mean(ls) = 
-		if (isOdd(List.length(ls)))
-			List.get(List.length(ls) / 2 ls)
-		else
-			List.average([
+		if isOdd(List.length(ls)): List.get(List.length(ls) / 2 ls)
+		else List.average([
 				List.get(List.length(ls) / 2 - 1 ls)
 				List.get(List.length(ls) / 2 ls)
 			])
@@ -74,20 +71,18 @@ let impl = do
 			let swapped = 0
 
 			rep(fun i -> do
-				if (f(List.get(i ls) List.get(i + 1 ls))) do
+				if f(List.get(i ls) List.get(i + 1 ls)): do
 					List.swap(i i + 1 ls)
 					swapped <- incr(swapped)
 				end
 			end n - 1)
 
 			let done = swapped = 0
-			if (!done)
-				bubbleSort(ls n - 1)
+			if !done: bubbleSort(ls n - 1)
 		end
 
 		let n = List.length(ls)
-		if (n > 1)
-			bubbleSort(ls n)
+		if n > 1: bubbleSort(ls n)
 	end
 
 	let sort(ls) = sortBy(fun a b -> a > b ls)
@@ -95,7 +90,7 @@ let impl = do
 	let flatten(ls) = do
 		let flat = []
 		List.forEach(fun item ->
-			if (typeOf(item) = "List") flat <- flat + List.flatten(item)
+			if typeOf(item) = "List": flat <- flat + List.flatten(item)
 			else List.push(flat item) ls)
 		flat
 	end
@@ -103,7 +98,7 @@ let impl = do
 	let dedup(ls) = do
 		let deduped = []
 		List.forEach(fun item ->
-			if (!List.contains(deduped item))
+			if !List.contains(deduped item):
 				List.push(deduped item) ls)
 		deduped
 	end
@@ -167,14 +162,13 @@ let impl = do
 		let i = 0
 		let inExpr = false
 		while (i < List.length(chars)) do
-			if (List.get(i chars) = "%") do
+			if List.get(i chars) = "%": do
 				inExpr <- !inExpr
 				
-				if (inExpr) do
+				if inExpr:
 					## start of expression
 					i <- incr(i)
-				
-				end else do
+				else do
 					## end of expression
 					let value = eval(expr)
 					let value = toString(value)
@@ -185,14 +179,13 @@ let impl = do
 				end
 				
 			end else do
-				if (inExpr) expr <- expr + List.get(i chars)
+				if inExpr: expr <- expr + List.get(i chars)
 				else text <- text + List.get(i chars)
 				i <- incr(i)
 			end
 		end
 		
-		if (inExpr)
-			Sys.halt("unterminated interpolation")
+		if inExpr: Sys.halt("unterminated interpolation")
 		
 		text
 	end

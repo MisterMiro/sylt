@@ -1,8 +1,7 @@
 ## a factorial is the product of all positive integers less than or equal to a given positive integer
 ## and denoted by that integer and an exclamation point: for example, 5! is equal to 5 x 4 x 3 x 2 x 1
 
-let factorial(n) =
-	if (n < 1) 1
+let factorial(n) = if n < 1: 1
 	else n * factorial(n - 1)
 
 printLn(factorial(5))

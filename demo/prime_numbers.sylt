@@ -1,12 +1,11 @@
 ## code for checking whether a number is prime
 
 let isPrime(n) = do
-    let check(n i) = if (n = i) true
-        else if (n % i = 0) false
+    let check(n i) = if n = i: true
+        else if n % i = 0: false
         else check(n incr(i))
 
-    if (n < 2) false
-    else check(n 2)
+    if n < 2: false else check(n 2)
 end
 
 let numbers = List.range(0 100)

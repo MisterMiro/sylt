@@ -508,8 +508,8 @@ typedef enum {
 	OP_ADD_NAME,
 	OP_LOAD_NAME,
 	OP_STORE_NAME,
-	OP_LOAD_ITEM,
-	OP_STORE_ITEM,
+	OP_LOAD_KEY,
+	OP_STORE_KEY,
 	OP_LOAD_UPVAL,
 	OP_STORE_UPVAL,
 	OP_LOAD_RET,
@@ -568,8 +568,8 @@ static opinfo_t OPINFO[] = {
 	[OP_ADD_NAME] = {"addName", 1, -1},
 	[OP_LOAD_NAME] = {"loadName", 1, +1},
 	[OP_STORE_NAME] = {"storeName", 1, 0},
-	[OP_LOAD_ITEM] = {"loadItem", 0, -1},
-	[OP_STORE_ITEM] = {"storeItem", 0, -2},
+	[OP_LOAD_KEY] = {"loadKey", 0, -1},
+	[OP_STORE_KEY] = {"storeKey", 0, -2},
 	[OP_LOAD_UPVAL] = {"loadUpval", 1, +1},
 	[OP_STORE_UPVAL] = {"storeUpval", 1, 0},
 	[OP_LOAD_RET] = {"loadRet", 0, +1},
@@ -1945,23 +1945,16 @@ void dbg_print_instruction(const vm_t* vm) {
 		}
 		break;
 	}
-	case OP_LOAD_ITEM: {
+	case OP_LOAD_KEY: {
 		value_t collection = vm->sp[-2];
-		if (collection.tag == TYPE_LIST && vm->sp[-1].tag == TYPE_NUM) {
-			list_t* ls = getlist(collection);
-			value_t val = list_get(ls, getnum(vm->sp[-1]), vm->ctx);
-			val_dprint(val, true, -1, vm->ctx);
+		dict_t* dc = getdict(collection);
+		value_t* val = dict_get(dc, getstring(vm->sp[-1]));
 		
-		} else if (collection.tag == TYPE_DICT && vm->sp[-1].tag == TYPE_STRING) {
-			dict_t* dc = getdict(collection);
-			value_t* val = dict_get(dc, getstring(vm->sp[-1]));
-			
-			if (!val) {
-				sylt_dprintf("<not found>");
-			} else {
-				val_dprint(*val, true, -1, vm->ctx);
-			}
-		} 
+		if (!val) {
+			sylt_dprintf("<not found>");
+		} else {
+			val_dprint(*val, true, -1, vm->ctx);
+		}
 		break;
 	}
 	case OP_CALL: {
@@ -2255,63 +2248,32 @@ void vm_exec(vm_t* vm) {
 				
 			break;
 		}
-		case OP_LOAD_ITEM: {
-			if (peek(1).tag == TYPE_LIST) {
-				typecheck(vm->ctx, peek(0), TYPE_NUM);
-				
-				sylt_num_t index = getnum(pop());
-				list_t* ls = getlist(pop());
-				push(list_get(ls, index, vm->ctx));
+		case OP_LOAD_KEY: {
+			typecheck(vm->ctx, peek(1), TYPE_DICT);
+			typecheck(vm->ctx, peek(0), TYPE_STRING);
 			
-			} else if (peek(1).tag == TYPE_DICT) {
-				typecheck(vm->ctx, peek(0), TYPE_STRING);
-				
-				string_t* key = getstring(pop());
-				dict_t* dc = getdict(pop());
-				value_t* val = dict_get(dc, key);
-				
-				if (!val) {
-					push(nil());
-					halt(vm->ctx, E_KEY_NOT_FOUND(key));
-					unreachable();
-				}	
-				
-				push(*val);
-				
-			} else {
-				halt(vm->ctx, E_INDEX_TYPE(peek(1).tag));
+			string_t* key = getstring(pop());
+			dict_t* dc = getdict(pop());
+			value_t* val = dict_get(dc, key);
+			
+			if (!val) {
+				push(nil());
+				halt(vm->ctx, E_KEY_NOT_FOUND(key));
 				unreachable();
-			}
+			}	
 			
+			push(*val);
 			break;
 		}
-		case OP_STORE_ITEM: {
+		case OP_STORE_KEY: {
 			value_t val = pop();
-			
-			if (peek(1).tag == TYPE_LIST) {
-				typecheck(vm->ctx, peek(0), TYPE_NUM);
-		
-				sylt_num_t index = getnum(pop());
-				
-				list_t* ls = getlist(pop());
-				list_set(ls, index, val, vm->ctx);
-			
-				push(val);
-			
-			} else if (peek(1).tag == TYPE_DICT) {
-				typecheck(vm->ctx, peek(0), TYPE_STRING);
-				
-				string_t* key = getstring(pop());
-				dict_t* dc = getdict(pop());
-				dict_set(dc, key, val, vm->ctx);
-				
-				push(val);
-				
-			} else {
-				halt(vm->ctx, E_INDEX_TYPE(peek(1).tag));
-				unreachable();
-			}
-			
+			typecheck(vm->ctx, peek(0), TYPE_STRING);
+			typecheck(vm->ctx, peek(1), TYPE_DICT);
+
+			string_t* key = getstring(pop());
+			dict_t* dc = getdict(pop());
+			dict_set(dc, key, val, vm->ctx);
+			push(val);
 			break;
 		}
 		case OP_LOAD_UPVAL: {
@@ -4672,11 +4634,11 @@ void dot(comp_t* cmp) {
 
 	if (match(cmp, T_LT_MINUS)) {
 		expr(cmp, PREC_ASSIGN);
-		emit_nullary(cmp, OP_STORE_ITEM);
+		emit_nullary(cmp, OP_STORE_KEY);
 		return;
 	}
 
-	emit_nullary(cmp, OP_LOAD_ITEM);
+	emit_nullary(cmp, OP_LOAD_KEY);
 }
 
 string_t* load_file(const char*, sylt_t*);
@@ -4829,10 +4791,8 @@ void parse_func(
 
 /* parses an if/else expression */
 void if_else(comp_t* cmp) {
-	/* (condition) */
-	eat(cmp, T_LPAREN, "expected '(' after 'if'");
-	expr(cmp, ANY_PREC);
-	eat(cmp, T_RPAREN, "expected ')' after if condition");
+	expr(cmp, ANY_PREC); /* condition */
+	eat(cmp, T_COLON, "expected ':' after if condition");
 	
 	/* jump to else branch if
 	 * the condition is false */

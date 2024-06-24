@@ -39,13 +39,13 @@ let impl = do
 
 	let map(f ls) = do
 		let newList = []
-		List.forEach(fun value -> newList <- newList + f(value) ls)
+		List.forEach(fun value -> newList += f(value) ls)
 		newList
 	end
 
 	let filter(f ls) = do
 		let newList = []
-		List.forEach(fun value -> if f(value): newList <- newList + value ls)
+		List.forEach(fun value -> if f(value): newList += value ls)
 		newList
 	end
 
@@ -71,7 +71,7 @@ let impl = do
 			rep(fun i -> do
 				if f(List.get(i ls) List.get(i + 1 ls)): do
 					List.swap(i i + 1 ls)
-					swapped <- incr(swapped)
+					swapped += 1
 				end
 			end n - 1)
 
@@ -86,15 +86,13 @@ let impl = do
 
 	let flatten(ls) = do
 		let flat = []
-		List.forEach(fun item ->
-			if typeOf(item) = "List": flat <- flat + List.flatten(item)
-			else flat <- flat + item ls)
+		List.forEach(fun item -> flat += if typeOf(item) = "List": List.flatten(item) else item ls)
 		flat
 	end
 
 	let dedup(ls) = do
 		let deduped = []
-		List.forEach(fun item -> if !List.contains(item deduped): deduped <- deduped + item ls)
+		List.forEach(fun item -> if !List.contains(item deduped): deduped += item ls)
 		deduped
 	end
 
@@ -127,7 +125,7 @@ let impl = do
 		let text = ""
 		let n = (w - #str) / #pattern
 
-		rep(fun _ -> text <- text + pattern n)
+		rep(fun _ -> text += pattern n)
 		text + str
 	end
 
@@ -135,7 +133,7 @@ let impl = do
 		let text = str
 		let n = (w - #str) / #pattern
 
-		rep(fun _ -> text <- text + pattern n)
+		rep(fun _ -> text += pattern n)
 		text
 	end
 
@@ -143,9 +141,9 @@ let impl = do
 		let text = ""
 		let n = (w - #str) / #pattern
 
-		rep(fun _ -> text <- text + pattern n / 2)
-		text <- text + str
-		rep(fun _ -> text <- text + pattern n / 2)
+		rep(fun _ -> text += pattern n / 2)
+		text += str
+		rep(fun _ -> text += pattern n / 2)
 		text
 	end
 
@@ -167,16 +165,16 @@ let impl = do
 				if #expr = 0: text <- text + "%"
 				else do
 					let result = eval(expr)
-					text <- text + toString(result)
+					text += toString(result)
 					expr <- ""
 				end
 			end
 			else do
-				if isInExpr: expr <- expr + character
-				else text <- text + character
+				if isInExpr: expr += character
+				else text += character
 			end
 
-			index <- incr(index)
+			index += 1
 		end
 		
 		if isInExpr: System.halt("unterminated interpolation")

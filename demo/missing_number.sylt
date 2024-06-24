@@ -12,7 +12,7 @@ while missing = nil: do
     let next = List.get(index + 1 numbers)
 
     if next > num + 1: missing <- num + 1
-    else index <- incr(index)
+    else index += i
 end
 
 printLn(missing)

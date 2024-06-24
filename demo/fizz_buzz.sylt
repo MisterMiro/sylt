@@ -2,7 +2,7 @@
 ## by both 3 and 5: print "FizzBuzz", otherwise print the number
 
 rep(fun num -> do
-    num <- num + 1
+    num += 1
     
     let output = ""
     if num % 3 = 0: output <- "Fizz"

@@ -8,5 +8,5 @@ let chars = String.chars(String.letters + String.digits)
 ## every time we run the program
 Rand.seed(System.timestamp())
 
-rep(fun _ -> str <- str + List.get(Rand.range(0 #chars) chars) length)
+rep(fun _ -> str += List.get(Rand.range(0 #chars) chars) length)
 printLn(str)

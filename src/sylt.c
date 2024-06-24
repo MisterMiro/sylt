@@ -3672,11 +3672,16 @@ typedef enum {
 	T_STRING,
 	T_NUMBER,
 	T_PLUS,
+	T_PLUS_EQ,
 	T_MINUS,
 	T_MINUS_GT,
+	T_MINUS_EQ,
 	T_STAR,
+	T_STAR_EQ,
 	T_SLASH,
+	T_SLASH_EQ,
 	T_PERCENT,
+	T_PERCENT_EQ,
 	T_LT,
 	T_LT_EQ,
 	T_LT_MINUS,
@@ -4183,13 +4188,22 @@ token_t scan(comp_t* cmp) {
 	}
 	
 	switch (*step()) {
-	case '+': return token(T_PLUS);
+	case '+':
+		if (match('=')) return token(T_PLUS_EQ);
+		return token(T_PLUS);
 	case '-':
 		if (match('>')) return token(T_MINUS_GT);
+		if (match('=')) return token(T_MINUS_EQ);
 		return token(T_MINUS);
-	case '*': return token(T_STAR);
-	case '/': return token(T_SLASH);
-	case '%': return token(T_PERCENT);
+	case '*':
+		if (match('=')) return token(T_STAR_EQ);
+		return token(T_STAR);
+	case '/':
+		if (match('=')) return token(T_SLASH_EQ);
+		return token(T_SLASH);
+	case '%':
+		if (match('=')) return token(T_PERCENT_EQ);
+		return token(T_PERCENT);
 	case '<':
 		if (match('=')) return token(T_LT_EQ);
 		if (match('-')) return token(T_LT_MINUS);
@@ -4319,11 +4333,16 @@ static parserule_t RULES[] = {
 	[T_STRING] = {string, NULL, PREC_NONE},
 	[T_NUMBER] = {number, NULL, PREC_NONE},
 	[T_PLUS] = {NULL, binary, PREC_TERM},
+	[T_PLUS_EQ] = {NULL, NULL, PREC_NONE},
 	[T_MINUS] = {unary, binary, PREC_TERM},
 	[T_MINUS_GT] = {NULL, NULL, PREC_NONE},
+	[T_MINUS_EQ] = {NULL, NULL, PREC_NONE},
 	[T_STAR] = {NULL, binary, PREC_FACTOR},
+	[T_STAR_EQ] = {NULL, NULL, PREC_NONE},
 	[T_SLASH] = {NULL, binary, PREC_FACTOR},
+	[T_SLASH_EQ] = {NULL, NULL, PREC_NONE},
 	[T_PERCENT] = {NULL, binary, PREC_FACTOR},
+	[T_PERCENT_EQ] = {NULL, NULL, PREC_NONE},
 	[T_LT] = {NULL, binary, PREC_CMP},
 	[T_LT_EQ] = {NULL, binary, PREC_CMP},
 	[T_LT_MINUS] = {NULL, NULL, PREC_NONE},
@@ -4382,6 +4401,44 @@ void literal(comp_t* cmp) {
 	}
 }
 
+void load_name(comp_t* cmp, string_t* name) {
+	/* check if the name is in this functions
+	 * symbol table */
+	int index = find_symbol(cmp, name);
+	if (index != -1) {
+		emit_unary(cmp, OP_LOAD, index);
+		return;
+	}
+	
+	/* check if the name is in an upvalue */
+	index = find_upvalue(cmp, name);
+	if (index != -1) {
+		emit_unary(cmp, OP_LOAD_UPVAL, index);
+		return;
+	}
+	
+	/* runtime lookup */
+	index = func_write_data(cmp->func, wrapstring(name), cmp->ctx);
+	emit_unary(cmp, OP_LOAD_NAME, index);
+}
+
+void store_name(comp_t* cmp, string_t* name) {
+	int index = find_symbol(cmp, name);
+	if (index != -1) {
+		emit_unary(cmp, OP_STORE, index);
+		return;
+	}
+	
+	index = find_upvalue(cmp, name);
+	if (index != -1) {
+		emit_unary(cmp, OP_STORE_UPVAL, index);
+		return;
+	}
+	
+	index = func_write_data(cmp->func, wrapstring(name), cmp->ctx);
+	emit_unary(cmp, OP_STORE_NAME, index);
+}
+
 /* parses a symbol name */
 void name(comp_t* cmp) {
 	string_t* name = cmp->prev.lex;
@@ -4389,40 +4446,36 @@ void name(comp_t* cmp) {
 	/* figure out if we're storing or 
 	 * loading a variable */
 	bool assign = false;
-	if (match(cmp, T_LT_MINUS)) {
-		expr(cmp, PREC_ASSIGN);
+	bool is_compound = match(cmp, T_PLUS_EQ)
+		|| match(cmp, T_MINUS_EQ)
+		|| match(cmp, T_STAR_EQ)
+		|| match(cmp, T_SLASH_EQ)
+		|| match(cmp, T_PERCENT_EQ);
+	
+	if (match(cmp, T_LT_MINUS) || is_compound) {
+		token_type_t op = cmp->prev.tag;
+		if (is_compound)
+			load_name(cmp, name);
+
 		assign = true;
+		expr(cmp, PREC_ASSIGN);
+
+		if (is_compound) {
+			switch (op) {
+			case T_PLUS_EQ: emit_nullary(cmp, OP_ADD); break;
+			case T_MINUS_EQ: emit_nullary(cmp, OP_SUB); break;
+			case T_STAR_EQ: emit_nullary(cmp, OP_MUL); break;
+			case T_SLASH_EQ: emit_nullary(cmp, OP_DIV); break;
+			case T_PERCENT_EQ: emit_nullary(cmp, OP_EDIV); break;
+			default: unreachable();
+			}
+		}
 	}
 	
-	/* check if the name is in this functions
-	 * symbol table */
-	int index = find_symbol(cmp, name);
-	if (index != -1) {
-		if (assign)
-			emit_unary(cmp, OP_STORE, index);
-		else
-			emit_unary(cmp, OP_LOAD, index);
-		return;
-	}
-	
-	/* check if the name is in an upvalue */
-	index = find_upvalue(cmp, name);
-	if (index != -1) {
-		if (assign)
-			emit_unary(cmp,
-				OP_STORE_UPVAL, index);
-		else
-			emit_unary(cmp,
-				OP_LOAD_UPVAL, index);
-		return;
-	}
-	
-	/* runtime lookup */
-	index = func_write_data(cmp->func, wrapstring(name), cmp->ctx);
 	if (assign)
-		emit_unary(cmp, OP_STORE_NAME, index);
+		store_name(cmp, name);
 	else
-		emit_unary(cmp, OP_LOAD_NAME, index);
+		load_name(cmp, name);
 }
 
 /* parses a list literal */

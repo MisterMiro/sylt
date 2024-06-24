@@ -1419,6 +1419,8 @@ string_t* string_concat(const string_t* a, const string_t* b, sylt_t* ctx) {
 	return result;
 }
 
+static string_t* val_tostring(value_t, sylt_t*);
+
 void sylt_concat(sylt_t* ctx) {
 	value_t b = sylt_peek(ctx, 0);
 	value_t a = sylt_peek(ctx, 1);
@@ -1432,8 +1434,14 @@ void sylt_concat(sylt_t* ctx) {
 			result = wraplist(getlist(a));
 		}
 		
-	} else if (a.tag == TYPE_STRING && b.tag == TYPE_STRING) {
-		result = wrapstring(string_concat(getstring(a), getstring(b), ctx));
+	} else if (a.tag == TYPE_STRING) {
+		if (b.tag == TYPE_STRING)
+			result = wrapstring(string_concat(getstring(a), getstring(b), ctx));
+		else {
+			gc_pause(ctx);
+			result = wrapstring(string_concat(getstring(a), val_tostring(b, ctx), ctx));
+			gc_resume(ctx);
+		}
 		
 	} else {
 		halt(ctx, E_CONCAT_TYPE(a.tag, b.tag));
@@ -5151,6 +5159,7 @@ string_t* load_file(const char* path, sylt_t* ctx) {
 	return str;
 }
 
+void print_stack_trace(const sylt_t*);
 void print_source_line(const func_t*, uint32_t);
 
 /* halts with an error message */
@@ -5177,22 +5186,6 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		break;
 	}
 	case SYLT_STATE_EXEC: {
-		sylt_eprintf("\n[stack trace]:\n");
-
-		/* print a stack trace */
-		for (size_t i = 0; i < ctx->vm->nframes; i++) {
-			const cframe_t* frame = &ctx->vm->frames[i];
-
-			sylt_eprintf("  %ld. ", ctx->vm->nframes - i);
-			string_eprint(frame->func->path);
-			sylt_eprintf(":%d", vm_line(frame));
-
-			if (i != ctx->vm->nframes - 1)
-				sylt_eprintf(" |v|");
-			sylt_eprintf("\n");
-		}
-		sylt_eprintf("\n");
-
 		uint32_t line = vm_line(ctx->vm->fp);
 		const func_t* func = ctx->vm->fp->func;
 
@@ -5201,6 +5194,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		sylt_eprintf(":%d: %s\n", line, msg);
 
 		print_source_line(func, line);
+		print_stack_trace(ctx);
 		break;
 	}
 	default: sylt_eprintf("error: %s\n", msg);
@@ -5210,6 +5204,27 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	fflush(stderr);
 
 	longjmp(err_jump, 1);
+}
+
+void print_stack_trace(const sylt_t* ctx) {
+	sylt_eprintf("\n[stack trace]:\n");
+
+	for (int64_t i = ctx->vm->nframes - 1; i >= 0; i--) {
+		const cframe_t* frame = &ctx->vm->frames[i];
+
+		sylt_eprintf("  %ld. ", ctx->vm->nframes - i);
+
+		if (i == (int64_t)ctx->vm->nframes - 1)
+			sylt_eprintf("> ");
+
+		string_eprint(frame->func->path);
+		sylt_eprintf(":%d", vm_line(frame));
+
+		if (i == (int64_t)ctx->vm->nframes - 1)
+			sylt_eprintf(" <");
+
+		sylt_eprintf("\n");
+	}
 }
 
 /* prints the actual line from the source code */
@@ -5236,7 +5251,9 @@ void print_source_line(const func_t* func, uint32_t line) {
 		}
 	}
 
-	sylt_eprintf("%d | %.*s", line, (int)len, func->src->bytes + start);
+	sylt_eprintf("     |\n");
+	sylt_eprintf("%4d | %.*s", line, (int)len, func->src->bytes + start);
+	sylt_eprintf("     |\n");
 }
 
 void sylt_handle_halt(sylt_t** ctx) {

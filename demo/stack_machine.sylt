@@ -1,0 +1,75 @@
+## implementation of a calculator using a stack
+
+let opcodes = makeEnum([
+    "push"
+    "add"
+    "sub"
+    "mul"
+    "div"
+    "print"
+    "ret"
+])
+
+let exec(prog) = do
+    let ip = 0
+    let stack = []
+
+    let read() = do
+        let code = List.get(ip prog)
+        ip += 1
+        code
+    end
+
+    let pop() = do
+        let value = List.get(-1 stack)
+        stack -= 1
+        value
+    end
+
+    let run = true
+    while run: do
+        let code = read()
+        if code = opcodes.push: stack += read()
+        else if code = opcodes.add: do
+            let b = pop()
+            let a = pop()
+            stack += a + b
+        end
+        else if code = opcodes.sub: do
+            let b = pop()
+            let a = pop()
+            stack += a - b
+        end
+        else if code = opcodes.mul: do
+            let b = pop()
+            let a = pop()
+            stack += a * b
+        end
+        else if code = opcodes.div: do
+            let b = pop()
+            let a = pop()
+            stack += a / b
+        end
+        else if code = opcodes.print: printLn(List.last(stack))
+        else if code = opcodes.ret: run <- false
+    end
+end
+
+let prog = [
+    opcodes.push 1
+    opcodes.push 2
+    opcodes.add
+
+    opcodes.push 10
+    opcodes.mul
+
+    opcodes.push 0.9375
+    opcodes.div
+
+    opcodes.push 16
+    opcodes.sub
+
+    opcodes.print
+    opcodes.ret
+]
+exec(prog)

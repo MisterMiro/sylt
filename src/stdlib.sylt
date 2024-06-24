@@ -19,6 +19,12 @@ let mul(a b) = a * b
 let div(a b) = a / b
 let rem(a b) = a % b
 
+let makeEnum(ls) = do
+	let enum = {}
+	List.iter(fun num name -> Dict.set(name num enum) ls)
+	enum
+end
+
 let rep(f n) = do
 	let i = 0
 	while i < n: do
@@ -161,8 +167,7 @@ let impl = do
 
 				if #expr = 0: text <- text + "%"
 				else do
-					let result = eval(expr)
-					text += toString(result)
+					text += eval(expr)
 					expr <- ""
 				end
 			end
@@ -174,7 +179,7 @@ let impl = do
 			index += 1
 		end
 		
-		if isInExpr: System.halt("unterminated interpolation")
+		if isInExpr: System.halt("unterminated string interpolation, expected '%'")
 		text
 	end
 

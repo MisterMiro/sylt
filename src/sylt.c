@@ -247,6 +247,8 @@ void halt(sylt_t*, const char*, ...);
 	"invalid file handle: %d", (handle)
 #define E_UNEXPECTED_CHAR(c) \
 	"unexpected character '%c'", (c)
+#define E_PARSER_EXPECTED(msg, got) \
+	"%s, got '%.*s'", msg, (int)got->len, got->bytes
 #define E_TYPE(ex, got) \
 	"expected %s, got %s", user_type_name(ex), user_type_name(got)
 #define E_NOT_CALLABLE(tag) \
@@ -4281,21 +4283,17 @@ bool match(comp_t* cmp, token_type_t tag) {
 
 /* consumes the next token if the tag matches,
  * throws an error if it does not */
-void eat(
-	comp_t* cmp,
-	token_type_t tag,
-	const char* msg)
-{
+void eat(comp_t* cmp, token_type_t tag, const char* msg) {
 	if (check(cmp, tag)) {
 		step(cmp);
 		return;
 	}
 	
-	halt(cmp->ctx, msg);
+	halt(cmp->ctx, E_PARSER_EXPECTED(msg, cmp->prev.lex));
 }
 
 /* parsing functions */
-void expr(comp_t*, prec_t);
+void expr(comp_t*, prec_t, const char*);
 void literal(comp_t*);
 void name(comp_t*);
 void list(comp_t*);
@@ -4375,7 +4373,7 @@ static parserule_t RULES[] = {
 
 /* parses an expression at or above
  * the given precedence level */
-void expr(comp_t* cmp, prec_t prec) {
+void expr(comp_t* cmp, prec_t prec, const char* name) {
 	/* move to the next token */
 	step(cmp);
 	
@@ -4384,9 +4382,8 @@ void expr(comp_t* cmp, prec_t prec) {
 	/* first token in an expression
 	 * must have a prefix rule */
 	if (!prefix) {
-		halt(cmp->ctx,
-			"expected expression, got '%.*s'",
-			(int)cmp->prev.lex->len, cmp->prev.lex->bytes);
+		halt(cmp->ctx, "expected %s, got '%.*s'",
+			name, (int)cmp->prev.lex->len, cmp->prev.lex->bytes);
 		return;
 	}
 	
@@ -4467,7 +4464,7 @@ void name(comp_t* cmp) {
 			load_name(cmp, name);
 
 		assign = true;
-		expr(cmp, PREC_ASSIGN);
+		expr(cmp, PREC_ASSIGN, "expression");
 
 		if (is_compound) {
 			switch (op) {
@@ -4491,7 +4488,7 @@ void name(comp_t* cmp) {
 void list(comp_t* cmp) {
 	int len = 0;
 	while (!check(cmp, T_RSQUARE) && !check(cmp, T_EOF)) {
-		expr(cmp, PREC_OR);
+		expr(cmp, PREC_OR, "list item or ']'");
 		len++;
 	}
 	
@@ -4503,9 +4500,9 @@ void list(comp_t* cmp) {
 void dict(comp_t* cmp) {
 	int len = 0;
 	while (!check(cmp, T_RCURLY) && !check(cmp, T_EOF)) {
-		expr(cmp, PREC_OR); /* key */
+		expr(cmp, PREC_OR, "dictionary key or ']'"); /* key */
 		eat(cmp, T_COLON, "expected ':' after item key");
-		expr(cmp, PREC_OR); /* value */
+		expr(cmp, PREC_OR, "key value"); /* value */
 		len++;
 	}
 	
@@ -4591,7 +4588,7 @@ void number(comp_t* cmp) {
 
 /* parses a parenthesized expression */
 void grouping(comp_t* cmp) {
-	expr(cmp, ANY_PREC);
+	expr(cmp, ANY_PREC, "expression");
 	eat(cmp, T_RPAREN, "expected closing ')'");
 }
 
@@ -4601,7 +4598,7 @@ void unary(comp_t* cmp) {
 	token_type_t token = cmp->prev.tag;
 	
 	/* parse the operand */
-	expr(cmp, PREC_UPRE);
+	expr(cmp, PREC_UPRE, "expression");
 	
 	op_t opcode = -1;
 	switch (token) {
@@ -4649,7 +4646,7 @@ void binary(comp_t* cmp) {
 		int jump = emit_jump(cmp, OP_JMP_IF_NOT);
 		
 		emit_nullary(cmp, OP_POP);
-		expr(cmp, PREC_AND);
+		expr(cmp, PREC_AND, "expression");
 		
 		patch_jump(cmp, jump);
 		return; /* early return */
@@ -4661,7 +4658,7 @@ void binary(comp_t* cmp) {
 		int jump = emit_jump(cmp, OP_JMP_IF);
 		
 		emit_nullary(cmp, OP_POP);
-		expr(cmp, PREC_OR);
+		expr(cmp, PREC_OR, "expression");
 		
 		patch_jump(cmp, jump);
 		return; /* early return */
@@ -4669,7 +4666,7 @@ void binary(comp_t* cmp) {
 	default: unreachable();
 	}
 	
-	expr(cmp, rule->prec + 1);
+	expr(cmp, rule->prec + 1, "right-hand side expression");
 	emit_nullary(cmp, opcode);
 }
 
@@ -4684,7 +4681,7 @@ void call(comp_t* cmp) {
 			unreachable();
 		}
 			
-		expr(cmp, ANY_PREC);
+		expr(cmp, ANY_PREC, "argument");
 		argc++;
 	}
 	
@@ -4699,7 +4696,7 @@ void dot(comp_t* cmp) {
 	emit_value(cmp, wrapstring(name));
 
 	if (match(cmp, T_LT_MINUS)) {
-		expr(cmp, PREC_ASSIGN);
+		expr(cmp, PREC_ASSIGN, "right-hand side expression");
 		emit_nullary(cmp, OP_STORE_KEY);
 		return;
 	}
@@ -4774,7 +4771,7 @@ void let(comp_t* cmp) {
 		
 		/* compile the right hand side
 	 	* of the expression */
-		expr(cmp, ANY_PREC);
+		expr(cmp, ANY_PREC, "right-hand side expression");
 		
 		if (is_local) {
 			add_symbol(cmp, name);
@@ -4833,7 +4830,7 @@ void parse_func(
 	}
 			
 	/* function body */
-	expr(&fcmp, ANY_PREC);
+	expr(&fcmp, ANY_PREC, "function body expression");
 	
 	comp_close_scope(cmp);
 	emit_nullary(&fcmp, OP_RET);
@@ -4857,7 +4854,7 @@ void parse_func(
 
 /* parses an if/else expression */
 void if_else(comp_t* cmp) {
-	expr(cmp, ANY_PREC); /* condition */
+	expr(cmp, ANY_PREC, "if condition"); /* condition */
 	eat(cmp, T_COLON, "expected ':' after if condition");
 	
 	/* jump to else branch if
@@ -4866,7 +4863,7 @@ void if_else(comp_t* cmp) {
 		
 	/* 'then' branch */
 	emit_nullary(cmp, OP_POP); /* condition */
-	expr(cmp, ANY_PREC);
+	expr(cmp, ANY_PREC, "'if' branch expression");
 	
 	/* unconditionally jump over the 
 	 * else branch */
@@ -4876,7 +4873,7 @@ void if_else(comp_t* cmp) {
 	/* 'else' branch */
 	emit_nullary(cmp, OP_POP); /* condition */
 	if (match(cmp, T_ELSE))
-		expr(cmp, ANY_PREC);
+		expr(cmp, ANY_PREC, "'else' branch expression");
 	else
 		emit_value(cmp, nil());
 	
@@ -4887,13 +4884,13 @@ void if_else(comp_t* cmp) {
 void while_loop(comp_t* cmp) {
 	int loop_start = cmp->func->ncode;
 	
-	expr(cmp, ANY_PREC); /* condition */
+	expr(cmp, ANY_PREC, "'while' condition"); /* condition */
 	eat(cmp, T_COLON, "expected ':' after while condition");
 		
 	int jmp = emit_jump(cmp, OP_JMP_IF_NOT);
 	emit_nullary(cmp, OP_POP);
 	
-	expr(cmp, ANY_PREC);
+	expr(cmp, ANY_PREC, "'while' body");
 	emit_nullary(cmp, OP_POP);
 	emit_loop(cmp, loop_start);
 	
@@ -4918,7 +4915,7 @@ void block(comp_t* cmp) {
 	}
 	
 	while (!check(cmp, T_END) && !check(cmp, T_EOF)) {
-		expr(cmp, ANY_PREC);
+		expr(cmp, ANY_PREC, "expression");
 		
 		/* pop the result of every expression
 		 * in a block except for the last one,
@@ -5207,6 +5204,9 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 }
 
 void print_stack_trace(const sylt_t* ctx) {
+	if (ctx->vm->nframes == 1)
+		return;
+
 	sylt_eprintf("\n[stack trace]:\n");
 
 	for (int64_t i = ctx->vm->nframes - 1; i >= 0; i--) {
@@ -5344,7 +5344,7 @@ void compile_and_run(sylt_t* ctx, string_t* src, string_t* name, comp_t* cmp) {
 	
 	/* parse the entire source */
 	while (!check(cmp, T_EOF)) {
-		expr(cmp, ANY_PREC);
+		expr(cmp, ANY_PREC, "top-level expression");
 		if (cmp->cur.tag != T_EOF)
 			emit_nullary(cmp, OP_POP);
 	}

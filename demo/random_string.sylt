@@ -6,7 +6,7 @@ let chars = String.chars(String.letters + String.digits)
 
 ## seed the RNG using the current time so we get different random values
 ## every time we run the program
-Rand.setSeed(System.timestamp())
+Rand.seed(System.timestamp())
 
 rep(fun _ -> str <- str + List.get(Rand.range(0 List.length(chars)) chars) length)
 printLn(str)

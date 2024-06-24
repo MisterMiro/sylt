@@ -4826,10 +4826,8 @@ void if_else(comp_t* cmp) {
 void while_loop(comp_t* cmp) {
 	int loop_start = cmp->func->ncode;
 	
-	/* (condition) */
-	eat(cmp, T_LPAREN, "expected '(' after 'while'");
-	expr(cmp, ANY_PREC);
-	eat(cmp, T_RPAREN, "expected ')' after while condition");
+	expr(cmp, ANY_PREC); /* condition */
+	eat(cmp, T_COLON, "expected ':' after while condition");
 		
 	int jmp = emit_jump(cmp, OP_JMP_IF_NOT);
 	emit_nullary(cmp, OP_POP);

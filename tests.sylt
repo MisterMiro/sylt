@@ -489,7 +489,7 @@ let listLib() = do
 	## swap
 	let ls = [-5 5]
 	List.swap(0 1 ls)
-	##ensure(ls = [5 -5])
+	ensure(ls = [5 -5])
 
 	## add
 	let x = [1 3 4]
@@ -879,12 +879,14 @@ List.forEach(fun test ->
 		print(test)
 		printLn(":")
 		
-	end else do
+	end
+	else do
 		print("  ")
 		print(String.rightPad(toString(test) 20 "."))
 		
 		test()
 		printLn("OK")
-	end tests)
+	end
+	tests)
 
 printLn("All tests passed!")

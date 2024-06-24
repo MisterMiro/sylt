@@ -24,7 +24,7 @@ let rem(a b) = a % b
 
 let rep(f n) = do
 	let i = 0
-	while (i < n) do
+	while i < n: do
 		f(i)
 		i <- incr(i)
 	end

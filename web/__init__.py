@@ -18,6 +18,7 @@ def get_demo_list():
     demos = []
     for file in os.listdir(sylt_demos):
         demos.append((sylt_demos + file, prettify_demo_name(file)))
+    demos = sorted(demos)
 
     demos.append(("", ""))
     demos.append(("src/stdlib.sylt", "Standard library"))
@@ -84,6 +85,5 @@ def docs():
 
             if line.startswith("comment: "):
                 html += "<div class=\"doc-comment\"><p>" + line[9:] + "</p></div>\n<br>"
-
 
     return render_template("docs.html", html=html)

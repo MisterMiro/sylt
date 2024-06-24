@@ -3,7 +3,7 @@
 let isPrime(n) = do
     let check(n i) = if n = i: true
         else if n % i = 0: false
-        else check(n incr(i))
+        else check(n i + 1)
 
     if n < 2: false else check(n 2)
 end

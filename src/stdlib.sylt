@@ -13,9 +13,6 @@ let isNegative(n) = n < 0
 let isEven(n) = n % 2 = 0
 let isOdd(n) = n % 2 = 1
 
-let incr(n) = n + 1
-let decr(n) = n - 1
-
 let add(a b) = a + b
 let sub(a b) = a - b
 let mul(a b) = a * b
@@ -26,7 +23,7 @@ let rep(f n) = do
 	let i = 0
 	while i < n: do
 		f(i)
-		i <- incr(i)
+		i += 1
 	end
 end
 
@@ -39,19 +36,19 @@ let impl = do
 
 	let map(f ls) = do
 		let newList = []
-		List.forEach(fun value -> newList += f(value) ls)
+		List.forEach(fun item -> newList += f(item) ls)
 		newList
 	end
 
 	let filter(f ls) = do
 		let newList = []
-		List.forEach(fun value -> if f(value): newList += value ls)
+		List.forEach(fun item -> if f(item): newList += item ls)
 		newList
 	end
 
 	let fold(f init ls) = do
 		let result = init
-		List.forEach(fun value -> result <- f(result value) ls)
+		List.forEach(fun item -> result <- f(result item) ls)
 		result
 	end
 

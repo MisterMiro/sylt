@@ -72,14 +72,6 @@ name: isOdd
 args: num
 comment: Returns true if num is odd.
 
-name: incr
-args: num
-comment: Returns num + 1.
-
-name: decr
-args: num
-comment: Returns num - 1.
-
 name: add
 args: a b
 comment: Returns a + b.
@@ -200,14 +192,6 @@ comment: Inserts a value at the given index.
 name: del
 args: index list
 comment: Deletes the value at the given index.
-
-name: push
-args: value list
-comment: Appends a value to the back of a list.
-
-name: pop
-args: list
-comment: Deletes the last value in a list and returns it.
 
 name: first
 args: list

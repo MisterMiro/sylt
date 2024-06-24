@@ -323,12 +323,27 @@ let blocks() = do
 end
 
 let lists() = do
+	## literal
 	let list = [1 2 3]
 
+	## length
 	ensure(#[] = 0)
 	ensure(#[1] = 1)
 	ensure(#[1 2] = 2)
 	ensure(#list = 3)
+
+	## concatenation
+	let x = []
+	x += 3
+	ensure(x = [3] and #x = 1)
+	x += 7
+	ensure(x = [3 7] and #x = 2)
+	
+	## shrinking
+	ls -= 1
+	ensure(x = [3] and #x = 1)
+	ls -= 1
+	ensure(x = [] and #x = 0)
 end
 
 let dicts() = do
@@ -378,7 +393,7 @@ let functions() = do
 	
 	## recursion
 	let clear(ls) = if ls != []: do
-		List.pop(ls)
+		ls -= 1
 		clear(ls)
 	end
 		
@@ -517,18 +532,6 @@ let listLib() = do
 	List.del(0 x)
 	ensure(x = [])
 	
-	## pop
-	let x = []
-	x <- x + 3
-	ensure(x = [3] and #x = 1)
-	x <- x + 7
-	ensure(x = [3 7] and #x = 2)
-	
-	List.pop(x) ## = [3]
-	ensure(x = [3] and #x = 1)
-	List.pop(x) ## = []
-	ensure(x = [] and #x = 0)
-	
 	## first + last
 	let list = ["first" "middle" "last"]
 	ensure(List.first(list) = "first")
@@ -611,7 +614,7 @@ let listLib() = do
 	let set = [true true false]
 	ensure(List.any(fun v -> v set))
 	ensure(List.any(fun v -> !v set))
-	List.pop(set) ## = [true true]
+	set -= 1
 	ensure(List.any(fun v -> v set))
 	ensure(!List.any(fun v -> !v set))
 	

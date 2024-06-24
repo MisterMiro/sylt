@@ -2297,8 +2297,6 @@ void vm_exec(vm_t* vm) {
 		/* == arithmetic == */
 		case OP_ADD: {
 			if (peek(0).tag == TYPE_NUM && peek(1).tag == TYPE_NUM) {
-				typecheck(vm->ctx, peek(0), TYPE_NUM);
-				typecheck(vm->ctx, peek(1), TYPE_NUM);
 				sylt_num_t b = getnum(pop());
 				sylt_num_t a = getnum(pop());
 				push(wrapnum(a + b));
@@ -2309,6 +2307,15 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_SUB: {
+			if (peek(1).tag == TYPE_LIST) {
+				sylt_num_t n = getnum(pop());
+				list_t* ls = getlist(pop());
+				for (int64_t i = 0; i < n; i++)
+					list_pop(ls, vm->ctx);
+				push(wraplist(ls));
+				break;
+			}
+
 			typecheck(vm->ctx, peek(0), TYPE_NUM);
 			typecheck(vm->ctx, peek(1), TYPE_NUM);
 			sylt_num_t b = getnum(pop());
@@ -2853,11 +2860,6 @@ value_t stdlist_del(sylt_t* ctx) {
 	typecheck(ctx, arg(1), TYPE_LIST);
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return list_delete(listarg(1), numarg(0), ctx);
-}
-
-value_t stdlist_pop(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
-	return list_pop(listarg(0), ctx);
 }
 
 value_t stdlist_first(sylt_t* ctx) {
@@ -3553,7 +3555,6 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "swap", stdlist_swap, 3);
 	std_addf(ctx, "add", stdlist_add, 3);
 	std_addf(ctx, "del", stdlist_del, 2);
-	std_addf(ctx, "pop", stdlist_pop, 1);
 	std_addf(ctx, "first", stdlist_first, 1);
 	std_addf(ctx, "last", stdlist_last, 1);
 	std_addf(ctx, "count", stdlist_count, 2);
@@ -5173,18 +5174,20 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	}
 	case SYLT_STATE_EXEC: {
 		sylt_eprintf("\n[stack trace]:\n");
+
+		/* print a stack trace */
 		for (size_t i = 0; i < ctx->vm->nframes; i++) {
 			const cframe_t* frame = &ctx->vm->frames[i];
 
-			sylt_eprintf("  %ld. ", i);
+			sylt_eprintf("  %ld. ", i + 1);
 			string_eprint(frame->func->path);
 			sylt_eprintf(":%d", vm_line(frame));
 
-			sylt_eprintf("\n");
+			sylt_eprintf(" |v|\n");
 		}
 
 		sylt_eprintf("error in ");
-		string_eprint(ctx->vm->fp->func->path);
+		string_eprint(ctx->vm->fp->func->name);
 		sylt_eprintf(":%d", vm_line(ctx->vm->fp));
 		break;
 	}

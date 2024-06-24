@@ -1,6 +1,8 @@
 ## note: most of the standard library is
 ## implemented in C
 
+ensure(System.version = "Sylt Dev 0.1")
+
 ## Prelude   |
 ## ===========
 
@@ -125,13 +127,17 @@ end
 let impl = do
 	let leftPad(str w pattern) = do
 		let text = ""
-		rep(fun _ -> text <- text + pattern (w - String.length(str)) / String.length(pattern))
+		let n = (w - String.length(str)) / String.length(pattern)
+
+		rep(fun _ -> text <- text + pattern n)
 		text + str
 	end
 
 	let rightPad(str w pattern) = do
 		let text = str
-		rep(fun _ -> text <- text + pattern (w - String.length(str)) / String.length(pattern))
+		let n = (w - String.length(str)) / String.length(pattern)
+
+		rep(fun _ -> text <- text + pattern n)
 		text
 	end
 
@@ -169,7 +175,8 @@ let impl = do
 					expr <- ""
 				end
 				
-			end else do
+			end
+			else do
 				if inExpr: expr <- expr + List.get(i chars)
 				else text <- text + List.get(i chars)
 				i <- incr(i)

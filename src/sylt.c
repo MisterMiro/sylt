@@ -248,41 +248,33 @@ void halt(sylt_t*, const char*, ...);
 #define E_UNEXPECTED_CHAR(c) \
 	"unexpected character '%c'", (c)
 #define E_TYPE(ex, got) \
-	"expected %s, got %s", \
-	user_type_name(ex), user_type_name(got)
+	"expected %s, got %s", user_type_name(ex), user_type_name(got)
+#define E_NOT_CALLABLE(tag) \
+	"cannot call a value of type %s", user_type_name(tag)
 #define E_INDEX_TYPE(got) \
-	"cannot use [] to index a %s", \
-	user_type_name(got)
+	"cannot use [] to index a %s", user_type_name(got)
 #define E_CONCAT_TYPE(a, b) \
-	"cannot concatenate %s with %s", \
-	user_type_name(a), user_type_name(b)
+	"cannot concatenate a %s with a %s", user_type_name(a), user_type_name(b)
 #define E_ESCAPE_SEQ(code) \
-	"unknown escape sequence '\\%c'", \
-	(code)
+	"unknown escape sequence '\\%c'", (code)
 #define E_UNTERM_STRING \
 	"unterminated string literal"
 #define E_TOO_MANY_PARAMS \
-	"too many parameters; limit is %d", \
-	(MAX_PARAMS)
+	"too many parameters; limit is %d", (MAX_PARAMS)
 #define E_TOO_MANY_ARGS \
-	"too many arguments; limit is %d", \
-	(MAX_PARAMS)
+	"too many arguments; limit is %d", (MAX_PARAMS)
 #define E_TOO_MANY_UPVALUES \
-	"too many upvalues; max is %d", \
-	(MAX_UPVALUES)
+	"too many upvalues; max is %d", (MAX_UPVALUES)
 #define E_UNDEFINED(name) \
-	"undefined variable '%.*s'", \
-	(name->len), (name->bytes)
+	"undefined variable '%.*s'", (name->len), (name->bytes)
 #define E_KEY_NOT_FOUND(key) \
-	"key '%.*s' not found in dictionary", \
-	(key->len), (key->bytes)
+	"key '%.*s' not found in dictionary", (key->len), (key->bytes)
 #define E_DIV_BY_ZERO \
 	"attempted division by zero"
 #define E_STACK_OVERFLOW \
 	"call stack overflow"
 #define E_INDEX(len, index) \
-	"index out of range, len: %d, i=%d", \
-	(len), (index)
+	"index out of range, len: %d, i=%d", (len), (index)
 #define E_WRONG_ARGC(name, need, got) \
 	"%.*s takes %d argument%s but got %d", \
 	(int)name->len, name->bytes, \
@@ -2465,7 +2457,9 @@ void vm_exec(vm_t* vm) {
 void sylt_call(sylt_t* ctx, int argc) {
 	vm_t* vm = ctx->vm;
 	
-	typecheck(vm->ctx, peek(argc), TYPE_CLOSURE);
+	if (peek(argc).tag != TYPE_CLOSURE)
+		halt(ctx, E_NOT_CALLABLE(peek(argc).tag));
+
 	closure_t* cls = getclosure(peek(argc));
 	const func_t* func = cls->func;
 				
@@ -3650,6 +3644,17 @@ void std_init(sylt_t* ctx) {
 	sylt_xfile(ctx, SYLT_STDLIB_PATH);
 	
 	gc_resume(ctx);
+}
+
+void std_sandbox(sylt_t* ctx) {
+	sylt_dprintf("Running in sandbox mode; File API and System.run() are disabled\n");
+
+	/* disable entire File API */
+	dict_set(ctx->vm->gdict, string_lit("File", ctx), nil(), ctx);
+
+	/* disable System.run */
+	dict_t* system = getdict(*dict_get(ctx->vm->gdict, string_lit("System", ctx)));
+	dict_set(system, string_lit("run", ctx), nil(), ctx);
 }
 
 /* == compiler == */
@@ -5120,8 +5125,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	}
 	case SYLT_STATE_EXEC: {
 		sylt_eprintf(" in ");
-		string_eprint(
-			ctx->vm->fp->func->path);
+		string_eprint(ctx->vm->fp->func->path);
 		sylt_eprintf(":%d", vm_line(ctx->vm));
 		break;
 	}
@@ -5292,6 +5296,7 @@ void print_usage(void) {
 	sylt_printf("-test  run tests\n");
 	sylt_printf("-v     print version\n");
 	sylt_printf("-d     disassemble\n");
+	sylt_printf("-sbox  sandbox STD library\n");
 }
 
 void print_version(void) {
@@ -5309,21 +5314,20 @@ int main(int argc, char *argv[]) {
 		if (arg->bytes[0] != '-') {
 			path = i;
 		
-		} else if (string_eq(arg,
-			string_lit("-help", ctx))) {
+		} else if (string_eq(arg, string_lit("-help", ctx))) {
 			print_usage();
 			
-		} else if (string_eq(arg,
-			string_lit("-test", ctx))) {
+		} else if (string_eq(arg, string_lit("-test", ctx))) {
 			run_tests(ctx);
 			
-		} else if (string_eq(arg,
-			string_lit("-v", ctx))) {
+		} else if (string_eq(arg, string_lit("-v", ctx))) {
 			print_version();
 		
-		} else if (string_eq(arg,
-			string_lit("-d", ctx))) {
+		} else if (string_eq(arg, string_lit("-d", ctx))) {
 			ctx->disassemble = true;
+			
+		} else if (string_eq(arg, string_lit("-sbox", ctx))) {
+			std_sandbox(ctx);
 			
 		} else {
 			print_usage();

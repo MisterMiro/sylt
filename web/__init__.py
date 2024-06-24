@@ -58,7 +58,7 @@ def index_submit():
         file.write(code)
 
     # launch sylt instance
-    args = [path, "-v"]
+    args = [path, "-sbox", "-v"]
     if (disassemble):
         args.append("-d")
     output = run_sylt_binary(args)    

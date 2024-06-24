@@ -8,8 +8,8 @@ let missing = nil
 let index = 0
 
 while (missing = nil) do
-    let num = numbers[index]
-    let next = numbers[index + 1]
+    let num = List.get(index numbers)
+    let next = List.get(index + 1 numbers)
 
     if (next > num + 1) missing <- num + 1
     else index <- incr(index)

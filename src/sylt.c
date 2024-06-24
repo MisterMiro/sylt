@@ -274,7 +274,7 @@ void halt(sylt_t*, const char*, ...);
 	"undefined variable '%.*s'", \
 	(name->len), (name->bytes)
 #define E_KEY_NOT_FOUND(key) \
-	"key '%.*s' not found", \
+	"key '%.*s' not found in dictionary", \
 	(key->len), (key->bytes)
 #define E_DIV_BY_ZERO \
 	"attempted division by zero"
@@ -1694,7 +1694,7 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 		break;
 	}
 	case TYPE_DICT: {
-		sylt_pushstring(ctx, string_lit("[|", ctx));
+		sylt_pushstring(ctx, string_lit("{", ctx));
 		
 		dict_t* dc = getdict(val);
 		size_t n = 0;
@@ -1724,7 +1724,7 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 			n++;
 		}
 		
-		sylt_pushstring(ctx, string_lit("|]", ctx));
+		sylt_pushstring(ctx, string_lit("}", ctx));
 		sylt_concat(ctx);
 		
 		str = sylt_popstring(ctx);
@@ -2843,6 +2843,34 @@ value_t stdlist_length(sylt_t* ctx) {
 	return wrapnum(listarg(0)->len);
 }
 
+value_t stdlist_get(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_LIST);
+	return list_get(listarg(1), numarg(0), ctx);
+}
+
+value_t stdlist_set(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(2), TYPE_LIST);
+	list_set(listarg(2), numarg(0), arg(1), ctx);
+	return nil();
+}
+
+value_t stdlist_swap(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_NUM);
+	typecheck(ctx, arg(2), TYPE_LIST);
+
+	sylt_num_t a = numarg(0);
+	sylt_num_t b = numarg(1);
+	list_t* ls = listarg(2);
+
+	value_t tmp = list_get(ls, b, ctx);
+	list_set(ls, b, list_get(ls, a, ctx), ctx);
+	list_set(ls, a, tmp, ctx);
+	return nil();
+}
+
 value_t stdlist_add(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	typecheck(ctx, arg(1), TYPE_NUM);
@@ -2921,6 +2949,26 @@ value_t stdlist_range(sylt_t* ctx) {
 value_t stddict_length(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_DICT);
 	return wrapnum(dictarg(0)->len);
+}
+
+value_t stddict_get(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_DICT);
+	value_t* val = dict_get(dictarg(1), stringarg(0));
+
+	if (!val) {
+		halt(ctx, E_KEY_NOT_FOUND(stringarg(0)));
+		unreachable();
+	}
+
+	return *val;
+}
+
+value_t stddict_set(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(2), TYPE_DICT);
+	dict_set(dictarg(2), stringarg(0), arg(1), ctx);
+	return nil();
 }
 
 value_t stddict_keys(sylt_t* ctx) {
@@ -3546,6 +3594,9 @@ void std_init(sylt_t* ctx) {
 	/* list */
 	std_setlib(ctx, "List");
 	std_addf(ctx, "length", stdlist_length, 1);
+	std_addf(ctx, "get", stdlist_get, 2);
+	std_addf(ctx, "set", stdlist_set, 3);
+	std_addf(ctx, "swap", stdlist_swap, 3);
 	std_addf(ctx, "add", stdlist_add, 3);
 	std_addf(ctx, "del", stdlist_del, 2);
 	std_addf(ctx, "push", stdlist_push, 2);
@@ -3561,6 +3612,8 @@ void std_init(sylt_t* ctx) {
 	/* dict */
 	std_setlib(ctx, "Dict");
 	std_addf(ctx, "length", stddict_length, 1);
+	std_addf(ctx, "get", stddict_get, 2);
+	std_addf(ctx, "set", stddict_set, 3);
 	std_addf(ctx, "keys", stddict_keys, 1);
 	std_addf(ctx, "values", stddict_values, 1);
 	std_addlib(ctx);
@@ -3710,7 +3763,7 @@ typedef enum {
 	PREC_FACTOR,
 	/* unary prefix: - ! */
 	PREC_UPRE,
-	/* unary postfix: () [] . */
+	/* unary postfix: () . */
 	PREC_UPOST,
 } prec_t;
 
@@ -4266,7 +4319,6 @@ void grouping(comp_t*);
 void unary(comp_t*);
 void binary(comp_t*);
 void call(comp_t*);
-void index(comp_t*);
 void dot(comp_t*);
 void using(comp_t*);
 void let(comp_t*);
@@ -4320,7 +4372,7 @@ static parserule_t RULES[] = {
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
 	[T_LCURLY] = {dict, NULL, PREC_NONE},
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
-	[T_LSQUARE] = {list, index, PREC_UPOST},
+	[T_LSQUARE] = {list, NULL, PREC_NONE},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
@@ -4611,20 +4663,6 @@ void call(comp_t* cmp) {
 	eat(cmp, T_RPAREN, "expected ')'");
 	emit_unary(cmp, OP_CALL, argc);
 	comp_simstack(cmp, -argc);
-}
-
-/* parses a subscript operator */
-void index(comp_t* cmp) {
-	expr(cmp, PREC_OR);
-	eat(cmp, T_RSQUARE, "expected ']'");
-	
-	if (match(cmp, T_LT_MINUS)) {
-		expr(cmp, PREC_ASSIGN);
-		emit_nullary(cmp, OP_STORE_ITEM);
-		return;
-	}
-	
-	emit_nullary(cmp, OP_LOAD_ITEM);
 }
 
 void dot(comp_t* cmp) {

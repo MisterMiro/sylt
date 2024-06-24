@@ -32,9 +32,8 @@ end
 ## ===========
 
 let impl = do
-	let iter(f ls) = rep(fun i -> f(i ls[i]) List.length(ls))
-
-	let forEach(f ls) = rep(fun i -> f(ls[i]) List.length(ls))
+	let iter(f ls) = rep(fun i -> f(i List.get(i ls)) List.length(ls))
+	let forEach(f ls) = rep(fun i -> f(List.get(i ls)) List.length(ls))
 
 	let map(f ls) = do
 		let mapped = []
@@ -63,21 +62,22 @@ let impl = do
 		
 	let mean(ls) = 
 		if (isOdd(List.length(ls)))
-			ls[List.length(ls) / 2]
+			List.get(List.length(ls) / 2 ls)
 		else
 			List.average([
-				ls[List.length(ls) / 2 - 1]
-				ls[List.length(ls) / 2]])
+				List.get(List.length(ls) / 2 - 1 ls)
+				List.get(List.length(ls) / 2 ls)
+			])
 
 	let sortBy(f ls) = do
 		let bubbleSort(ls n) = do
 			let swapped = 0
 
 			rep(fun i -> do
-				if (f(ls[i] ls[i + 1])) do
-					let tmp = ls[i]
-					ls[i] <- ls[i + 1]
-					ls[i + 1] <- tmp
+				if (f(List.get(i ls) List.get(i + 1 ls))) do
+					let tmp = List.get(i ls)
+					List.set(i List.get(i + 1 ls) ls)
+					List.set(i + 1 tmp ls)
 
 					swapped <- incr(swapped)
 				end
@@ -115,20 +115,21 @@ let impl = do
 
 	let all(f ls) = List.fold(fun all value -> all and f(value) true ls)
 
-	gdict["List"]["iter"] <- iter
-	gdict["List"]["forEach"] <- forEach
-	gdict["List"]["map"] <- map
-	gdict["List"]["filter"] <- filter
-	gdict["List"]["fold"] <- fold
-	gdict["List"]["sum"] <- sum
-	gdict["List"]["average"] <- average
-	gdict["List"]["mean"] <- mean
-	gdict["List"]["sortBy"] <- sortBy
-	gdict["List"]["sort"] <- sort
-	gdict["List"]["flatten"] <- flatten
-	gdict["List"]["dedup"] <- dedup
-	gdict["List"]["any"] <- any
-	gdict["List"]["all"] <- all
+	let lib = Dict.get("List" gdict)
+	Dict.set("iter" iter lib)
+	Dict.set("forEach" forEach lib)
+	Dict.set("map" map lib)
+	Dict.set("filter" filter lib)
+	Dict.set("fold" fold lib)
+	Dict.set("sum" sum lib)
+	Dict.set("average" average lib)
+	Dict.set("mean" mean lib)
+	Dict.set("sortBy" sortBy lib)
+	Dict.set("sort" sort lib)
+	Dict.set("flatten" flatten lib)
+	Dict.set("dedup" dedup lib)
+	Dict.set("any" any lib)
+	Dict.set("all" all lib)
 end
 
 ## String    |
@@ -169,7 +170,7 @@ let impl = do
 		let i = 0
 		let inExpr = false
 		while (i < List.length(chars)) do
-			if (chars[i] = "%") do
+			if (List.get(i chars) = "%") do
 				inExpr <- !inExpr
 				
 				if (inExpr) do
@@ -187,8 +188,8 @@ let impl = do
 				end
 				
 			end else do
-				if (inExpr) expr <- expr + chars[i]
-				else text <- text + chars[i]
+				if (inExpr) expr <- expr + List.get(i chars)
+				else text <- text + List.get(i chars)
 				i <- incr(i)
 			end
 		end
@@ -199,8 +200,9 @@ let impl = do
 		text
 	end
 
-	gdict["String"]["leftPad"] <- leftPad
-	gdict["String"]["rightPad"] <- rightPad
-	gdict["String"]["centerPad"] <- centerPad
-	gdict["String"]["fmt"] <- fmt
+	let lib = Dict.get("String" gdict)
+	Dict.set("leftPad" leftPad lib)
+	Dict.set("rightPad" rightPad lib)
+	Dict.set("centerPad" centerPad lib)
+	Dict.set("fmt" fmt lib)
 end

@@ -5151,6 +5151,8 @@ string_t* load_file(const char* path, sylt_t* ctx) {
 	return str;
 }
 
+void print_source_line(const func_t*, uint32_t);
+
 /* halts with an error message */
 void halt(sylt_t* ctx, const char* fmt, ...) {
 	/* print formatted message into buffer */
@@ -5168,8 +5170,10 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 			cmp = cmp->child;
 		
 		sylt_eprintf("error in ");
-		string_eprint(cmp->func->path);
-		sylt_eprintf(":%d", cmp->prev.line);
+		string_eprint(cmp->func->name);
+		sylt_eprintf(":%d: %s\n", cmp->prev.line, msg);
+
+		print_source_line(cmp->func, cmp->prev.line);
 		break;
 	}
 	case SYLT_STATE_EXEC: {
@@ -5179,26 +5183,60 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		for (size_t i = 0; i < ctx->vm->nframes; i++) {
 			const cframe_t* frame = &ctx->vm->frames[i];
 
-			sylt_eprintf("  %ld. ", i + 1);
+			sylt_eprintf("  %ld. ", ctx->vm->nframes - i);
 			string_eprint(frame->func->path);
 			sylt_eprintf(":%d", vm_line(frame));
 
-			sylt_eprintf(" |v|\n");
+			if (i != ctx->vm->nframes - 1)
+				sylt_eprintf(" |v|");
+			sylt_eprintf("\n");
 		}
+		sylt_eprintf("\n");
+
+		uint32_t line = vm_line(ctx->vm->fp);
+		const func_t* func = ctx->vm->fp->func;
 
 		sylt_eprintf("error in ");
-		string_eprint(ctx->vm->fp->func->name);
-		sylt_eprintf(":%d", vm_line(ctx->vm->fp));
+		string_eprint(func->name);
+		sylt_eprintf(":%d: %s\n", line, msg);
+
+		print_source_line(func, line);
 		break;
 	}
-	default: sylt_eprintf("error");
+	default: sylt_eprintf("error: %s\n", msg);
 	}
 	
-	sylt_eprintf(": %s\n", msg);
 	fflush(stdout);
 	fflush(stderr);
 
 	longjmp(err_jump, 1);
+}
+
+/* prints the actual line from the source code */
+void print_source_line(const func_t* func, uint32_t line) {
+	sylt_eprintf("src: ");
+	string_eprint(func->path);
+	sylt_eprintf("\n");
+
+	size_t start = 0; /* start of the current line */
+	size_t len = 0;
+	size_t line_count = 1;
+
+	for (size_t i = 0; i < func->src->len; i++) {
+		uint8_t byte = func->src->bytes[i];
+
+		if (byte == '\n') {
+			len = i - start;
+
+			line_count++;
+			if (line_count - 1 == line)
+				break;
+
+			start = i + 1;
+		}
+	}
+
+	sylt_eprintf("%d | %.*s", line, (int)len, func->src->bytes + start);
 }
 
 void sylt_handle_halt(sylt_t** ctx) {

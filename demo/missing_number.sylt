@@ -1,7 +1,7 @@
 ## finds the gap in a series of (almost) consecutive numbers
 
 let numbers = List.range(1 5)
-List.del(numbers 3)
+List.del(3 numbers)
 printLn(numbers)
 
 let missing = nil

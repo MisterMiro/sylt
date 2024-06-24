@@ -39,13 +39,13 @@ let impl = do
 
 	let map(f ls) = do
 		let mapped = []
-		List.forEach(fun value -> List.push(f(value) mapped) ls)
+		List.forEach(fun value -> mapped <- mapped + f(value) ls)
 		mapped
 	end
 
 	let filter(f ls) = do
 		let filtered = []
-		List.forEach(fun value -> if f(value): List.push(value filtered) ls)
+		List.forEach(fun value -> if f(value): filtered <- filtered + value ls)
 		filtered
 	end
 
@@ -88,15 +88,13 @@ let impl = do
 		let flat = []
 		List.forEach(fun item ->
 			if typeOf(item) = "List": flat <- flat + List.flatten(item)
-			else List.push(item flat) ls)
+			else flat <- flat + item ls)
 		flat
 	end
 
 	let dedup(ls) = do
 		let deduped = []
-		List.forEach(fun item ->
-			if !List.contains(deduped item):
-				List.push(item deduped) ls)
+		List.forEach(fun item -> if !List.contains(item deduped): deduped <- deduped + item ls)
 		deduped
 	end
 

@@ -2,12 +2,12 @@
 
 Rand.seed(System.timestamp())
 
-let doorStates = []
+let states = []
 let n = 30000
-rep(fun _ -> List.push(if Rand.oneIn(20): "open" else "closed" doorStates) n)
+rep(fun _ -> states <- states + if Rand.oneIn(20): "open" else "closed" n)
 
-let closed = List.count("closed" doorStates)
-let open = List.count("open" doorStates)
+let closed = List.count("closed" states)
+let open = List.count("open" states)
 
 printLn(String.fmt("Checking %n% doors..."))
 printLn(String.fmt("Open: %open%"))

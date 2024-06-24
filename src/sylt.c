@@ -1420,8 +1420,13 @@ void sylt_concat(sylt_t* ctx) {
 	value_t a = sylt_peek(ctx, 1);
 	value_t result;
 	
-	if (a.tag == TYPE_LIST && b.tag == TYPE_LIST) {
-		result = wraplist(list_concat(getlist(a), getlist(b), ctx));
+	if (a.tag == TYPE_LIST) {
+		if (b.tag == TYPE_LIST)
+			result = wraplist(list_concat(getlist(a), getlist(b), ctx));
+		else {
+			list_push(getlist(a), b, ctx);
+			result = wraplist(getlist(a));
+		}
 		
 	} else if (a.tag == TYPE_STRING && b.tag == TYPE_STRING) {
 		result = wrapstring(string_concat(getstring(a), getstring(b), ctx));
@@ -2287,17 +2292,16 @@ void vm_exec(vm_t* vm) {
 		}
 		/* == arithmetic == */
 		case OP_ADD: {
-			if (peek(0).tag != TYPE_NUM || peek(1).tag != TYPE_NUM) {
-				sylt_concat(vm->ctx);
-
-			} else {
+			if (peek(0).tag == TYPE_NUM && peek(1).tag == TYPE_NUM) {
 				typecheck(vm->ctx, peek(0), TYPE_NUM);
 				typecheck(vm->ctx, peek(1), TYPE_NUM);
 				sylt_num_t b = getnum(pop());
 				sylt_num_t a = getnum(pop());
 				push(wrapnum(a + b));
+				break;
 			}
-			
+				
+			sylt_concat(vm->ctx);
 			break;
 		}
 		case OP_SUB: {
@@ -2838,12 +2842,6 @@ value_t stdlist_del(sylt_t* ctx) {
 	typecheck(ctx, arg(1), TYPE_LIST);
 	typecheck(ctx, arg(0), TYPE_NUM);
 	return list_delete(listarg(1), numarg(0), ctx);
-}
-
-value_t stdlist_push(sylt_t* ctx) {
-	typecheck(ctx, arg(1), TYPE_LIST);
-	list_push(listarg(1), arg(0), ctx);
-	return nil();
 }
 
 value_t stdlist_pop(sylt_t* ctx) {
@@ -3555,7 +3553,6 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "swap", stdlist_swap, 3);
 	std_addf(ctx, "add", stdlist_add, 3);
 	std_addf(ctx, "del", stdlist_del, 2);
-	std_addf(ctx, "push", stdlist_push, 2);
 	std_addf(ctx, "pop", stdlist_pop, 1);
 	std_addf(ctx, "first", stdlist_first, 1);
 	std_addf(ctx, "last", stdlist_last, 1);

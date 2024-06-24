@@ -194,15 +194,15 @@ args: indexA indexB list
 comment: Swaps the values at the provided indices.
 
 name: add
-args: list index value
+args: index value list
 comment: Inserts a value at the given index.
 
 name: del
-args: list index
+args: index list
 comment: Deletes the value at the given index.
 
 name: push
-args: list value
+args: value list
 comment: Appends a value to the back of a list.
 
 name: pop
@@ -218,11 +218,11 @@ args: list
 comment: Returns the last item in a list.
 
 name: count
-args: list value
+args: value list
 comment: Counts how many times a unique value occurs in a list.
 
 name: contains
-args: list value
+args: value list
 comment: Returns true if the list contains a value.
 
 name: rev

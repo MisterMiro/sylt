@@ -1,0 +1,15 @@
+## demonstrates how to use the Rand.oneIn function to implement probability
+
+Rand.seed(System.timestamp())
+
+let doorStates = []
+let n = 30000
+rep(fun _ -> List.push(if Rand.oneIn(20): "open" else "closed" doorStates) n)
+
+let closed = List.count("closed" doorStates)
+let open = List.count("open" doorStates)
+
+printLn(String.fmt("Checking %n% doors..."))
+printLn(String.fmt("Open: %open%"))
+printLn(String.fmt("Closed: %closed%"))
+printLn(String.fmt("%(open / closed) * 100%%% of the doors are open"))

@@ -1792,12 +1792,12 @@ void vm_free(vm_t* vm) {
 			fclose(vm->files[i]);
 }
 
-size_t vm_address(const vm_t* vm) {
-	return (size_t)(vm->fp->ip - 1 - vm->fp->func->code);
+size_t vm_address(const cframe_t* frame) {
+	return (size_t)(frame->ip - 1 - frame->func->code);
 }
 
-uint32_t vm_line(const vm_t* vm) {
-	return vm->fp->func->lines[vm_address(vm)];
+uint32_t vm_line(const cframe_t* frame) {
+	return frame->func->lines[vm_address(frame)];
 }
 
 /* VM macros */
@@ -1864,7 +1864,7 @@ void dbg_print_instruction(const vm_t* vm) {
 	if (!vm->ctx->disassemble)
 		return;
 	
-	size_t addr = vm_address(vm);
+	size_t addr = vm_address(vm->fp);
 	sylt_dprintf("  %05ld", addr);
 	
 	/* line number */
@@ -2749,7 +2749,7 @@ value_t stdsys_src(sylt_t* ctx) {
 	dict_set(dc,string_lit("text", ctx), wrapstring(ctx->vm->fp->func->src), ctx);
 	dict_set(dc, string_lit("name", ctx), wrapstring(ctx->vm->fp->func->name), ctx);
 	dict_set(dc, string_lit("path", ctx), wrapstring(ctx->vm->fp->func->path), ctx);
-	dict_set(dc, string_lit("line", ctx), wrapnum(vm_line(ctx->vm)), ctx);
+	dict_set(dc, string_lit("line", ctx), wrapnum(vm_line(ctx->vm->fp)), ctx);
 	return wrapdict(dc);
 }
 
@@ -2828,21 +2828,21 @@ value_t stdlist_swap(sylt_t* ctx) {
 }
 
 value_t stdlist_add(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
 	typecheck(ctx, arg(1), TYPE_NUM);
-	list_insert(listarg(0), numarg(1), arg(2), ctx);
+	typecheck(ctx, arg(2), TYPE_LIST);
+	list_insert(listarg(2), numarg(1), arg(0), ctx);
 	return nil();
 }
 
 value_t stdlist_del(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
-	typecheck(ctx, arg(1), TYPE_NUM);
-	return list_delete(listarg(0), numarg(1), ctx);
+	typecheck(ctx, arg(1), TYPE_LIST);
+	typecheck(ctx, arg(0), TYPE_NUM);
+	return list_delete(listarg(1), numarg(0), ctx);
 }
 
 value_t stdlist_push(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
-	list_push(listarg(0), arg(1), ctx);
+	typecheck(ctx, arg(1), TYPE_LIST);
+	list_push(listarg(1), arg(0), ctx);
 	return nil();
 }
 
@@ -2862,14 +2862,14 @@ value_t stdlist_last(sylt_t* ctx) {
 }
 
 value_t stdlist_count(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
-	size_t result = list_count(listarg(0), arg(1));
+	typecheck(ctx, arg(1), TYPE_LIST);
+	size_t result = list_count(listarg(1), arg(0));
 	return wrapnum(result);
 }
 
 value_t stdlist_contains(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
-	bool result = list_count(listarg(0), arg(1)) > 0;
+	typecheck(ctx, arg(1), TYPE_LIST);
+	bool result = list_count(listarg(1), arg(0)) > 0;
 	return wrapbool(result);
 }
 
@@ -5106,9 +5106,7 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 	va_start(args, fmt);
 	vsnprintf(msg, MAX_ERRMSGLEN, fmt, args);
 	va_end(args);
-	
-	sylt_eprintf("error");
-	
+		
 	/* print file and line if available */
 	switch (ctx->state) {
 	case SYLT_STATE_COMPILING: {
@@ -5116,18 +5114,29 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 		while (cmp->child)
 			cmp = cmp->child;
 		
-		sylt_eprintf(" in ");
+		sylt_eprintf("error in ");
 		string_eprint(cmp->func->path);
 		sylt_eprintf(":%d", cmp->prev.line);
 		break;
 	}
 	case SYLT_STATE_EXEC: {
-		sylt_eprintf(" in ");
+		sylt_eprintf("\n[stack trace]:\n");
+		for (size_t i = 0; i < ctx->vm->nframes; i++) {
+			const cframe_t* frame = &ctx->vm->frames[i];
+
+			sylt_eprintf("  %ld. ", i);
+			string_eprint(frame->func->path);
+			sylt_eprintf(":%d", vm_line(frame));
+
+			sylt_eprintf("\n");
+		}
+
+		sylt_eprintf("error in ");
 		string_eprint(ctx->vm->fp->func->path);
-		sylt_eprintf(":%d", vm_line(ctx->vm));
+		sylt_eprintf(":%d", vm_line(ctx->vm->fp));
 		break;
 	}
-	default: break;
+	default: sylt_eprintf("error");
 	}
 	
 	sylt_eprintf(": %s\n", msg);

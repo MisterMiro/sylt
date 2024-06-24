@@ -39,13 +39,13 @@ let impl = do
 
 	let map(f ls) = do
 		let mapped = []
-		List.forEach(fun value -> List.push(mapped f(value)) ls)
+		List.forEach(fun value -> List.push(f(value) mapped) ls)
 		mapped
 	end
 
 	let filter(f ls) = do
 		let filtered = []
-		List.forEach(fun value -> if f(value): List.push(filtered value) ls)
+		List.forEach(fun value -> if f(value): List.push(value filtered) ls)
 		filtered
 	end
 
@@ -88,7 +88,7 @@ let impl = do
 		let flat = []
 		List.forEach(fun item ->
 			if typeOf(item) = "List": flat <- flat + List.flatten(item)
-			else List.push(flat item) ls)
+			else List.push(item flat) ls)
 		flat
 	end
 
@@ -96,7 +96,7 @@ let impl = do
 		let deduped = []
 		List.forEach(fun item ->
 			if !List.contains(deduped item):
-				List.push(deduped item) ls)
+				List.push(item deduped) ls)
 		deduped
 	end
 
@@ -195,7 +195,7 @@ end
 
 let impl = do
 	let fiftyFifty() = Rand.range(0 1) > 0.9999999 / 2
-	let oneIn(n) = Rand.range(0 n) <= 1
+	let oneIn(n) = Rand.range(0 n) < 1
 	let scramble(ls) = List.sortBy(fun _ _ -> fiftyFifty() ls)
 
 	let lib = Dict.get("Rand" gdict)

@@ -178,6 +178,18 @@ name: length
 args: list
 comment: Returns the number of items in the list.
 
+name: get
+args: index list
+comment: Returns the value at the given index.
+
+name: set
+args: index newValue list
+comment: Sets the value at the given index.
+
+name: swap
+args: indexA indexB list
+comment: Swaps the values at the provided indices.
+
 name: add
 args: list index value
 comment: Inserts a value at the given index.
@@ -279,6 +291,14 @@ title: Dict library
 name: length
 args: dict
 comment: Returns the number of items (keys) in the dictionary.
+
+name: get
+args: key dict
+comment: Returns the value at the given key.
+
+name: set
+args: key newValue dict
+comment: Sets the value for the given key to newValue.
 
 name: keys
 args: dict

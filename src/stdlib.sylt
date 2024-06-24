@@ -75,10 +75,7 @@ let impl = do
 
 			rep(fun i -> do
 				if (f(List.get(i ls) List.get(i + 1 ls))) do
-					let tmp = List.get(i ls)
-					List.set(i List.get(i + 1 ls) ls)
-					List.set(i + 1 tmp ls)
-
+					List.swap(i i + 1 ls)
 					swapped <- incr(swapped)
 				end
 			end n - 1)

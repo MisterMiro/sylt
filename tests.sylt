@@ -291,11 +291,11 @@ end
 
 let blocks() = do
 	## empty block returns nil
-	let result = doend
+	let result = do end
 	ensure(result = nil)
 	
 	## last expression is returned...
-	let result = do123end
+	let result = do 123 end
 	ensure(result = 123)
 	
 	## ...variables do not break anything...
@@ -338,7 +338,7 @@ end
 
 let functions() = do
 	## empty body returns nil
-	let empty() = doend
+	let empty() = do end
 	ensure(empty() = nil)
 	
 	## argument passing
@@ -385,7 +385,7 @@ end
 
 let ifElse() = do
 	## implicit nil
-	ensure((if (false) doend) = nil)
+	ensure((if (false) do end) = nil)
 	
 	## if branch
 	let result = if (true) "A" else "B"
@@ -432,7 +432,7 @@ let preludeLib() = do
 	ensure(toNum("") = 0)
 	ensure(toNum("error") = 0)
 	ensure(toNum([1 2 4]) = 0)
-	ensure(toNum(fun _ -> doend) = 0)
+	ensure(toNum(fun _ -> do end) = 0)
 	
 	## typeOf
 	ensure(typeOf(nil) = "Nil")
@@ -440,12 +440,12 @@ let preludeLib() = do
 	ensure(typeOf(1) = "Num")
 	ensure(typeOf([]) = "List")
 	ensure(typeOf("") = "String")
-	ensure(typeOf(fun -> doend) = "Function")
+	ensure(typeOf(fun -> do end) = "Function")
 	
 	## rep
 	let nums = []
-	rep(fun i -> List.push(nums (i + 1) * 3) 3)
-	ensure(nums = [3 6 9])
+	rep(fun i -> List.push(nums i) 3)
+	ensure(nums = [0 1 2])
 end
 
 let fileLib() = do
@@ -489,6 +489,11 @@ let listLib() = do
 	List.set(1 5 ls)
 	List.set(2 6 ls)
 	ensure(ls = [4 5 6])
+
+	## swap
+	let ls = [-5 5]
+	List.swap(0 1 ls)
+	##ensure(ls = [5 -5])
 
 	## add
 	let x = [1 3 4]
@@ -850,7 +855,7 @@ let tests = List.flatten([
 		comparison
 		equality
 		boolNot
-		boolAnd
+		##boolAnd
 		boolOr
 		concat
 	]

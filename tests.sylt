@@ -40,13 +40,13 @@ let strings() = do
 	let null = "\0"
 	
 	## ...translate properly
-	ensure(hex = "A")
-	ensure(backslash = "\x5c")
-	ensure(quote = "\x22")
-	ensure(tab = "\x09")
-	ensure(newline = "\x0a")
-	ensure(carriage_return = "\x0d")
-	ensure(null = "\x00")
+	ensure(hex is "A")
+	ensure(backslash is "\x5c")
+	ensure(quote is "\x22")
+	ensure(tab is "\x09")
+	ensure(newline is "\x0a")
+	ensure(carriage_return is "\x0d")
+	ensure(null is "\x00")
 end
 
 let numbers() = do
@@ -56,13 +56,13 @@ end
 
 let precedence() = do
 	## multiplication > addition
-	ensure(5 * 2 + 8 = 18)
-	ensure(5 / 2 + 8 = 10.5)
-	ensure(5 % 2 + 8 = 9)
+	ensure(5 * 2 + 8 is 18)
+	ensure(5 / 2 + 8 is 10.5)
+	ensure(5 % 2 + 8 is 9)
 	
-	ensure(10 * 2 - 8 = 12)
-	ensure(10 / 2 - 8 = -3)
-	ensure(10 % 2 - 8 = -8)
+	ensure(10 * 2 - 8 is 12)
+	ensure(10 / 2 - 8 is -3)
+	ensure(10 % 2 - 8 is -8)
 	
 	## addition > comparison
 	ensure(1 < 1 + 1)
@@ -71,8 +71,8 @@ let precedence() = do
 	ensure(2 >= 1 - 1)
 	
 	## comparison > equality
-	ensure(true = 1 < 2)
-	ensure(true = 1 <= 2)
+	ensure(true is 1 < 2)
+	ensure(true is 1 <= 2)
 	ensure(true not 1 > 2)
 	ensure(true not 1 >= 2)
 end
@@ -86,8 +86,8 @@ let addition() = do
 	ensure(x + y = sum)
 	
 	## commutative
-	ensure(y + x = sum)
-	ensure(x + y = y + x)
+	ensure(y + x is sum)
+	ensure(x + y is y + x)
 end
 
 let subtraction() = do
@@ -96,7 +96,7 @@ let subtraction() = do
 	
 	## correct result
 	let difference = 8
-	ensure(x - y = difference)
+	ensure(x - y is difference)
 	
 	## not commutative
 	ensure(y - x not difference)
@@ -109,11 +109,11 @@ let multiplication() = do
 	
 	## correct result
 	let product = 80
-	ensure(x * y = product)
+	ensure(x * y is product)
 	
 	## commutative
-	ensure(y * x = product)
-	ensure(x * y = y * x)
+	ensure(y * x is product)
+	ensure(x * y is y * x)
 end
 
 let division() = do
@@ -122,7 +122,7 @@ let division() = do
 	
 	## correct result
 	let quotient = 11
-	ensure(x / y = quotient)
+	ensure(x / y is quotient)
 	
 	## not commutative
 	ensure(y / x not quotient)
@@ -135,34 +135,34 @@ let remainder() = do
 	
 	## correct result
 	let remainder = 5
-	ensure(x % y = remainder)
+	ensure(x % y is remainder)
 	
 	## not commutative
 	ensure(y % x not remainder)
 	ensure(x % y not y % x)
 	
 	## remainder is always positive
-	ensure(7 % 3 = 1)
-	ensure(7 % -3 = 1)
-	ensure(-7 % 3 = 2)
-	ensure(-7 % -3 = 2)
+	ensure(7 % 3 is 1)
+	ensure(7 % -3 is 1)
+	ensure(-7 % 3 is 2)
+	ensure(-7 % -3 is 2)
 end
 
 let unaryMinus() = do
 	let x = 25
-	ensure(-x = 0 - x)
+	ensure(-x is 0 - x)
 	
 	## double negative
-	ensure(--x = x)
+	ensure(--x is x)
 	
 	## quadruple negative
-	ensure(----x = x)
+	ensure(----x is x)
 end
 
 let arithmetic() = do
 	let a = 1
 	let b = a + 2
-	ensure(a + b = a - (-b))
+	ensure(a + b is a - (-b))
 end
 
 let comparison() = do
@@ -193,7 +193,7 @@ let equality() = do
 	
 	List.iter(fun skip value -> do
 		## equal to itself
-		ensure(value = value)
+		ensure(value is value)
 		
 		## not equal to a value of any other
 		## type
@@ -203,27 +203,27 @@ let equality() = do
 	## perform more type-specific tests
 	ensure(true not false)
 	
-	ensure([] = [])
-	ensure([[]] = [[]])
+	ensure([] is [])
+	ensure([[]] is [[]])
 	ensure([0] not [1])
 	
-	ensure("" = "")
+	ensure("" is "")
 	ensure("ABC" not "abc")
 	
 	ensure(Math.pow not Math.sqrt)
 end
 
 let boolNot() = do
-	ensure(true = not false)
-	ensure(false = not true)
-	ensure(not not true = true)
+	ensure(true is not false)
+	ensure(false is not true)
+	ensure(not not true is true)
 end
 
 let boolAnd() = do
-	ensure((false and false) = false)
-	ensure((false and true) = false)
-	ensure((true and false) = false)
-	ensure((true and true) = true)
+	ensure((false and false) is false)
+	ensure((false and true) is false)
+	ensure((true and false) is false)
+	ensure((true and true) is true)
 	
 	## short-circuit evaluation
 	let would_crash() = ensure(false)
@@ -231,10 +231,10 @@ let boolAnd() = do
 end
 
 let boolOr() = do
-	ensure((false or false) = false)
-	ensure((false or true) = true)
-	ensure((true or false) = true)
-	ensure((true or true) = true)
+	ensure((false or false) is false)
+	ensure((false or true) is true)
+	ensure((true or false) is true)
+	ensure((true or true) is true)
 	
 	## short-circuit evaluation
 	let would_crash() = ensure(false)
@@ -242,8 +242,8 @@ let boolOr() = do
 end
 
 let concat() = do
-	ensure("Hello " + "Word" = "Hello Word")
-	ensure([1 2] + [3 4] = [1 2 3 4])
+	ensure("Hello " + "Word" is "Hello Word")
+	ensure([1 2] + [3 4] is [1 2 3 4])
 end
 
 let variables() = do
@@ -251,15 +251,15 @@ let variables() = do
 	let x = 70
 	
 	## accessing
-	ensure(x = 70)
+	ensure(x is 70)
 	
 	## shadowing
 	let x = x - 2
-	ensure(x = 68)
+	ensure(x is 68)
 	
 	## assigning local
 	x <- 14
-	ensure(x = 14)
+	ensure(x is 14)
 	
 	## assigning open upvalue
 	let y = 888
@@ -267,7 +267,7 @@ let variables() = do
 		y <- 333
 	end
 	func()
-	ensure(y = 333)
+	ensure(y is 333)
 	
 	## assigning closed upvalue
 	let out() = do
@@ -277,24 +277,24 @@ let variables() = do
 		in
 	end
 	let z = out()()
-	ensure(z = 900)
+	ensure(z is 900)
 	
 	## chaining assignments
 	let a = nil
 	let b = nil
 	let c = nil
 	a <- b <- c <- 32
-	ensure(a = 32 and b = 32 and c = 32)
+	ensure(a is 32 and b is 32 and c is 32)
 end
 
 let blocks() = do
 	## empty block returns nil
 	let result = do end
-	ensure(result = nil)
+	ensure(result is nil)
 	
 	## last expression is returned...
 	let result = do 123 end
-	ensure(result = 123)
+	ensure(result is 123)
 	
 	## ...variables do not break anything...
 	let result = do
@@ -302,7 +302,7 @@ let blocks() = do
 		let v2 = 17
 		123
 	end
-	ensure(result = 123)
+	ensure(result is 123)
 	
 	## ...and neither do captured values
 	let c = 35
@@ -311,16 +311,16 @@ let blocks() = do
 		let sum = c + v
 		123
 	end
-	ensure(result = 123)
+	ensure(result is 123)
 	
 	## assigning shadowed variable
 	let x = true
 	do
 		let x = nil
 		x <- false
-		ensure(x = false)
+		ensure(x is false)
 	end
-	ensure(x = true)
+	ensure(x is true)
 end
 
 let lists() = do
@@ -328,56 +328,56 @@ let lists() = do
 	let list = [1 2 3]
 
 	## length
-	ensure(#[] = 0)
-	ensure(#[1] = 1)
-	ensure(#[1 2] = 2)
-	ensure(#list = 3)
+	ensure(#[] is 0)
+	ensure(#[1] is 1)
+	ensure(#[1 2] is 2)
+	ensure(#list is 3)
 
 	## concatenating
 	let x = []
 	x += 3
-	ensure(x = [3] and #x = 1)
+	ensure(x is [3] and #x is 1)
 	x += 7
-	ensure(x = [3 7] and #x = 2)
+	ensure(x is [3 7] and #x is 2)
 	
 	## shrinking
 	x -= 1
-	ensure(x = [3] and #x = 1)
+	ensure(x is [3] and #x is 1)
 	x -= 1
-	ensure(x = [] and #x = 0)
+	ensure(x is [] and #x is 0)
 end
 
 let dicts() = do
 	let dict = {"a": 1 "b": 2 "c": 3}
 	
 	## count operator
-	ensure(#dict = 3)
+	ensure(#dict is 3)
 
 	## dot access
-	ensure(Dict.get("a" dict) = dict.a)
+	ensure(Dict.get("a" dict) is dict.a)
 end
 
 let functions() = do
 	## empty body returns nil
 	let empty() = do end
-	ensure(empty() = nil)
+	ensure(empty() is nil)
 	
 	## argument passing
 	let add(a b) = a + b
-	ensure(add(3 4) = 7)
+	ensure(add(3 4) is 7)
 	
 	## arguments + local variables
 	let add(a b) = do
 		let stack_mate = 18
 		a + b
 	end
-	ensure(add(3 4) = 7)
+	ensure(add(3 4) is 7)
 	
 	## accessing variable outside of
 	## a functions stack window
 	let outside = "outside"
 	let f() = outside
-	ensure(f() = outside)
+	ensure(f() is outside)
 	
 	## moving surrounding context to
 	## the heap if necessary
@@ -390,7 +390,7 @@ let functions() = do
 	
 	## anonymous functions using 'fun'
 	let anon = fun r s t -> r * s * t
-	ensure(anon(2 4 8) = 64)
+	ensure(anon(2 4 8) is 64)
 	
 	## recursion
 	let clear(ls) = if ls not []: do
@@ -400,20 +400,20 @@ let functions() = do
 		
 	let nums = [1 2 3]
 	clear(nums)
-	ensure(nums = [])
+	ensure(nums is [])
 end
 
 let ifElse() = do
 	## implicit nil
-	ensure((if false: do end) = nil)
+	ensure((if false: do end) is nil)
 	
 	## if branch
 	let result = if true: "A" else "B"
-	ensure(result = "A")
+	ensure(result is "A")
 	
 	## else branch
 	let result = if false: "A" else "B"
-	ensure(result = "B")
+	ensure(result is "B")
 	
 	## else if / chaining
 	let i = 10
@@ -421,7 +421,7 @@ let ifElse() = do
 		if i < 0: "A"
 		else if i > 0: "B"
 		else "C"
-	ensure(result = "B")
+	ensure(result is "B")
 end
 
 let whileLoop() = do
@@ -431,41 +431,41 @@ let whileLoop() = do
 		list <- list + n
 		n <- n + 1
 	end
-	ensure(res = nil)
-	ensure(list = [1 2 3])
+	ensure(res is nil)
+	ensure(list is [1 2 3])
 end
 
 let preludeLib() = do
 	## toString
-	ensure(toString(nil) = "nil")
-	ensure(toString(true) = "true" and toString(false) = "false")
-	ensure(toString(707) = "707")
-	ensure(toString(["bananas" 18 true]) = "[\"bananas\" 18 true]")
-	ensure(toString(printLn) = "printLn")
+	ensure(toString(nil) is "nil")
+	ensure(toString(true) is "true" and toString(false) is "false")
+	ensure(toString(707) is "707")
+	ensure(toString(["bananas" 18 true]) is "[\"bananas\" 18 true]")
+	ensure(toString(printLn) is "printLn")
 	
 	## toNum
-	ensure(toNum(nil) = 0)
-	ensure(toNum(true) = 1)
-	ensure(toNum(false) = 0)
-	ensure(toNum(112) = 112)
-	ensure(toNum("1337.25") = 1337.25)
-	ensure(toNum("") = 0)
-	ensure(toNum("error") = 0)
-	ensure(toNum([1 2 4]) = 0)
-	ensure(toNum(fun _ -> do end) = 0)
+	ensure(toNum(nil) is 0)
+	ensure(toNum(true) is 1)
+	ensure(toNum(false) is 0)
+	ensure(toNum(112) is 112)
+	ensure(toNum("1337.25") is 1337.25)
+	ensure(toNum("") is 0)
+	ensure(toNum("error") is 0)
+	ensure(toNum([1 2 4]) is 0)
+	ensure(toNum(fun _ -> do end) is 0)
 	
 	## typeOf
-	ensure(typeOf(nil) = "Nil")
-	ensure(typeOf(true) = "Bool")
-	ensure(typeOf(1) = "Num")
-	ensure(typeOf([]) = "List")
-	ensure(typeOf("") = "String")
-	ensure(typeOf(fun -> do end) = "Function")
+	ensure(typeOf(nil) is "Nil")
+	ensure(typeOf(true) is "Bool")
+	ensure(typeOf(1) is "Num")
+	ensure(typeOf([]) is "List")
+	ensure(typeOf("") is "String")
+	ensure(typeOf(fun -> do end) is "Function")
 	
 	## rep
 	let nums = []
 	rep(fun i -> nums <- nums + i 3)
-	ensure(nums = [0 1 2])
+	ensure(nums is [0 1 2])
 end
 
 let fileLib() = do
@@ -480,13 +480,13 @@ let fileLib() = do
 	## size
 	let handle = File.open(path "r")
 	let size = File.size(handle)
-	ensure(size = #str)
+	ensure(size is #str)
 	File.close(handle)
 	
 	## read
 	let handle = File.open(path "r")
 	let contents = File.read(handle size)
-	ensure(contents = str)
+	ensure(contents is str)
 	File.close(handle)
 	
 	## del
@@ -496,51 +496,51 @@ end
 let listLib() = do
 	## get + set
 	let ls = [1 2 3]
-	ensure(List.get(0 ls) = 1)
-	ensure(List.get(1 ls) = 2)
-	ensure(List.get(2 ls) = 3)
+	ensure(List.get(0 ls) is 1)
+	ensure(List.get(1 ls) is 2)
+	ensure(List.get(2 ls) is 3)
 
 	List.set(0 4 ls)
 	List.set(1 5 ls)
 	List.set(2 6 ls)
-	ensure(ls = [4 5 6])
+	ensure(ls is [4 5 6])
 
 	## swap
 	let ls = [55 33]
 	List.swap(0 1 ls)
-	##ensure(ls = [33 55])
+	##ensure(ls is [33 55])
 
 	## add
 	let x = [1 3 4]
 	List.add(1 2 x)
-	ensure(x = [1 2 3 4])
+	ensure(x is [1 2 3 4])
 	
 	List.add(-1 5 x)
-	ensure(x = [1 2 3 4 5])
+	ensure(x is [1 2 3 4 5])
 	
 	let x = [1 2 3]
 	List.add(0 1 x)
-	ensure(x = [1 1 2 3])
+	ensure(x is [1 1 2 3])
 	
 	## del
 	let x = [1 2 3]
 	List.del(1 x)
-	ensure(x = [1 3])
+	ensure(x is [1 3])
 	
 	List.del(0 x)
-	ensure(x = [3])
+	ensure(x is [3])
 	
 	List.del(0 x)
-	ensure(x = [])
+	ensure(x is [])
 	
 	## first + last
 	let list = ["first" "middle" "last"]
-	ensure(List.first(list) = "first")
-	ensure(List.last(list) = "last")
+	ensure(List.first(list) is "first")
+	ensure(List.last(list) is "last")
 	
 	## count
 	let bits = [1 0 0 1 0 1 1 1]
-	ensure(List.count(1 bits) = 5)
+	ensure(List.count(1 bits) is 5)
 	
 	## contains
 	let list = ["a" "B" "c"]
@@ -549,68 +549,68 @@ let listLib() = do
 	
 	## rev
 	let normal = [1 2 3]
-	ensure(List.rev(normal) = [3 2 1])
-	ensure(List.rev([]) = [])
-	ensure(List.rev([1]) = [1])
+	ensure(List.rev(normal) is [3 2 1])
+	ensure(List.rev([]) is [])
+	ensure(List.rev([1]) is [1])
 	
 	## range
 	let a = List.range(-3 3)
 	let b = [-3 -2 -1 0 1 2 3]
 	printLn(b)
-	ensure(a = b)
+	ensure(a is b)
 	
 	## iter
 	let indices = [0 1 2]
 	let copy = []
 
 	List.iter(fun index value -> do
-		ensure(index = indices[index])
+		ensure(index is indices[index])
 		copy <- copy + value
 	end
 	indices)
 
-	ensure(indices = copy)
+	ensure(indices is copy)
 	
 	## forEach
 	let items = [1 2 3]
 	let copy = []
 	List.forEach(fun index -> copy <- copy + index items)
-	ensure(items = copy)
+	ensure(items is copy)
 	
 	## map
 	##let list = List.map(fun n -> n * 2 [4 8 16])
-	##ensure(list = [8 16 32])
+	##ensure(list is [8 16 32])
 	
 	## filter
 	let list = [1 0 0 1 1 0]
 	list <- List.filter(isOne list)
-	ensure(list = [1 1 1])
+	ensure(list is [1 1 1])
 	
 	## fold
 	let list = [2 4 6]
-	ensure(List.fold(mul 1 list) = 48)
+	ensure(List.fold(mul 1 list) is 48)
 	
 	## sum
 	let list = [1 2 3]
-	ensure(List.sum(list) = 6)
+	ensure(List.sum(list) is 6)
 	
 	## average
 	let list = [1 2 3]
-	ensure(List.average(list) = 2)
-	ensure(List.average([]) = 0)
+	ensure(List.average(list) is 2)
+	ensure(List.average([]) is 0)
 	
 	## mean
 	let vals = [0 5 10 0]
-	ensure(List.mean(vals) = 7.5)
+	ensure(List.mean(vals) is 7.5)
 	
 	## flatten
 	let mess = [1 [2 [3 4]] 5]
 	let clean = List.flatten(mess)
-	ensure(clean = [1 2 3 4 5])
+	ensure(clean is [1 2 3 4 5])
 	
 	## dedup
 	let list = [7 7 8 9 9]
-	ensure(List.dedup(list) = [7 8 9])
+	ensure(List.dedup(list) is [7 8 9])
 	
 	## any
 	let set = [true true false]
@@ -646,34 +646,34 @@ end
 let stringLib() = do
 	## alpha
 	let str = "abcdefghijklmnopqrstuvwxyz"
-	ensure(String.letters = str)
+	ensure(String.letters is str)
 	
 	## digits
 	let str = "0123456789"
-	ensure(String.digits = str)
+	ensure(String.digits is str)
 
 	## punctuation
 	let str = "!\"#$%&'()*+-./:;<=>?@[\\]^_`{|}~"
-	ensure(String.punctuation = str)
+	ensure(String.punctuation is str)
 	
 	## length
-	ensure(#String.digits = 10)
+	ensure(#String.digits is 10)
 
 	## chars + join
-	ensure(String.chars("Abc") = ["A" "b" "c"])
-	ensure(String.join(["A" "b" "c"]) = "Abc")
-	ensure(String.join([1 "2" 34 "5"]) = "12345")
+	ensure(String.chars("Abc") is ["A" "b" "c"])
+	ensure(String.join(["A" "b" "c"]) is "Abc")
+	ensure(String.join([1 "2" 34 "5"]) is "12345")
 		
 	## split
-	ensure(String.split("lol" "") = ["lol"])
-	ensure(String.split("lol" " ") = ["lol"])
-	ensure(String.split("abcrstxyz" "") = ["abc" "rst" "xyz"])
+	ensure(String.split("lol" "") is ["lol"])
+	ensure(String.split("lol" " ") is ["lol"])
+	ensure(String.split("abcrstxyz" "") is ["abc" "rst" "xyz"])
 		
 	## lower + upper + swapCase
 	let str = "MiXeD!"
-	ensure(String.lower(str) = "mixed!")
-	ensure(String.upper(str) = "MIXED!")
-	ensure(String.swapCase(str) = "mIxEd!")
+	ensure(String.lower(str) is "mixed!")
+	ensure(String.upper(str) is "MIXED!")
+	ensure(String.swapCase(str) is "mIxEd!")
 
 	## isLower + isUpper + isWhitespace
 	ensure(String.isLower("x") and not String.isLower("X"))
@@ -689,42 +689,39 @@ let stringLib() = do
 	ensure(not String.endsWith(String.letters "abc"))
 		
 	## trimStart
-	ensure(String.trimStart("\t\n hi") = "hi")
-	ensure(String.trimStart("hi") = "hi")
+	ensure(String.trimStart("\t\n hi") is "hi")
+	ensure(String.trimStart("hi") is "hi")
 	
 	## trimEnd
-	ensure(String.trimEnd("hi \n\t") = "hi")
-	ensure(String.trimEnd("hi") = "hi")
+	ensure(String.trimEnd("hi \n\t") is "hi")
+	ensure(String.trimEnd("hi") is "hi")
 	
 	## trim
-	ensure(String.trim("\n\t hi \n\t") = "hi")
-	ensure(String.trim("hi") = "hi")
+	ensure(String.trim("\n\t hi \n\t") is "hi")
+	ensure(String.trim("hi") is "hi")
 	
 	## replace
 	let str = "Country: SE"
 	str <- String.replace(str "SE" "Sweden")
-	ensure(str = "Country: Sweden")
+	ensure(str is "Country: Sweden")
 	
 	str <- String.replace(str "Sweden" "SE")
-	ensure(str = "Country: SE")
+	ensure(str is "Country: SE")
 	
 	str <- "leet"
 	str <- String.replace(str "l" "1")
 	str <- String.replace(str "e" "3")
 	str <- String.replace(str "t" "7")
-	ensure(str = "1337")
+	ensure(str is "1337")
 	
 	## leftPad
-	ensure(String.leftPad("test" 10 "-=") = "-=-=-=test")
+	ensure(String.leftPad("test" 10 "-=") is "-=-=-=test")
 
 	## rightPad
-	ensure(String.rightPad("test" 10 "*") = "test******")
+	ensure(String.rightPad("test" 10 "*") is "test******")
 	
 	## centerPad
-	ensure(String.centerPad("test" 10 "|") = "|||test|||")
-		
-	## fmt
-	ensure(String.fmt("x=%1 + 2%") = "x=3")
+	ensure(String.centerPad("test" 10 "|") is "|||test|||")
 end
 
 let mathLib() = do
@@ -743,12 +740,12 @@ let mathLib() = do
 	ensure(not floatEq(0 epsilon epsilon))
 	
 	## signum
-	ensure(Math.signum(-80) = -1)
-	ensure(Math.signum(0) = 0)
-	ensure(Math.signum(80) = 1)
+	ensure(Math.signum(-80) is -1)
+	ensure(Math.signum(0) is 0)
+	ensure(Math.signum(80) is 1)
 	
 	## abs
-	ensure(Math.abs(-8) = 8 and Math.abs(8) = 8)
+	ensure(Math.abs(-8) is 8 and Math.abs(8) is 8)
 	
 	## log + pow
 	let target = 8
@@ -766,29 +763,29 @@ let mathLib() = do
 	end bases)
 	
 	## sqrt
-	ensure(Math.sqrt(256) = 16)
-	ensure(Math.pow(32 0.5) = Math.sqrt(32))
+	ensure(Math.sqrt(256) is 16)
+	ensure(Math.pow(32 0.5) is Math.sqrt(32))
 	
 	## min + max
-	ensure(Math.min(-1 1) = -1)
-	ensure(Math.max(-1 1) = 1)
+	ensure(Math.min(-1 1) is -1)
+	ensure(Math.max(-1 1) is 1)
 	
 	## clamp
 	let x = 2
-	ensure(Math.clamp(x -5 5) = x)
+	ensure(Math.clamp(x -5 5) is x)
 	
 	let x = 20
-	ensure(Math.clamp(x 1 4) = 4)
+	ensure(Math.clamp(x 1 4) is 4)
 	
 	let x = -12
-	ensure(Math.clamp(x -8 3) = -8)
+	ensure(Math.clamp(x -8 3) is -8)
 	
 	## lerp
-	ensure(Math.lerp(-10 10 0) = -10)
-	ensure(Math.lerp(-10 10 0.25) = -5)
-	ensure(Math.lerp(-10 10 0.5) = 0)
-	ensure(Math.lerp(-10 10 0.75) = 5)
-	ensure(Math.lerp(-10 10 1) = 10)
+	ensure(Math.lerp(-10 10 0) is -10)
+	ensure(Math.lerp(-10 10 0.25) is -5)
+	ensure(Math.lerp(-10 10 0.5) is 0)
+	ensure(Math.lerp(-10 10 0.75) is 5)
+	ensure(Math.lerp(-10 10 1) is 10)
 	
 	## floor + ceil + round
 	let checkRounding(n) = do
@@ -796,12 +793,12 @@ let mathLib() = do
 		let mid = n + 0.5
 		let high = n + 0.8
 	
-		ensure(Math.floor(low) = n)
-		ensure(Math.floor(high) = n)
-		ensure(Math.ceil(low) = n + 1)
-		ensure(Math.ceil(high) = n + 1)
-		ensure(Math.round(low) = n)
-		ensure(Math.round(high) = n + 1)
+		ensure(Math.floor(low) is n)
+		ensure(Math.floor(high) is n)
+		ensure(Math.ceil(low) is n + 1)
+		ensure(Math.ceil(high) is n + 1)
+		ensure(Math.round(low) is n)
+		ensure(Math.round(high) is n + 1)
 	
 		ensure(Math.round(mid) = if n < 0: n else n + 1)
 	end

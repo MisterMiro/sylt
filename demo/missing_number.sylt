@@ -7,7 +7,7 @@ printLn(numbers)
 let missing = nil
 let index = 0
 
-while missing = nil: do
+while missing is nil: do
     let num = List.get(index numbers)
     let next = List.get(index + 1 numbers)
 

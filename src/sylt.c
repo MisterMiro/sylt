@@ -3688,6 +3688,7 @@ typedef enum {
 	T_WHILE,
 	T_AND,
 	T_OR,
+	T_IS,
 	T_NOT,
 	T_USING,
 	T_DO,
@@ -4165,6 +4166,7 @@ token_t scan(comp_t* cmp) {
 		if (keyword("while")) return token(T_WHILE);
 		if (keyword("and")) return token(T_AND);
 		if (keyword("or")) return token(T_OR);
+		if (keyword("is")) return token(T_IS);
 		if (keyword("not")) return token(T_NOT);
 		if (keyword("using")) return token(T_USING);
 		if (keyword("do")) return token(T_DO);
@@ -4343,6 +4345,7 @@ static parserule_t RULES[] = {
 	[T_WHILE] = {while_loop, NULL, PREC_NONE},
 	[T_AND] = {NULL, binary, PREC_AND},
 	[T_OR] = {NULL, binary, PREC_OR},
+	[T_IS] = {NULL, binary, PREC_EQ},
 	[T_NOT] = {unary, binary, PREC_NOT},
 	[T_USING] = {using, NULL, PREC_NONE},
 	[T_DO] = {block, NULL, PREC_NONE},
@@ -4365,7 +4368,7 @@ static parserule_t RULES[] = {
 	[T_LT_MINUS] = {NULL, NULL, PREC_NONE},
 	[T_GT] = {NULL, binary, PREC_CMP},
 	[T_GT_EQ] = {NULL, binary, PREC_CMP},
-	[T_EQ] = {NULL, binary, PREC_EQ},
+	[T_EQ] = {NULL, NULL, PREC_NONE},
 	[T_LPAREN] = {grouping, call, PREC_UNARY_POSTFIX},
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
 	[T_LCURLY] = {dict, NULL, PREC_NONE},
@@ -4632,10 +4635,8 @@ void binary(comp_t* cmp) {
 	
 	op_t opcode = -1;
 	switch (token) {
-	case T_NOT: {
-		opcode = OP_NEQ;
-		break;
-	}
+	case T_IS: opcode = OP_EQ; break;
+	case T_NOT: opcode = OP_NEQ; break;
 	/* arithmetic */
 	case T_PLUS: opcode = OP_ADD; break;
 	case T_MINUS: opcode = OP_SUB; break;
@@ -4647,8 +4648,6 @@ void binary(comp_t* cmp) {
 	case T_LT_EQ: opcode = OP_LTE; break;
 	case T_GT: opcode = OP_GT; break;
 	case T_GT_EQ: opcode = OP_GTE; break;
-	/* equality */
-	case T_EQ: opcode = OP_EQ; break;
 	/* control flow */
 	case T_AND: {
 		/* if the left-hand side expression

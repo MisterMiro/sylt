@@ -30,34 +30,34 @@ let exec(prog) = do
     let run = true
     while run: do
         let code = read()
-        if code = OpCode.Push: stack += read()
-        else if code = OpCode.Add: do
+        if code is OpCode.Push: stack += read()
+        else if code is OpCode.Add: do
             let b = pop()
             let a = pop()
             stack += a + b
         end
-        else if code = OpCode.Sub: do
+        else if code is OpCode.Sub: do
             let b = pop()
             let a = pop()
             stack += a - b
         end
-        else if code = OpCode.Mul: do
+        else if code is OpCode.Mul: do
             let b = pop()
             let a = pop()
             stack += a * b
         end
-        else if code = OpCode.Div: do
+        else if code is OpCode.Div: do
             let b = pop()
             let a = pop()
             stack += a / b
         end
-        else if code = OpCode.Eq: do
+        else if code is OpCode.Eq: do
             let b = pop()
             let a = pop()
-            stack += a = b
+            stack += a is b
         end
-        else if code = OpCode.Print: printLn(List.last(stack))
-        else if code = OpCode.Ret: run <- false
+        else if code is OpCode.Print: printLn(List.last(stack))
+        else if code is OpCode.Ret: run <- false
     end
 end
 

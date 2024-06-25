@@ -24,7 +24,7 @@ words)
 let pairs = Dict.toList(frequencies)
 
 ## filter out words that only appear once
-##pairs <- List.filter(fun pair -> List.get(1 pair) = 0 pairs)
+##pairs <- List.filter(fun pair -> List.get(1 pair) is 0 pairs)
 
 ## sort the list by most occurrences
 List.sortBy(fun a b -> List.get(1 a) < List.get(1 b) pairs)

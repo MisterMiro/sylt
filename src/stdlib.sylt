@@ -131,7 +131,7 @@ let impl = do
 
 	let toList(dc) = do
 		let ls = []
-		Dict.iter(fun key value -> ls += [[key value]] dc)
+		Dict.iter(fun k v -> ls += [[k v]] dc)
 		ls
 	end
 

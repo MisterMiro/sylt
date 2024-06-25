@@ -87,3 +87,10 @@ def docs():
                 html += "<div class=\"doc-comment\"><p>" + line[9:] + "</p></div>\n<br>"
 
     return render_template("docs.html", html=html)
+
+@app.route("/tutorial")
+def tutorial():
+    html = ""
+    with open("tutorial.txt", "r") as file:
+        html = file.read()
+    return render_template("tutorial.html", html=html)

@@ -1,6 +1,11 @@
 ## counts how often each word occurs in a text
 
-let text = "hej hej hej ett två tre"
+let text = "However, word overuse is a style issue; there's nothing 'incorrect'
+    about using a word too many times in a sentence. Moreover, for prepositions,
+    it's best to use the most appropriate preposition available,
+    and using the same preposition twice – even in a short sentence – would not be considered
+    bad practice. In fact, if used properly, a little bit of repetition can create a parallel
+    structure that is easy to follow and almost poetic to read: - J.R. @ stackexchange"
 
 let sep = String.chars(String.whitespace + String.punctuation)
 let words = String.split(text sep)
@@ -17,6 +22,9 @@ words)
 
 ## convert dictionary into a list of key/value pairs
 let pairs = Dict.toList(frequencies)
+
+## filter out words that only appear once
+##pairs <- List.filter(fun pair -> List.get(1 pair) = 0 pairs)
 
 ## sort the list by most occurrences
 List.sortBy(fun a b -> List.get(1 a) < List.get(1 b) pairs)

@@ -1,0 +1,138 @@
+<h2> Types </h2>
+
+<p>sylt is dynamically typed, meaning type checking is done at runtime. There are 7 types:
+
+
+<h4> Nil </h4>
+
+<p> The Nil type is associated with one value, nil.
+It is used when there is no meaningful value to return or store. </p>
+
+<h4> Bool </h4>
+
+<p> The Bool type has two possible values, true and false. It is the result of all comparison and equality
+operators.
+</p>
+
+<h4> Num </h4>
+
+<p> The Num type is used for numbers. </p>
+
+<h4> List </h4>
+
+<p> The List type is a dynamic array. It is able to contain an indefinite number of values
+of different types. Values are read or modified by accessing numeric indices in the array. It is
+contiguous, meaning there are no gaps between items; it has a start and an end.
+</p>
+
+<h4> Dict </h4>
+
+<p> The Dict type represents an associative array, commonly known as a dictionary or hashmap. 
+It associates a string key with a value. 
+</p>
+
+<h4> Function </h4>
+
+<p> The Function type represents a callable function. Functions can be passed around like any other
+value.
+
+</p>
+
+</p>
+
+<h2> Operators </h2>
+
+<h4> + </h4>
+
+<p> Used for adding numbers and concatenating strings and lists <p>
+
+<h4> - </h4>
+
+<p> Used for subtracting two numbers, as a unary (prefix) minus for 
+negating numbers or whole expressions, and for adding elements to the start or end of lists.
+</p>
+
+<h4> * </h4>
+
+<p> Used for multiplying two numbers. </p>
+
+<h4> / </h4>
+
+<p> Used for dividing two numbers. Dividing by zero is an error and will halt the interpreter
+</p>
+
+<h4> % </h4>
+
+<p> Used for modular arithmetic by performing euclidean division. It computes the remainder of
+division </p>
+
+<h4> # </h4>
+
+<p> Used for getting the length of lists, dicts, and strings </p>
+
+
+
+<h4> < </h4>
+
+<p> Used for checking if a number is smaller than another </p>
+
+<h4> <= </h4>
+
+<p> Used for checking if a number is smaller than or equal to another </p>
+
+<h4> > </h4>
+
+<p> Used for checking if a number is larger than another </p>
+
+<h4> >= </h4>
+
+<p> Used for checking if a number is larger than or equal to another </p>
+
+
+
+<h4> = </h4>
+
+<p> Used for checking if two values are equal. </p>
+
+<h4> != </h4>
+
+<p> Used for checking if two values are inequal. </p>
+
+
+<h4> and </h4>
+
+<p> The and operator  </p>
+
+<h4> or </h4>
+
+<p> The or operator  </p>
+
+<h4> ! </h4>
+
+<p> The ! operator  </p>
+
+
+<h4> <- </h4>
+
+<p> Performs assignment. The left-hand side is the variable to reassign, and
+the right-hand side the new value. </p>
+
+<h4> += </h4>
+
+<p> Shorthand for assigning a variable to itself + something. </p>
+
+<h4> -= </h4>
+
+<p> Shorthand for assigning a variable to itself - something. </p>
+
+<h4> *= </h4>
+
+<p> Shorthand for assigning a variable to itself * something. </p>
+
+<h4> /= </h4>
+
+<p> Shorthand for assigning a variable to itself / something. </p>
+
+<h4> %= </h4>
+
+<p> Shorthand for assigning a variable to itself % something. </p>

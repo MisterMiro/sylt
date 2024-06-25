@@ -2988,6 +2988,18 @@ value_t stdstring_chars(sylt_t* ctx) {
 	return wraplist(ls);
 }
 
+value_t stdstring_ascii(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	string_t* str = stringarg(0);
+	list_t* ls = list_new(ctx);
+	
+	for (size_t i = 0; i < str->len; i++) {
+		list_push(ls, wrapnum(str->bytes[i]), ctx);
+	}
+	
+	return wraplist(ls);
+}
+
 value_t stdstring_join(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_LIST);
 	
@@ -3589,6 +3601,7 @@ void std_init(sylt_t* ctx) {
 	std_add(ctx, "whitespace", wrapstring(string_lit(
 		" \n\r\t", ctx)));
 	std_addf(ctx, "chars", stdstring_chars, 1);
+	std_addf(ctx, "ascii", stdstring_ascii, 1);
 	std_addf(ctx, "join", stdstring_join, 1);
 	std_addf(ctx, "split", stdstring_split, 2);
 	std_addf(ctx, "lowercase", stdstring_lowercase, 1);

@@ -3688,6 +3688,7 @@ typedef enum {
 	T_WHILE,
 	T_AND,
 	T_OR,
+	T_NOT,
 	T_USING,
 	T_DO,
 	T_END,
@@ -3710,7 +3711,6 @@ typedef enum {
 	T_GT,
 	T_GT_EQ,
 	T_EQ,
-	T_BANG,
 	T_BANG_EQ,
 	T_LPAREN,
 	T_RPAREN,
@@ -4164,6 +4164,7 @@ token_t scan(comp_t* cmp) {
 		if (keyword("while")) return token(T_WHILE);
 		if (keyword("and")) return token(T_AND);
 		if (keyword("or")) return token(T_OR);
+		if (keyword("not")) return token(T_NOT);
 		if (keyword("using")) return token(T_USING);
 		if (keyword("do")) return token(T_DO);
 		if (keyword("end")) return token(T_END);
@@ -4236,7 +4237,8 @@ token_t scan(comp_t* cmp) {
 	case '=': return token(T_EQ);
 	case '!':
 		if (match('=')) return token(T_BANG_EQ);
-		return token(T_BANG);
+		halt(cmp->ctx, E_UNEXPECTED_CHAR(cmp->pos[-1]));
+		unreachable();
 	case '(': return token(T_LPAREN);
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
@@ -4248,8 +4250,7 @@ token_t scan(comp_t* cmp) {
 	case '.': return token(T_DOT);
 	case '#': return token(T_HASH);
 	case '\0': return token(T_EOF);
-	default: halt(cmp->ctx,
-		E_UNEXPECTED_CHAR(cmp->pos[-1]));
+	default: halt(cmp->ctx, E_UNEXPECTED_CHAR(cmp->pos[-1]));
 	}
 	
 	unreachable();
@@ -4345,6 +4346,7 @@ static parserule_t RULES[] = {
 	[T_WHILE] = {while_loop, NULL, PREC_NONE},
 	[T_AND] = {NULL, binary, PREC_AND},
 	[T_OR] = {NULL, binary, PREC_OR},
+	[T_NOT] = {unary, binary, PREC_NONE},
 	[T_USING] = {using, NULL, PREC_NONE},
 	[T_DO] = {block, NULL, PREC_NONE},
 	[T_END] = {NULL, NULL, PREC_NONE},
@@ -4367,7 +4369,6 @@ static parserule_t RULES[] = {
 	[T_GT] = {NULL, binary, PREC_CMP},
 	[T_GT_EQ] = {NULL, binary, PREC_CMP},
 	[T_EQ] = {NULL, binary, PREC_EQ},
-	[T_BANG] = {unary, NULL, PREC_NONE},
 	[T_BANG_EQ] = {NULL, binary, PREC_EQ},
 	[T_LPAREN] = {grouping, call, PREC_UNARY_POSTFIX},
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
@@ -4614,7 +4615,7 @@ void unary(comp_t* cmp) {
 	op_t opcode = -1;
 	switch (token) {
 	case T_MINUS: opcode = OP_UMIN; break;
-	case T_BANG: opcode = OP_NOT; break;
+	case T_NOT: opcode = OP_NOT; break;
 	case T_HASH: opcode = OP_LENGTH; break;
 	default: unreachable();
 	}

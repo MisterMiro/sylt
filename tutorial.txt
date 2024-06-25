@@ -28,7 +28,7 @@ contiguous, meaning there are no gaps between items; it has a start and an end.
 <h4> Dict </h4>
 
 <p> The Dict type represents an associative array, commonly known as a dictionary or hashmap. 
-It associates a string key with a value. 
+It associates a string key with a value. There is no "correct" order to iterate over its values.
 </p>
 
 <h4> Function </h4>
@@ -107,9 +107,9 @@ division </p>
 
 <p> The or operator  </p>
 
-<h4> ! </h4>
+<h4> not </h4>
 
-<p> The ! operator  </p>
+<p> The not operator inverts a boolean expression. </p>
 
 
 <h4> <- </h4>

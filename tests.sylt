@@ -20,6 +20,7 @@ let names() = do
 	let elsewhere = value
 	let andante = value
 	let oracle = value
+	let nothingness = value
 	let usingasong = value
 	let doable = value
 	let enderman = value
@@ -213,9 +214,9 @@ let equality() = do
 end
 
 let boolNot() = do
-	ensure(true = !false)
-	ensure(false = !true)
-	ensure(!!true = true)
+	ensure(true = not false)
+	ensure(false = not true)
+	ensure(not not true = true)
 end
 
 let boolAnd() = do
@@ -544,7 +545,7 @@ let listLib() = do
 	## contains
 	let list = ["a" "B" "c"]
 	ensure(List.contains("B" list))
-	ensure(!List.contains("b" list))
+	ensure(not List.contains("b" list))
 	
 	## rev
 	let normal = [1 2 3]
@@ -614,18 +615,18 @@ let listLib() = do
 	## any
 	let set = [true true false]
 	ensure(List.any(fun v -> v set))
-	ensure(List.any(fun v -> !v set))
+	ensure(List.any(fun v -> not v set))
 	set -= 1
 	ensure(List.any(fun v -> v set))
-	ensure(!List.any(fun v -> !v set))
+	ensure(not List.any(fun v -> not v set))
 	
 	## all
 	let set = [5 7]
 	ensure(List.all(fun n -> n >= 5 set))
-	ensure(List.all(fun n -> !(n < 5) set))
+	ensure(List.all(fun n -> not (n < 5) set))
 	set <- set + 3
-	ensure(!List.all(fun n -> n >= 5 set))
-	ensure(!List.all(fun n -> !(n < 5) set))
+	ensure(not List.all(fun n -> n >= 5 set))
+	ensure(not List.all(fun n -> not (n < 5) set))
 end
 
 let dictLib() = do
@@ -675,17 +676,17 @@ let stringLib() = do
 	ensure(String.swapCase(str) = "mIxEd!")
 
 	## isLower + isUpper + isWhitespace
-	ensure(String.isLower("x") and !String.isLower("X"))
-	ensure(String.isUpper("X") and !String.isUpper("x"))
+	ensure(String.isLower("x") and not String.isLower("X"))
+	ensure(String.isUpper("X") and not String.isUpper("x"))
 	ensure(String.isWhitespace(" \t\n\r"))
 	
 	## startsWith
 	ensure(String.startsWith(String.letters "abc"))
-	ensure(!String.startsWith(String.letters "xyz"))
+	ensure(not String.startsWith(String.letters "xyz"))
 		
 	## endsWith
 	ensure(String.endsWith(String.letters "xyz"))
-	ensure(!String.endsWith(String.letters "abc"))
+	ensure(not String.endsWith(String.letters "abc"))
 		
 	## trimStart
 	ensure(String.trimStart("\t\n hi") = "hi")
@@ -739,7 +740,7 @@ let mathLib() = do
 	
 	ensure(floatEq(0 val epsilon))
 	ensure(floatEq(0 epsilon - 0.0000001 epsilon))
-	ensure(!floatEq(0 epsilon epsilon))
+	ensure(not floatEq(0 epsilon epsilon))
 	
 	## signum
 	ensure(Math.signum(-80) = -1)

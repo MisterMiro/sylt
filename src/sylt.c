@@ -3711,7 +3711,6 @@ typedef enum {
 	T_GT,
 	T_GT_EQ,
 	T_EQ,
-	T_BANG_EQ,
 	T_LPAREN,
 	T_RPAREN,
 	T_LCURLY,
@@ -3743,6 +3742,8 @@ typedef enum {
 	PREC_OR,
 	/* boolean 'and' */
 	PREC_AND,
+	/* boolean 'not' in infix position */
+	PREC_NOT,
 	/* equality: = != */
 	PREC_EQ,
 	/* comparison: < <= > >= */
@@ -4235,10 +4236,6 @@ token_t scan(comp_t* cmp) {
 		if (match('=')) return token(T_GT_EQ);
 		return token(T_GT);
 	case '=': return token(T_EQ);
-	case '!':
-		if (match('=')) return token(T_BANG_EQ);
-		halt(cmp->ctx, E_UNEXPECTED_CHAR(cmp->pos[-1]));
-		unreachable();
 	case '(': return token(T_LPAREN);
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
@@ -4346,7 +4343,7 @@ static parserule_t RULES[] = {
 	[T_WHILE] = {while_loop, NULL, PREC_NONE},
 	[T_AND] = {NULL, binary, PREC_AND},
 	[T_OR] = {NULL, binary, PREC_OR},
-	[T_NOT] = {unary, binary, PREC_NONE},
+	[T_NOT] = {unary, binary, PREC_NOT},
 	[T_USING] = {using, NULL, PREC_NONE},
 	[T_DO] = {block, NULL, PREC_NONE},
 	[T_END] = {NULL, NULL, PREC_NONE},
@@ -4369,7 +4366,6 @@ static parserule_t RULES[] = {
 	[T_GT] = {NULL, binary, PREC_CMP},
 	[T_GT_EQ] = {NULL, binary, PREC_CMP},
 	[T_EQ] = {NULL, binary, PREC_EQ},
-	[T_BANG_EQ] = {NULL, binary, PREC_EQ},
 	[T_LPAREN] = {grouping, call, PREC_UNARY_POSTFIX},
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
 	[T_LCURLY] = {dict, NULL, PREC_NONE},
@@ -4636,6 +4632,10 @@ void binary(comp_t* cmp) {
 	
 	op_t opcode = -1;
 	switch (token) {
+	case T_NOT: {
+		opcode = OP_NEQ;
+		break;
+	}
 	/* arithmetic */
 	case T_PLUS: opcode = OP_ADD; break;
 	case T_MINUS: opcode = OP_SUB; break;
@@ -4649,7 +4649,6 @@ void binary(comp_t* cmp) {
 	case T_GT_EQ: opcode = OP_GTE; break;
 	/* equality */
 	case T_EQ: opcode = OP_EQ; break;
-	case T_BANG_EQ: opcode = OP_NEQ; break;
 	/* control flow */
 	case T_AND: {
 		/* if the left-hand side expression
@@ -4697,7 +4696,7 @@ void call(comp_t* cmp) {
 		argc++;
 	}
 	
-	eat(cmp, T_RPAREN, "expected ')'");
+	eat(cmp, T_RPAREN, "expected ')' after call arguments");
 	emit_unary(cmp, OP_CALL, argc);
 	comp_simstack(cmp, -argc);
 }

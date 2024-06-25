@@ -94,10 +94,9 @@ division </p>
 
 <p> Used for checking if two values are equal. </p>
 
-<h4> != </h4>
+<h4> not </h4>
 
 <p> Used for checking if two values are inequal. </p>
-
 
 <h4> and </h4>
 
@@ -107,9 +106,6 @@ division </p>
 
 <p> The or operator  </p>
 
-<h4> not </h4>
-
-<p> The not operator inverts a boolean expression. </p>
 
 
 <h4> <- </h4>

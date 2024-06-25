@@ -78,7 +78,7 @@ let impl = do
 				end
 			end n - 1)
 
-			if swapped != 0: bubbleSort(ls n - 1)
+			if swapped not 0: bubbleSort(ls n - 1)
 		end
 
 		let n = #ls

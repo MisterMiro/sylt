@@ -73,8 +73,8 @@ let precedence() = do
 	## comparison > equality
 	ensure(true = 1 < 2)
 	ensure(true = 1 <= 2)
-	ensure(true != 1 > 2)
-	ensure(true != 1 >= 2)
+	ensure(true not 1 > 2)
+	ensure(true not 1 >= 2)
 end
 
 let addition() = do
@@ -99,8 +99,8 @@ let subtraction() = do
 	ensure(x - y = difference)
 	
 	## not commutative
-	ensure(y - x != difference)
-	ensure(x - y != y - x)
+	ensure(y - x not difference)
+	ensure(x - y not y - x)
 end
 
 let multiplication() = do
@@ -125,8 +125,8 @@ let division() = do
 	ensure(x / y = quotient)
 	
 	## not commutative
-	ensure(y / x != quotient)
-	ensure(x / y != y / x)
+	ensure(y / x not quotient)
+	ensure(x / y not y / x)
 end
 
 let remainder() = do
@@ -138,8 +138,8 @@ let remainder() = do
 	ensure(x % y = remainder)
 	
 	## not commutative
-	ensure(y % x != remainder)
-	ensure(x % y != y % x)
+	ensure(y % x not remainder)
+	ensure(x % y not y % x)
 	
 	## remainder is always positive
 	ensure(7 % 3 = 1)
@@ -197,20 +197,20 @@ let equality() = do
 		
 		## not equal to a value of any other
 		## type
-		List.iter(fun index other -> if index != skip: ensure(value != other) values)
+		List.iter(fun index other -> if index not skip: ensure(value not other) values)
 	end values)
 	
 	## perform more type-specific tests
-	ensure(true != false)
+	ensure(true not false)
 	
 	ensure([] = [])
 	ensure([[]] = [[]])
-	ensure([0] != [1])
+	ensure([0] not [1])
 	
 	ensure("" = "")
-	ensure("ABC" != "abc")
+	ensure("ABC" not "abc")
 	
-	ensure(Math.pow != Math.sqrt)
+	ensure(Math.pow not Math.sqrt)
 end
 
 let boolNot() = do
@@ -393,7 +393,7 @@ let functions() = do
 	ensure(anon(2 4 8) = 64)
 	
 	## recursion
-	let clear(ls) = if ls != []: do
+	let clear(ls) = if ls not []: do
 		ls -= 1
 		clear(ls)
 	end

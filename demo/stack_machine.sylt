@@ -1,13 +1,14 @@
 ## implementation of a calculator using a stack
 
-let opcodes = makeEnum([
-    "push"
-    "add"
-    "sub"
-    "mul"
-    "div"
-    "print"
-    "ret"
+let OpCode = makeEnum([
+    "Push"
+    "Add"
+    "Sub"
+    "Mul"
+    "Div"
+    "Eq"
+    "Print"
+    "Ret"
 ])
 
 let exec(prog) = do
@@ -29,47 +30,58 @@ let exec(prog) = do
     let run = true
     while run: do
         let code = read()
-        if code = opcodes.push: stack += read()
-        else if code = opcodes.add: do
+        if code = OpCode.Push: stack += read()
+        else if code = OpCode.Add: do
             let b = pop()
             let a = pop()
             stack += a + b
         end
-        else if code = opcodes.sub: do
+        else if code = OpCode.Sub: do
             let b = pop()
             let a = pop()
             stack += a - b
         end
-        else if code = opcodes.mul: do
+        else if code = OpCode.Mul: do
             let b = pop()
             let a = pop()
             stack += a * b
         end
-        else if code = opcodes.div: do
+        else if code = OpCode.Div: do
             let b = pop()
             let a = pop()
             stack += a / b
         end
-        else if code = opcodes.print: printLn(List.last(stack))
-        else if code = opcodes.ret: run <- false
+        else if code = OpCode.Eq: do
+            let b = pop()
+            let a = pop()
+            stack += a = b
+        end
+        else if code = OpCode.Print: printLn(List.last(stack))
+        else if code = OpCode.Ret: run <- false
     end
 end
 
 let prog = [
-    opcodes.push 1
-    opcodes.push 2
-    opcodes.add
+    OpCode.Push 1
+    OpCode.Push 2
+    OpCode.Add
 
-    opcodes.push 10
-    opcodes.mul
+    OpCode.Push 10
+    OpCode.Mul
 
-    opcodes.push 0.9375
-    opcodes.div
+    OpCode.Push 0.9375
+    OpCode.Div
 
-    opcodes.push 16
-    opcodes.sub
+    OpCode.Push 16
+    OpCode.Sub
 
-    opcodes.print
-    opcodes.ret
+    OpCode.Push 8
+    OpCode.Sub
+
+    OpCode.Push 8
+    OpCode.Eq
+
+    OpCode.Print
+    OpCode.Ret
 ]
 exec(prog)

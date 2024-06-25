@@ -2651,22 +2651,6 @@ value_t std_unreachable(sylt_t* ctx) {
 	return nil();
 }
 
-value_t std_eval(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	
-	/* TODO: improve */
-	sylt_t* eval = sylt_new();
-	eval->vm->gdict = ctx->vm->gdict;
-	
-	sylt_xstring(eval,
-		(const char*)stringarg(0)->bytes);
-	
-	value_t result = sylt_peek(eval, 0);
-	//sylt_free(eval);
-	
-	return result;
-}
-
 /* == file lib == */
 
 value_t stdfile_open(sylt_t* ctx) {
@@ -3521,7 +3505,6 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
 	std_addf(ctx, "unreachable", std_unreachable, 0);
-	std_addf(ctx, "eval", std_eval, 1);
 	std_addlib(ctx);
 	
 	/* file */

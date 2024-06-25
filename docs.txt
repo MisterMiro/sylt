@@ -44,10 +44,6 @@ name: unreachable
 args:
 comment: Halts if supposedly unreachable code is executed.
 
-name: eval
-args: src
-comment: Runs some code in a separate interpreter, returning the result.
-
 name: isZero
 args: num
 comment: Returns true if num is 0.
@@ -414,7 +410,7 @@ name: Sign
 args:
 comment: Enumeration containing Sign.Negative, Sign.Zero, and Sign.Positive.
 
-name: numSign
+name: signum
 args: x
 comment: Returns Sign.Positive, Sign.Negative, or Sign.Zero depending on the sign of the number.
 

@@ -741,10 +741,10 @@ let mathLib() = do
 	ensure(floatEq(0 epsilon - 0.0000001 epsilon))
 	ensure(!floatEq(0 epsilon epsilon))
 	
-	## numSign
-	ensure(Math.numSign(-80) = -1)
-	ensure(Math.numSign(0) = 0)
-	ensure(Math.numSign(80) = 1)
+	## signum
+	ensure(Math.signum(-80) = -1)
+	ensure(Math.signum(0) = 0)
+	ensure(Math.signum(80) = 1)
 	
 	## abs
 	ensure(Math.abs(-8) = 8 and Math.abs(8) = 8)

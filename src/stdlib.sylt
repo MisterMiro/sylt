@@ -6,10 +6,10 @@ ensure(System.version = "Sylt Dev 0.1")
 ## Prelude   |
 ## ===========
 
-let isZero(num) = Math.numSign(num) = Math.Sign.Zero
+let isZero(num) = Math.signum(num) = Math.Sign.Zero
 let isOne(num) = num = 1
-let isPositive(num) = Math.numSign(num) = Math.Sign.Positive
-let isNegative(num) = Math.numSign(num) = Math.Sign.Negative
+let isPositive(num) = Math.signum(num) = Math.Sign.Positive
+let isNegative(num) = Math.signum(num) = Math.Sign.Negative
 let isEven(num) = num % 2 = 0
 let isOdd(num) = num % 2 = 1
 
@@ -150,56 +150,22 @@ let impl = do
 		text
 	end
 
-	let fmt(str) = do
-		let text = ""
-		let expr = ""
-		let chars = String.chars(str)
-		
-		let index = 0
-		let isInExpr = false
-		while index < #chars: do
-			let character = List.get(index chars)
-
-			if character = "%" and !isInExpr:
-				isInExpr <- true
-			else if character = "%" and isInExpr: do
-				isInExpr <- false
-
-				if #expr = 0: text <- text + "%"
-				else do
-					text += eval(expr)
-					expr <- ""
-				end
-			end
-			else do
-				if isInExpr: expr += character
-				else text += character
-			end
-
-			index += 1
-		end
-		
-		if isInExpr: System.halt("unterminated string interpolation, expected '%'")
-		text
-	end
-
 	let lib = Dict.get("String" gdict)
 	Dict.set("leftPad" leftPad lib)
 	Dict.set("rightPad" rightPad lib)
 	Dict.set("centerPad" centerPad lib)
-	Dict.set("fmt" fmt lib)
 end
 
 let impl = do
 	let Sign = makeEnum(["Negative" "Zero" "Positive"])
 
-	let numSign(num) = if num < 0: Sign.Negative
+	let signum(num) = if num < 0: Sign.Negative
 		else if num = 0: Sign.Zero
 		else Sign.Positive
 
 	let lib = Dict.get("Math" gdict)
 	Dict.set("Sign" Sign lib)
-	Dict.set("numSign" numSign lib)
+	Dict.set("signum" signum lib)
 end
 
 let impl = do

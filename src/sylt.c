@@ -1428,23 +1428,23 @@ void sylt_concat(sylt_t* ctx) {
 	value_t a = sylt_peek(ctx, 1);
 	value_t result;
 	
-	if (a.tag == TYPE_LIST) {
-		if (b.tag == TYPE_LIST)
+	if (a.tag == TYPE_LIST || b.tag == TYPE_LIST) {
+		if (a.tag == TYPE_LIST && b.tag == TYPE_LIST) {
 			result = wraplist(list_concat(getlist(a), getlist(b), ctx));
-		else {
+		} else if (a.tag == TYPE_LIST) {
 			list_push(getlist(a), b, ctx);
 			result = wraplist(getlist(a));
+		} else if (b.tag == TYPE_LIST) {
+			list_insert(getlist(b), 0, a, ctx);
+			result = wraplist(getlist(b));
 		}
 		
-	} else if (a.tag == TYPE_STRING) {
-		if (b.tag == TYPE_STRING)
-			result = wrapstring(string_concat(getstring(a), getstring(b), ctx));
-		else {
-			gc_pause(ctx);
-			result = wrapstring(string_concat(getstring(a), val_tostring(b, ctx), ctx));
-			gc_resume(ctx);
-		}
-		
+	} else if (a.tag == TYPE_STRING || b.tag == TYPE_STRING) {
+		gc_pause(ctx);
+		result = wrapstring(string_concat(
+			val_tostring(a, ctx), val_tostring(b, ctx), ctx));
+		gc_resume(ctx);
+
 	} else {
 		halt(ctx, E_CONCAT_TYPE(a.tag, b.tag));
 		unreachable();
@@ -2317,7 +2317,17 @@ void vm_exec(vm_t* vm) {
 			break;
 		}
 		case OP_SUB: {
-			if (peek(1).tag == TYPE_LIST) {
+			if (peek(0).tag == TYPE_LIST) {
+				/* n - list (pop start) */
+				list_t* ls = getlist(pop());
+				sylt_num_t n = getnum(pop());
+				for (int64_t i = 0; i < n; i++)
+					list_delete(ls, 0, vm->ctx);
+				push(wraplist(ls));
+				break;
+
+			} else if (peek(1).tag == TYPE_LIST) {
+				/* list - n (pop end) */
 				sylt_num_t n = getnum(pop());
 				list_t* ls = getlist(pop());
 				for (int64_t i = 0; i < n; i++)

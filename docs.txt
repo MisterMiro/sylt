@@ -313,15 +313,19 @@ title: String library
 
 name: letters
 args:
-comment: A string containing all lowercase letters a-z.
+comment: A string containing all ASCII letters, a-z (lowercase).
 
 name: digits
 args:
-comment: A string containing all digits 0-9.
+comment: A string containing all ASCII digits, 0-9.
 
 name: punctuation
 args:
 comment: A string containing all ASCII punctuation characters.
+
+name: whitespace
+args:
+comment: A string containing all ASCII whitespace characters.
 
 name: length
 args: string
@@ -402,10 +406,6 @@ comment: Right-pads the string with the pattern string so that it is w character
 name: centerPad
 args: string w pattern
 comment: Center-pads the string with the pattern string so that it is w characters wide.
-
-name: fmt
-args: string
-comment: Performs string formatting, replacing all occurrences of %value% with the actual value.
 
 
 title: Math library

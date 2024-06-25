@@ -1,0 +1,12 @@
+## combining strings with strings or values of other types
+printLn("str" + "str" = "strstr")
+printLn(3 + "str" = "3str")
+printLn("str" + 3 = "str3")
+
+## adding elements to the start or end of a list
+printLn([1 2] + 3 = [1 2 3])
+printLn(1 + [2 3] = [1 2 3])
+
+## removing elements from the start or end of a list
+printLn([1 2 3] - 1 = [1 2])
+printLn(1 - [1 2 3] = [2 3])

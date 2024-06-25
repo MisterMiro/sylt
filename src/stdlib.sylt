@@ -120,6 +120,27 @@ let impl = do
 	Dict.set("all" all lib)
 end
 
+## Dict    |
+## ===========
+
+let impl = do
+	let getOrDefault(key default dc) = if Dict.containsKey(key dc): Dict.get(key dc)
+		else default
+
+	let iter(f dc) = List.forEach(fun key -> f(key Dict.get(key dc)) Dict.keys(dc))
+
+	let toList(dc) = do
+		let ls = []
+		Dict.iter(fun key value -> ls += [[key value]] dc)
+		ls
+	end
+
+	let lib = Dict.get("Dict" gdict)
+	Dict.set("getOrDefault" getOrDefault lib)
+	Dict.set("iter" iter lib)
+	Dict.set("toList" toList lib)
+end
+
 ## String    |
 ## ===========
 

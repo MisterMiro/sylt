@@ -1,0 +1,23 @@
+## counts how often each word occurs in a text
+
+let text = "hej hej hej ett två tre"
+
+let sep = String.chars(String.whitespace + String.punctuation)
+let words = String.split(text sep)
+let frequencies = {}
+
+## build a dictionary from the text, with each word as the key,
+## and the number of occurrences as the value
+List.forEach(fun word -> do 
+    let word = String.lowercase(word)
+    let prev = Dict.getOrDefault(word 0 frequencies)
+    Dict.set(word prev + 1 frequencies)
+end
+words)
+
+## convert dictionary into a list of key/value pairs
+let pairs = Dict.toList(frequencies)
+
+## sort the list by most occurrences
+List.sortBy(fun a b -> List.get(1 a) < List.get(1 b) pairs)
+List.forEach(fun pair -> printLn(List.get(0 pair) + ": " + List.get(1 pair)) pairs)

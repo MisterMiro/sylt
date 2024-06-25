@@ -282,19 +282,31 @@ comment: Returns the number of items (keys) in the dictionary.
 
 name: get
 args: key dict
-comment: Returns the value at the given key.
+comment: Returns the value with the given key.
+
+name: getOrDefault
+args: key default dict
+comment: Returns the value with the given key or a default value if not found.
 
 name: set
 args: key newValue dict
 comment: Sets the value for the given key to newValue.
 
+name: iter
+args: f dict
+comment: Calls f for each entry with the key as the first argument and the value as the second.
+
+name: toList
+args: dict
+comment: Returns a list of key/value pairs each in the form of [key value]. 
+
 name: keys
 args: dict
-comment: Returns all keys in the dictionary as a list.
+comment: Returns a list of all keys in the dictionary.
 
 name: values
 args: dict
-comment: Returns all values in the dictionary as a list.
+comment: Returns a list of all values in the dictionary.
 
 
 title: String library

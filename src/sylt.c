@@ -2927,6 +2927,12 @@ value_t stddict_set(sylt_t* ctx) {
 	return nil();
 }
 
+value_t stddict_contains_key(sylt_t* ctx) {
+	typecheck(ctx, arg(0), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_DICT);
+	return wrapbool(dict_get(dictarg(1), stringarg(0)) != NULL);
+}
+
 value_t stddict_keys(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_DICT);
 	dict_t* dc = dictarg(0);
@@ -2995,10 +3001,10 @@ value_t stdstring_join(sylt_t* ctx) {
 
 value_t stdstring_split(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
+	typecheck(ctx, arg(1), TYPE_LIST);
 	
 	string_t* str = stringarg(0);
-	string_t* sep = stringarg(1);
+	list_t* separators = listarg(1);
 	list_t* parts = list_new(ctx);
 	
 	if (str->len == 0)
@@ -3008,8 +3014,15 @@ value_t stdstring_split(sylt_t* ctx) {
 	
 	for (size_t i = 0; i < str->len; i++) {
 		string_t* c = string_new((unsigned char*)str->bytes + i, 1, ctx);
-		bool split = sep->len > 0 && str->bytes[i] == sep->bytes[0];
-		
+
+		bool split = false;
+		for (size_t j = 0; j < separators->len; j++) {
+			string_t* sep = val_tostring(separators->items[j], ctx);
+			split = sep->len > 0 && str->bytes[i] == sep->bytes[0];
+			if (split)
+				break;
+		}
+			
 		if (!split) {
 			sylt_pushstring(ctx, current);
 			sylt_pushstring(ctx, c);
@@ -3017,7 +3030,7 @@ value_t stdstring_split(sylt_t* ctx) {
 			current = sylt_popstring(ctx);
 		}
 		
-		if (split || i == str->len - 1) {
+		if ((split || i == str->len - 1) && current->len > 0) {
 			list_push(parts, wrapstring(current), ctx);
 			current = string_new(NULL, 0, ctx);
 		}
@@ -3026,7 +3039,7 @@ value_t stdstring_split(sylt_t* ctx) {
 	return wraplist(parts);
 }
 
-value_t stdstring_lower(sylt_t* ctx) {
+value_t stdstring_lowercase(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
@@ -3038,7 +3051,7 @@ value_t stdstring_lower(sylt_t* ctx) {
 	return wrapstring(copy);
 }
 
-value_t stdstring_upper(sylt_t* ctx) {
+value_t stdstring_uppercase(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
@@ -3049,7 +3062,7 @@ value_t stdstring_upper(sylt_t* ctx) {
 	return wrapstring(copy);
 }
 
-value_t stdstring_swap_case(sylt_t* ctx) {
+value_t stdstring_swapcase(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	
 	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
@@ -3550,6 +3563,7 @@ void std_init(sylt_t* ctx) {
 	std_setlib(ctx, "Dict");
 	std_addf(ctx, "get", stddict_get, 2);
 	std_addf(ctx, "set", stddict_set, 3);
+	std_addf(ctx, "containsKey", stddict_contains_key, 2);
 	std_addf(ctx, "keys", stddict_keys, 1);
 	std_addf(ctx, "values", stddict_values, 1);
 	std_addlib(ctx);
@@ -3562,12 +3576,14 @@ void std_init(sylt_t* ctx) {
 		"0123456789", ctx)));
 	std_add(ctx, "punctuation", wrapstring(string_lit(
 		"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", ctx)));
+	std_add(ctx, "whitespace", wrapstring(string_lit(
+		" \n\r\t", ctx)));
 	std_addf(ctx, "chars", stdstring_chars, 1);
 	std_addf(ctx, "join", stdstring_join, 1);
 	std_addf(ctx, "split", stdstring_split, 2);
-	std_addf(ctx, "lower", stdstring_lower, 1);
-	std_addf(ctx, "upper", stdstring_upper, 1);
-	std_addf(ctx, "swapCase", stdstring_swap_case, 1);
+	std_addf(ctx, "lowercase", stdstring_lowercase, 1);
+	std_addf(ctx, "uppercase", stdstring_uppercase, 1);
+	std_addf(ctx, "swapcase", stdstring_swapcase, 1);
 	std_addf(ctx, "isLower", stdstring_is_lower, 1);
 	std_addf(ctx, "isUpper", stdstring_is_upper, 1);
 	std_addf(ctx, "isWhitespace", stdstring_is_whitespace, 1);

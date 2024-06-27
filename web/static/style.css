@@ -6,6 +6,10 @@ body {
     font-family: Verdana, sans-serif;
 }
 
+a {
+    text-decoration: none;
+}
+
 .header {
     background: linear-gradient(rgb(68, 74, 193), rgb(36, 41, 131));
     color: white;
@@ -13,7 +17,6 @@ body {
 
 .header a {
     color: rgb(234, 234, 234);
-    text-decoration: none;
 }
 
 .header a:hover {
@@ -66,12 +69,10 @@ textarea {
 
 .demos p {
     color: rgb(234, 234, 234);
-    text-decoration: none;
 }
 
 .demos a {
     color: rgb(197, 197, 197);
-    text-decoration: none;
     font-family: 'Courier New', Courier, monospace;
 }
 
@@ -81,15 +82,10 @@ textarea {
 
 .header a {
     color: rgb(234, 234, 234);
-    text-decoration: none;
 }
 
 .header a:hover {
     color: rgb(255, 255, 255);
-}
-
-.demos a {
-    text-decoration: none;
 }
 
 #page {

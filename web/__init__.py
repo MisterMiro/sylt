@@ -76,12 +76,16 @@ def index_submit():
 @app.route("/docs")
 def docs():
     html = ""
+    titles = []
+
     with open("docs.txt", "r") as file:
         for line in file.readlines():
             line = line.strip()
 
             if line.startswith("title: "):
-                html += "<h2>" + line[6:] + "</h2>\n"
+                title = line[7:]
+                html += "<a id=\"" + title + "\" href=\"#" + title + "\"><h2>" + title + "</h2></a><br>\n"
+                titles.append(title)
             
             if line.startswith("name: "):
                 html += "<hr><div class=\"doc-function\"><p>" + line[6:] + "</p></div>\n"
@@ -91,6 +95,11 @@ def docs():
 
             if line.startswith("comment: "):
                 html += "<div class=\"doc-comment\"><p>" + line[9:] + "</p></div>\n<br>"
+
+    titles.reverse()
+    for title in titles:
+        link = "<a id=\"none\" href=\"#" + title + "\">" + title + "</a><br>\n"
+        html = link + html
 
     return render_template("docs.html", html=html)
 

@@ -1,4 +1,5 @@
-title: Prelude library
+title: Prelude
+comment: Automatically included in all files, meaning no 'Prelude' prefix is needed.
 
 name: gdict
 args:
@@ -97,7 +98,7 @@ args: f times
 comment: Calls a function f n times with the current iteration as the argument.
 
 
-title: File library
+title: File
 
 name: open
 args: path mode
@@ -124,7 +125,7 @@ args: path
 comment: Deletes a file.
 
     
-title: System library
+title: System
 
 name: version
 args:
@@ -167,7 +168,7 @@ args:
 comment: Returns how much CPU time was used. 
 
     
-title: List library
+title: List
 
 name: length
 args: list
@@ -274,7 +275,7 @@ args: list
 comment: Returns true if all values in the list satisfy the predicate f.
 
 
-title: Dict library
+title: Dict
 
 name: length
 args: dict
@@ -313,7 +314,7 @@ args: dict
 comment: Returns a list of all values in the dictionary.
 
 
-title: String library
+title: String
 
 name: letters
 args:
@@ -412,7 +413,7 @@ args: string w pattern
 comment: Center-pads the string with the pattern string so that it is w characters wide.
 
 
-title: Math library
+title: Math
 
 name: pi
 args:
@@ -566,7 +567,7 @@ args: a b
 comment: Subtracts two vectors and returns the result.
 
 
-title: Rand library
+title: Rand
 
 name: range
 args: min max

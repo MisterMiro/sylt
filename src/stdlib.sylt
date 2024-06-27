@@ -201,29 +201,29 @@ let impl = do
 
 	let dot(a b) = a.x * b.x + a.y * b.y + a.z * b.z
 
-	let cross(a b) = makeVec3(
+	let cross(a b) = Vec3.new(
 		a.y * b.z - a.z * b.y
 		a.z * b.x - a.x * b.z
 		a.x * b.y - a.y * b.x)
 
-	let size(v) = Math.sqrt(vec3Dot(v v))
+	let size(v) = Math.sqrt(Vec3.dot(v v))
 
-	let norm(v) = makeVec3(
-		v.x / vec3Length(v)
-		v.y / vec3Length(v)
-		v.z / vec3Length(v))
+	let norm(v) = Vec3.new(
+		v.x / Vec3.size(v)
+		v.y / Vec3.size(v)
+		v.z / Vec3.size(v))
 
-	let add(a b) = makeVec3(
+	let add(a b) = Vec3.new(
 		a.x + b.x
 		a.y + b.y
 		a.z + b.z)
 
-	let sub(v other) = makeVec3(
+	let sub(v other) = Vec3.new(
 		a.x - b.x
 		a.y - b.y
 		a.z - b.z)
 
-	let scale(v s) = makeVec3(
+	let scale(v s) = Vec3.new(
 		v.x * s
 		v.y * s
 		v.z * s)

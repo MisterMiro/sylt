@@ -1,13 +1,7 @@
-## this program prints its own source code
+## this program prints its own source code, including line numbers
 
-let source_code = System.src().text
+let src = System.src().text
+let lines = String.split(src ["\n"])
+if String.endsWith(src "\n"): lines += ""
 
-## split the code into a list of lines so we can display line numbers
-let lines = String.split(source_code ["\n"])
-
-List.iter(fun i code -> do
-	print(String.rightPad(toString(i + 1) 5 " "))
-	print(" ")
-	printLn(code)
-end
-lines)
+List.iter(fun i code -> printLn(String.rightPad(toString(i + 1) 5 " ") + " " + code) lines)

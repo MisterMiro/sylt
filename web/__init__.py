@@ -5,6 +5,7 @@ import os
 
 app = Flask(__name__)
 
+debug_mode = True
 sylt_binary = "sylt_bin"
 sylt_demos = "demo/"
 timeout = 10
@@ -59,8 +60,13 @@ def index_submit():
         file.write(code)
 
     # launch sylt instance
-    args = [path, "-sbox", "-v"]
-    if (disassemble):
+    args = [path]
+    if not debug_mode:
+        args.append("-sbox")
+    
+    args.append("-v")
+    
+    if disassemble:
         args.append("-d")
     output = run_sylt_binary(args)    
 

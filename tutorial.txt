@@ -74,25 +74,26 @@ division </p>
 
 <h4> < </h4>
 
-<p> Used for checking if a number is smaller than another </p>
+<p> Used for checking if a number is less than another </p>
 
 <h4> <= </h4>
 
-<p> Used for checking if a number is smaller than or equal to another </p>
+<p> Used for checking if a number is less than or equal to another </p>
 
 <h4> > </h4>
 
-<p> Used for checking if a number is larger than another </p>
+<p> Used for checking if a number is greater than another </p>
 
 <h4> >= </h4>
 
-<p> Used for checking if a number is larger than or equal to another </p>
+<p> Used for checking if a number is greater than or equal to another </p>
 
 
 
-<h4> = </h4>
+<h4> is </h4>
 
-<p> Used for checking if two values are equal. </p>
+<p> Used for checking if two values are equal. Comparing values of different types is not an error.
+</p>
 
 <h4> not </h4>
 

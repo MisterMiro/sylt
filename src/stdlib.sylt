@@ -124,7 +124,7 @@ end
 ## ===========
 
 let impl = do
-	let getOrDefault(key default dc) = if Dict.containsKey(key dc): Dict.get(key dc)
+	let getOrDefault(key default dc) = if Dict.hasKey(key dc): Dict.get(key dc)
 		else default
 
 	let iter(f dc) = List.forEach(fun key -> f(key Dict.get(key dc)) Dict.keys(dc))
@@ -177,6 +177,9 @@ let impl = do
 	Dict.set("centerPad" centerPad lib)
 end
 
+## Math      |
+## ===========
+
 let impl = do
 	let Sign = makeEnum(["Negative" "Zero" "Positive"])
 
@@ -188,6 +191,56 @@ let impl = do
 	Dict.set("Sign" Sign lib)
 	Dict.set("signum" signum lib)
 end
+
+let impl = do
+	let new(x y z) = {
+		"x": x
+		"y": y
+		"z": z
+	}
+
+	let dot(a b) = a.x * b.x + a.y * b.y + a.z * b.z
+
+	let cross(a b) = makeVec3(
+		a.y * b.z - a.z * b.y
+		a.z * b.x - a.x * b.z
+		a.x * b.y - a.y * b.x)
+
+	let size(v) = Math.sqrt(vec3Dot(v v))
+
+	let norm(v) = makeVec3(
+		v.x / vec3Length(v)
+		v.y / vec3Length(v)
+		v.z / vec3Length(v))
+
+	let add(a b) = makeVec3(
+		a.x + b.x
+		a.y + b.y
+		a.z + b.z)
+
+	let sub(v other) = makeVec3(
+		a.x - b.x
+		a.y - b.y
+		a.z - b.z)
+
+	let scale(v s) = makeVec3(
+		v.x * s
+		v.y * s
+		v.z * s)
+
+	let lib = Dict.get("Vec3" gdict)
+	Dict.set("new" new lib)
+	Dict.set("dot" dot lib)
+	Dict.set("cross" cross lib)
+	Dict.set("size" size lib)
+	Dict.set("norm" norm lib)
+	Dict.set("add" add lib)
+	Dict.set("sub" sub lib)
+	Dict.set("scale" scale lib)
+end
+
+## Rand      |
+## ===========
 
 let impl = do
 	let fiftyFifty() = Rand.range(0 1) > 0.9999999 / 2

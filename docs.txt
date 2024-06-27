@@ -300,6 +300,10 @@ name: toList
 args: dict
 comment: Returns a list of key/value pairs each in the form of [key value]. 
 
+name: hasKey
+args: dict
+comment: Returns true if the dictionary contains a key. 
+
 name: keys
 args: dict
 comment: Returns a list of all keys in the dictionary.
@@ -525,6 +529,41 @@ comment: Returns the hyperbolic arc-cosine of x.
 name: atanh
 args: x
 comment: Returns the hyperbolic arc-tangent of x. 
+
+
+title: Vec3
+
+name: new
+args: x y z
+comment: Creates a new 3D vector.
+
+name: dot
+args: a b
+comment: Computes the dot product of two vectors.
+
+name: cross
+args: a b
+comment: Computes the cross product of two vectors.
+
+name: length
+args: vec
+comment: Computes the size of a vector.
+
+name: norm
+args: vec
+comment: Returns a normalized (scaled so that its size=1) version of the vector. 
+
+name: scale
+args: vec scalar
+comment: Scales the vector by a scalar on all axis.
+
+name: add
+args: a b
+comment: Adds two vectors and returns the result.
+
+name: sub
+args: a b
+comment: Subtracts two vectors and returns the result.
 
 
 title: Rand library

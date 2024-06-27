@@ -23,9 +23,6 @@ words)
 ## convert dictionary into a list of key/value pairs
 let pairs = Dict.toList(frequencies)
 
-## filter out words that only appear once
-##pairs <- List.filter(fun pair -> List.get(1 pair) is 0 pairs)
-
 ## sort the list by most occurrences
 List.sortBy(fun a b -> List.get(1 a) < List.get(1 b) pairs)
-List.forEach(fun pair -> printLn(List.get(0 pair) + ": " + List.get(1 pair)) pairs)
+List.forEach(fun pair -> printLn(List.first(pair) + ": " + List.last(pair)) pairs)

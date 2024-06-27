@@ -492,6 +492,8 @@ typedef enum {
 	OP_PUSH_NIL,
 	OP_PUSH_TRUE,
 	OP_PUSH_FALSE,
+	OP_PUSH_RANGE,
+	OP_PUSH_RANGE_INC,
 	OP_PUSH_LIST,
 	OP_PUSH_DICT,
 	OP_PUSH_FUNC,
@@ -554,6 +556,8 @@ static opinfo_t OPINFO[] = {
 	[OP_PUSH_NIL] = {"pushNil", 0, +1},
 	[OP_PUSH_TRUE] = {"pushTrue", 0, +1},
 	[OP_PUSH_FALSE] = {"pushFalse", 0, +1},
+	[OP_PUSH_RANGE] = {"pushRange", 0, +1},
+	[OP_PUSH_RANGE_INC] = {"pushRangeInc", 0, +1},
 	[OP_PUSH_LIST] = {"pushList", 1, +1},
 	[OP_PUSH_DICT] = {"pushDict", 1, +1},
 	[OP_PUSH_FUNC] = {"pushFunc", 1, +1},
@@ -598,6 +602,7 @@ typedef enum {
 	TYPE_NIL,
 	TYPE_BOOL,
 	TYPE_NUM,
+	TYPE_RANGE,
 	TYPE_LIST,
 	TYPE_DICT,
 	TYPE_STRING,
@@ -610,6 +615,7 @@ static const char* TYPE_NAMES[] = {
 	"Nil",
 	"Bool",
 	"Num",
+	"Range",
 	"List",
 	"Dict",
 	"String",
@@ -622,18 +628,16 @@ static const char* user_type_name(
 	type_t tag)
 {
 	switch (tag) {
-	case TYPE_CLOSURE:
-		return TYPE_NAMES[TYPE_FUNCTION];
+	case TYPE_CLOSURE: return TYPE_NAMES[TYPE_FUNCTION];
 	case TYPE_FUNCTION:
-	case TYPE_UPVALUE:
-		unreachable();
-	default:
-		return TYPE_NAMES[tag];
+	case TYPE_UPVALUE: unreachable();
+	default: return TYPE_NAMES[tag];
 	}
 }
 
 #define isheaptype(t) \
-	((t) == TYPE_LIST \
+	((t) == TYPE_RANGE \
+		|| (t) == TYPE_LIST \
 		|| (t) == TYPE_DICT \
 		|| (t) == TYPE_STRING \
 		|| (t) == TYPE_FUNCTION \
@@ -663,6 +667,14 @@ typedef struct value_s {
 		obj_t* obj;
 	} data;
 } value_t;
+
+/* numeric range */
+typedef struct {
+	obj_t obj;
+	sylt_num_t start;
+	sylt_num_t end;
+	bool inc;
+} range_t;
 
 /* list object */
 typedef struct {
@@ -814,6 +826,7 @@ typedef struct vm_s {
 #define nil() (value_t){TYPE_NIL, {.num = 0}}
 #define wrapbool(v) (value_t){TYPE_BOOL, {.num = (v)}}
 #define wrapnum(v) (value_t){TYPE_NUM, {.num = (v)}}
+#define wraprange(v) (value_t){TYPE_RANGE, {.obj = (obj_t*)(v)}}
 #define wraplist(v) (value_t){TYPE_LIST, {.obj = (obj_t*)(v)}}
 #define wrapdict(v) (value_t){TYPE_DICT, {.obj = (obj_t*)(v)}}
 #define wrapstring(v) (value_t){TYPE_STRING, {.obj = (obj_t*)(v)}}
@@ -828,6 +841,7 @@ typedef struct vm_s {
 #define getbool(v) (v).data.num
 #define getnum(v) (v).data.num
 #define getobj(v) (v).data.obj
+#define getrange(v) ((range_t*)getobj(v))
 #define getlist(v) ((list_t*)getobj(v))
 #define getdict(v) ((dict_t*)getobj(v))
 #define getstring(v) ((string_t*)getobj(v))
@@ -925,6 +939,7 @@ obj_t* obj_new_impl(
 	obj_new_impl(size, tag, \
 		__func__, __LINE__, ctx);
 
+void range_free(range_t*, sylt_t*);
 void list_free(list_t*, sylt_t*);
 void dict_free(dict_t*, sylt_t*);
 void string_free(string_t*, sylt_t*);
@@ -945,6 +960,10 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 	#endif
 	
 	switch (obj->tag) {
+	case TYPE_RANGE: {
+		range_free((range_t*)obj, ctx);
+		break;
+	}
 	case TYPE_LIST: {
 		list_free((list_t*)obj, ctx);
 		break;
@@ -1005,6 +1024,7 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	assert(obj->marked);
 	
 	switch (obj->tag) {
+	case TYPE_RANGE: break;
 	case TYPE_LIST: {
 		list_t* ls = (list_t*)obj;
 		for (size_t i = 0; i < ls->len; i++)
@@ -1024,9 +1044,7 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 		
 		break;
 	}
-	case TYPE_STRING: {
-		break;
-	}
+	case TYPE_STRING: break;
 	case TYPE_FUNCTION: {
 		func_t* func = (func_t*)obj;
 		for (size_t i = 0; i < func->ndata; i++)
@@ -1053,6 +1071,26 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	}
 }
 
+/* == range == */
+
+range_t* range_new(sylt_t* ctx, sylt_num_t start, sylt_num_t end, bool inc) {
+	range_t* range = (range_t*)obj_new(sizeof(range_t), TYPE_RANGE, ctx);
+	range->start = start;
+	range->end = end;
+	range->inc = inc;
+	return range;
+}
+
+void range_free(range_t* range, sylt_t* ctx) {
+	ptr_free(range, range_t, ctx);
+}
+
+bool range_eq(const range_t* a, const range_t* b) {
+	if (!a || !b) return false;
+	if (a == b) return true;
+	return a->start == b->start && a->end == b->end && a->inc == b->inc;
+}
+
 /* == list == */
 
 list_t* list_new(sylt_t* ctx) {
@@ -1069,14 +1107,9 @@ void list_free(list_t* ls, sylt_t* ctx) {
 
 /* returns true if the two lists are equal */
 bool list_eq(const list_t* a, const list_t* b) {
-	if (!a || !b)
-		return false;
-	
-	if (a == b)
-		return true;
-		
-	if (a->len != b->len)
-		return false;
+	if (!a || !b) return false;
+	if (a == b) return true;
+	if (a->len != b->len) return false;
 		
 	for (size_t i = 0; i < a->len; i++)
 		if (!val_eq(a->items[i], b->items[i]))
@@ -1207,17 +1240,10 @@ bool string_eq(const string_t* a, const string_t* b);
 
 /* returns true if the two dicts are equal */
 bool dict_eq(const dict_t* a, const dict_t* b) {
-	if (!a || !b)
-		return false;
-	
-	if (a == b)
-		return true;
-		
-	if (a->len != b->len)
-		return false;
-		
-	if (a->cap != b->cap)
-		return false;
+	if (!a || !b) return false;
+	if (a == b) return true;
+	if (a->len != b->len) return false;
+	if (a->cap != b->cap) return false;
 	
 	for (size_t i = 0; i < a->cap; i++) {
 		if (!string_eq(a->items[i].key, b->items[i].key))
@@ -1398,15 +1424,9 @@ void string_rehash(string_t* str, sylt_t* ctx) {
 
 /* returns true if a == b */
 bool string_eq(const string_t* a, const string_t* b) {
-	if (!a || !b)
-		return false;
-	
-	if (a == b)
-		return true;
-		
-	if (a->len != b->len)
-		return false;
-		
+	if (!a || !b) return false;
+	if (a == b) return true;
+	if (a->len != b->len) return false;
 	return memcmp(a->bytes, b->bytes, a->len) == 0;
 }
 
@@ -1651,6 +1671,7 @@ bool val_eq(value_t a, value_t b) {
 	case TYPE_NIL: return true;
 	case TYPE_BOOL: return getbool(a) == getbool(b);
 	case TYPE_NUM: return getnum(a) == getnum(b);
+	case TYPE_RANGE: return range_eq(getrange(a), getrange(b));
 	case TYPE_LIST: return list_eq(getlist(a), getlist(b));
 	case TYPE_DICT: return dict_eq(getdict(a), getdict(b));
 	case TYPE_STRING: return string_eq(getstring(a), getstring(b));
@@ -1682,6 +1703,16 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 	}
 	case TYPE_NUM: {
 		str = string_fmt(ctx, "%.8g", getnum(val));
+		break;
+	}
+	case TYPE_RANGE: {
+		const range_t* range = getrange(val);
+		sylt_pushstring(ctx, val_tostring(wrapnum(range->start), ctx));
+		sylt_pushstring(ctx, string_lit((range->inc) ? "..=" : "..", ctx));
+		sylt_concat(ctx);
+
+		sylt_pushstring(ctx, val_tostring(wrapnum(range->end), ctx));
+		sylt_concat(ctx);
 		break;
 	}
 	case TYPE_LIST: {
@@ -2156,6 +2187,20 @@ void vm_exec(vm_t* vm) {
 			push(wrapbool(false));
 			break;
 		}
+		case OP_PUSH_RANGE: {
+			sylt_num_t max = getnum(pop());
+			sylt_num_t min = getnum(pop());
+			range_t* range = range_new(vm->ctx, min, max, false);
+			push(wraprange(range));
+			break;
+		}
+		case OP_PUSH_RANGE_INC: {
+			sylt_num_t max = getnum(pop());
+			sylt_num_t min = getnum(pop());
+			range_t* range = range_new(vm->ctx, min, max, true);
+			push(wraprange(range));
+			break;
+		}
 		case OP_PUSH_LIST: {
 			uint8_t len = read8();
 			list_t* ls = list_new(vm->ctx);
@@ -2571,6 +2616,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 
 #define boolarg(n) getbool(arg(n))
 #define numarg(n) getnum(arg(n))
+#define rangearg(n) getnum(arg(n))
 #define listarg(n) getlist(arg(n))
 #define dictarg(n) getdict(arg(n))
 #define stringarg(n) getstring(arg(n))
@@ -2697,13 +2743,14 @@ value_t stdfile_close(sylt_t* ctx) {
 
 value_t stdfile_write(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
+	typecheck(ctx, arg(1), TYPE_STRING);
 	
 	int64_t handle = (int64_t)numarg(0);
 	FILE* fp = ctx->vm->files[handle];
 	if (!fp)
 		halt(ctx, E_INVALID_HANDLE(handle));
 	
-	string_t* str = val_tostring(arg(1), ctx);
+	string_t* str = stringarg(1);
 	for (size_t i = 0; i < str->len; i++)
 		putc(str->bytes[i], fp);
 	
@@ -2712,17 +2759,20 @@ value_t stdfile_write(sylt_t* ctx) {
 
 value_t stdfile_read(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
 	
 	int64_t handle = (int64_t)numarg(0);
 	FILE* fp = ctx->vm->files[handle];
 	if (!fp)
 		halt(ctx, E_INVALID_HANDLE(handle));
 	
-	int64_t n = (int64_t)numarg(1);
-	string_t* str = string_new(NULL, n, ctx);
-	fread(str->bytes, 1, n, fp);
+	fseek(fp, 0, SEEK_END);
+	size_t size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+
+	string_t* str = string_new(NULL, size, ctx);
+	fread(str->bytes, 1, size, fp);
 	string_rehash(str, ctx);
+
 	return wrapstring(str);
 }
 
@@ -2937,7 +2987,7 @@ value_t stddict_set(sylt_t* ctx) {
 	return nil();
 }
 
-value_t stddict_contains_key(sylt_t* ctx) {
+value_t stddict_has_key(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_STRING);
 	typecheck(ctx, arg(1), TYPE_DICT);
 	return wrapbool(dict_get(dictarg(1), stringarg(0)) != NULL);
@@ -2947,11 +2997,9 @@ value_t stddict_keys(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_DICT);
 	dict_t* dc = dictarg(0);
 	list_t* keys = list_new(ctx);
-	
 	for (size_t i = 0; i < dc->cap; i++) {
 		if (!dc->items[i].key)
 			continue;
-		
 		list_push(keys, wrapstring(dc->items[i].key), ctx);
 	}
 	
@@ -2962,11 +3010,9 @@ value_t stddict_values(sylt_t* ctx) {
 	typecheck(ctx, arg(0), TYPE_DICT);
 	dict_t* dc = dictarg(0);
 	list_t* values = list_new(ctx);
-	
 	for (size_t i = 0; i < dc->cap; i++) {
 		if (!dc->items[i].key)
 			continue;
-		
 		list_push(values, dc->items[i].val, ctx);
 	}
 	
@@ -3547,7 +3593,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "open", stdfile_open, 2);
 	std_addf(ctx, "close", stdfile_close, 1);
 	std_addf(ctx, "write", stdfile_write, 2);
-	std_addf(ctx, "read", stdfile_read, 2);
+	std_addf(ctx, "read", stdfile_read, 1);
 	std_addf(ctx, "size", stdfile_size, 1);
 	std_addf(ctx, "del", stdfile_del, 1);
 	std_addlib(ctx);
@@ -3585,7 +3631,7 @@ void std_init(sylt_t* ctx) {
 	std_setlib(ctx, "Dict");
 	std_addf(ctx, "get", stddict_get, 2);
 	std_addf(ctx, "set", stddict_set, 3);
-	std_addf(ctx, "containsKey", stddict_contains_key, 2);
+	std_addf(ctx, "hasKey", stddict_has_key, 2);
 	std_addf(ctx, "keys", stddict_keys, 1);
 	std_addf(ctx, "values", stddict_values, 1);
 	std_addlib(ctx);
@@ -3650,12 +3696,16 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "atanh", stdmath_atanh, 1);
 	std_addlib(ctx);
 
+	/* vec3 */
+	std_setlib(ctx, "Vec3");
+	std_addlib(ctx);
+
 	/* rand */
 	std_setlib(ctx, "Rand");
 	std_addf(ctx, "range", stdrand_range, 2);
 	std_addf(ctx, "seed", stdrand_seed, 1);
 	std_addlib(ctx);
-	
+
 	/* parts of the stdlib are implemented 
 	 * in sylt */
 	sylt_xfile(ctx, SYLT_STDLIB_PATH);
@@ -3721,6 +3771,8 @@ typedef enum {
 	T_COMMA,
 	T_COLON,
 	T_DOT,
+	T_DOT_DOT,
+	T_DOT_DOT_EQ,
 	T_HASH,
 	T_EOF,
 } token_type_t;
@@ -3755,8 +3807,10 @@ typedef enum {
 	PREC_FACTOR,
 	/* unary prefix: - ! */
 	PREC_UNARY_PREFIX,
-	/* unary postfix: () . */
-	PREC_UNARY_POSTFIX,
+	/* unary postfix: () . .. ..= */
+	PREC_UNARY_INFIX,
+	/* unused */
+	PREC_PRIM,
 } prec_t;
 
 const int ANY_PREC = PREC_ASSIGN;
@@ -4246,7 +4300,9 @@ token_t scan(comp_t* cmp) {
 	case ']': return token(T_RSQUARE);
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
-	case '.': return token(T_DOT);
+	case '.':
+		if (match('=')) return token(T_STAR_EQ);
+		return token(T_DOT);
 	case '#': return token(T_HASH);
 	case '\0': return token(T_EOF);
 	default: halt(cmp->ctx, E_UNEXPECTED_CHAR(cmp->pos[-1]));
@@ -4314,8 +4370,6 @@ void number(comp_t*);
 void grouping(comp_t*);
 void unary(comp_t*);
 void binary(comp_t*);
-void call(comp_t*);
-void dot(comp_t*);
 void using(comp_t*);
 void let(comp_t*);
 void fun(comp_t*);
@@ -4369,7 +4423,7 @@ static parserule_t RULES[] = {
 	[T_GT] = {NULL, binary, PREC_CMP},
 	[T_GT_EQ] = {NULL, binary, PREC_CMP},
 	[T_EQ] = {NULL, NULL, PREC_NONE},
-	[T_LPAREN] = {grouping, call, PREC_UNARY_POSTFIX},
+	[T_LPAREN] = {grouping, binary, PREC_UNARY_INFIX},
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
 	[T_LCURLY] = {dict, NULL, PREC_NONE},
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
@@ -4377,7 +4431,9 @@ static parserule_t RULES[] = {
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
-	[T_DOT] = {NULL, dot, PREC_UNARY_POSTFIX},
+	[T_DOT] = {NULL, binary, PREC_UNARY_INFIX},
+	[T_DOT_DOT] = {NULL, binary, PREC_UNARY_INFIX},
+	[T_DOT_DOT_EQ] = {NULL, binary, PREC_UNARY_INFIX},
 	[T_HASH] = {unary, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -4387,7 +4443,6 @@ static parserule_t RULES[] = {
 void expr(comp_t* cmp, prec_t prec, const char* name) {
 	/* move to the next token */
 	step(cmp);
-	
 	parsefn_t prefix = RULES[cmp->prev.tag].prefix;
 	
 	/* first token in an expression
@@ -4625,9 +4680,7 @@ void unary(comp_t* cmp) {
 /* parses a binary expression */
 void binary(comp_t* cmp) {
 	/* left hand expression has already been
-	 * compiled */
-	
-	/* save the operator token */
+	 * parsed along with the operator token */
 	token_type_t token = cmp->prev.tag;
 	
 	/* compile the right hand expression */
@@ -4673,45 +4726,47 @@ void binary(comp_t* cmp) {
 		patch_jump(cmp, jump);
 		return; /* early return */
 	}
+	/* other special cases */
+	case T_LPAREN: {
+		int argc = 0;
+	
+		/* parse argument list */
+		while (!check(cmp, T_RPAREN) && !check(cmp, T_EOF)) {
+			if (argc >= MAX_PARAMS) {
+				halt(cmp->ctx, E_TOO_MANY_ARGS);
+				unreachable();
+			}
+				
+			expr(cmp, ANY_PREC, "argument");
+			argc++;
+		}
+		
+		eat(cmp, T_RPAREN, "expected ')' after call arguments");
+		emit_unary(cmp, OP_CALL, argc);
+		comp_simstack(cmp, -argc);
+		return;
+	}
+	case T_DOT: {
+		eat(cmp, T_NAME, "expected member name after '.'");
+		string_t* name = cmp->prev.lex;
+		emit_value(cmp, wrapstring(name));
+
+		if (match(cmp, T_LT_MINUS)) {
+			expr(cmp, PREC_ASSIGN, "right-hand side expression");
+			emit_nullary(cmp, OP_STORE_KEY);
+			return;
+		}
+
+		emit_nullary(cmp, OP_LOAD_KEY);
+		return;
+	}
+	case T_DOT_DOT: opcode = OP_PUSH_RANGE; return;
+	case T_DOT_DOT_EQ: opcode = OP_PUSH_RANGE_INC; return;
 	default: unreachable();
 	}
 	
 	expr(cmp, rule->prec + 1, "right-hand side expression");
 	emit_nullary(cmp, opcode);
-}
-
-/* parses a function call operator */
-void call(comp_t* cmp) {
-	int argc = 0;
-	
-	/* parse argument list */
-	while (!check(cmp, T_RPAREN) && !check(cmp, T_EOF)) {
-		if (argc >= MAX_PARAMS) {
-			halt(cmp->ctx, E_TOO_MANY_ARGS);
-			unreachable();
-		}
-			
-		expr(cmp, ANY_PREC, "argument");
-		argc++;
-	}
-	
-	eat(cmp, T_RPAREN, "expected ')' after call arguments");
-	emit_unary(cmp, OP_CALL, argc);
-	comp_simstack(cmp, -argc);
-}
-
-void dot(comp_t* cmp) {
-	eat(cmp, T_NAME, "expected name after '.'");
-	string_t* name = cmp->prev.lex;
-	emit_value(cmp, wrapstring(name));
-
-	if (match(cmp, T_LT_MINUS)) {
-		expr(cmp, PREC_ASSIGN, "right-hand side expression");
-		emit_nullary(cmp, OP_STORE_KEY);
-		return;
-	}
-
-	emit_nullary(cmp, OP_LOAD_KEY);
 }
 
 string_t* load_file(const char*, sylt_t*);
@@ -5349,8 +5404,8 @@ void compile_and_run(sylt_t* ctx, string_t* src, string_t* name, comp_t* cmp) {
 	comp_load(cmp, src, name);
 	
 	/* scan initial token for lookahead */
+	step(cmp);
 	cmp->prev.line = 1; /* hack */
-	cmp->cur = scan(cmp);
 	
 	/* parse the entire source */
 	while (!check(cmp, T_EOF)) {

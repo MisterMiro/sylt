@@ -5,30 +5,31 @@
 
 <h4> Nil </h4>
 
-<p> The Nil type is associated with one value, nil.
+<p> This type is associated with one value, nil.
 It is used when there is no meaningful value to return or store. </p>
 
 <h4> Bool </h4>
 
-<p> The Bool type has two possible values, true and false. It is the result of all comparison and equality
+<p> The boolean type has two possible values, true and false. It is the result of all comparison and equality
 operators.
 </p>
 
-<h4> Num </h4>
+<h4> Number </h4>
 
-<p> The Num type is used for numbers. </p>
+<p> The number type is used for numbers. </p>
 
 <h4> List </h4>
 
-<p> The List type is a dynamic array. It is able to contain an indefinite number of values
+<p> A dynamic array. It is able to contain an indefinite number of values
 of different types. Values are read or modified by accessing numeric indices in the array. It is
-contiguous, meaning there are no gaps between items; it has a start and an end.
+contiguous, meaning there are no gaps between items, or in other words, it has a start and an end.
 </p>
 
 <h4> Dict </h4>
 
 <p> The Dict type represents an associative array, commonly known as a dictionary or hashmap. 
-It associates a string key with a value. There is no "correct" order to iterate over its values.
+It contains any number of keys, each associated with a value.
+Unlike with the list type, here is no correct order to iterate over its values.
 </p>
 
 <h4> Function </h4>

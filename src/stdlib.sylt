@@ -33,6 +33,18 @@ let rep(f n) = do
 	end
 end
 
+let rep2(f nx ny) = do
+	let i = 0
+	while i < nx: do
+		let j = 0
+		while j < ny: do
+			f(i j)
+			j += 1
+		end
+		i += 1
+	end
+end
+
 ## List      |
 ## ===========
 
@@ -175,6 +187,23 @@ let impl = do
 	Dict.set("leftPad" leftPad lib)
 	Dict.set("rightPad" rightPad lib)
 	Dict.set("centerPad" centerPad lib)
+end
+
+## File      |
+## ===========
+
+let impl = do
+	let Mode = makeEnum([
+		"Read"
+		"ReadBinary"
+		"Write"
+		"WriteBinary"
+		"Append"
+		"AppendBinary"
+	])
+
+	let lib = Dict.get("File" gdict)
+	Dict.set("Mode" Mode lib)
 end
 
 ## Math      |

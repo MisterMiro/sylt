@@ -1,0 +1,36 @@
+## renders a scene using raytracing
+
+let cfg = {
+    "output": "projects/raytraced_image.ppm"
+    "w": 960 / 8
+    "h": 540 / 8
+}
+
+## writes a PPM file
+let writeOutput(pixels w h path) = do
+    ##ensure(#pixels is 3 * w * h)
+
+    printLn("Writing " + w + "x" + h + " image to " + path + "...")
+
+    let file = File.open(path File.Mode.Write)
+    File.write("P3\n" file)
+    File.write(w + " " + h + "\n" file)
+    File.write("255\n" file)
+
+    let writeTriplet(rgb) = do
+        let r = toString(List.get(0 rgb))
+        let g = toString(List.get(1 rgb))
+        let b = toString(List.get(2 rgb))
+
+        r <- String.leftPad(r 4 " ")
+        g <- String.leftPad(g 4 " ")
+        b <- String.leftPad(b 4 " ")
+
+        File.write(r + g + b + "\n" file)
+    end
+
+    rep2(fun x y -> writeTriplet(List.get(x + y * w pixels)) w h)
+end
+
+let pixels = List.init(cfg.w * cfg.h [[255 255 255]])
+writeOutput(pixels cfg.w cfg.h cfg.output)

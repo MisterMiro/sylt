@@ -62,7 +62,7 @@
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 1
+#define DBG_GC_EVERY_ALLOC 0
 
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
@@ -251,6 +251,8 @@ void halt(sylt_t*, const char*, ...);
 	"%s, got '%.*s'", msg, (int)got->len, got->bytes
 #define E_TYPE(ex, got) \
 	"expected %s, got %s", user_type_name(ex), user_type_name(got)
+#define E_ARG_TYPE(ex, got, n) \
+	"expected %s for argument %d, got %s", user_type_name(ex), n, user_type_name(got)
 #define E_NOT_CALLABLE(tag) \
 	"cannot call a value of type %s", user_type_name(tag)
 #define E_NO_LENGTH(tag) \
@@ -436,11 +438,7 @@ void* ptr_resize(
 		if (ns > os)
 			gc_collect(ctx, func_name, line);
 		#else
-		bool trigger_gc = ns > os &&
-			ctx->mem.bytes >
-			ctx->mem.gc.trigger;
-		
-		if (trigger_gc)
+		if (ctx->mem.bytes > (ptrdiff_t)ctx->mem.gc.trigger)
 			gc_collect(ctx, func_name, line);
 		#endif
 	}
@@ -614,7 +612,7 @@ typedef enum {
 static const char* TYPE_NAMES[] = {
 	"Nil",
 	"Bool",
-	"Num",
+	"Number",
 	"Range",
 	"List",
 	"Dict",
@@ -849,12 +847,8 @@ typedef struct vm_s {
 #define getclosure(v) ((closure_t*)getobj(v))
 #define getupvalue(v) ((upvalue_t*)getobj(v))
 
-#define typecheck(ctx, v, t) \
-	if (v.tag != t) \
-		halt(ctx, E_TYPE(t, v.tag))
-#define typecheck2(ctx, a, b, t) \
-	typecheck(ctx, a, t); \
-	typecheck(ctx, b, t)
+#define typecheck(ctx, v, t) if (v.tag != t) halt(ctx, E_TYPE(t, v.tag))
+#define typecheck2(ctx, a, b, t) typecheck(ctx, a, t); typecheck(ctx, b, t)
 	
 bool val_eq(value_t, value_t);
 	
@@ -2622,6 +2616,10 @@ void sylt_call(sylt_t* ctx, int argc) {
 #define stringarg(n) getstring(arg(n))
 #define closurearg(n) getclosure(arg(n))
 
+#define argcheck(ctx, n, t) \
+	if (arg(n).tag != t) \
+		halt(ctx, E_ARG_TYPE(t, arg(n).tag, n))
+
 /* == prelude lib == */
 
 value_t std_print(sylt_t* ctx) {
@@ -2668,9 +2666,9 @@ value_t std_to_num(sylt_t* ctx) {
 }
 
 value_t std_float_eq(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
-	typecheck(ctx, arg(2), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 2, TYPE_NUM);
 	
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
@@ -2688,7 +2686,7 @@ value_t std_type_of(sylt_t* ctx) {
 }
 
 value_t std_ensure(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_BOOL);
+	argcheck(ctx, 0, TYPE_BOOL);
 	if (!boolarg(0)) {
 		halt(ctx, E_ENSURE_FAILED);
 		unreachable();
@@ -2704,96 +2702,6 @@ value_t std_todo(sylt_t* ctx) {
 
 value_t std_unreachable(sylt_t* ctx) {
 	halt(ctx, E_UNREACHABLE_REACHED);
-	return nil();
-}
-
-/* == file lib == */
-
-value_t stdfile_open(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
-	
-	string_t* path = stringarg(0);
-	string_t* mode = stringarg(1);
-	
-	int handle = -1;
-	for (size_t i = 0; i < MAX_FILES; i++)
-		if (!ctx->vm->files[i]) {
-			handle = i;
-			break;
-		}
-	
-	if (handle == -1)
-		halt(ctx, E_OPEN_FAILED(path));
-	
-	ctx->vm->files[handle] = fopen((const char*)path->bytes, (const char*)mode->bytes);
-	return wrapnum(handle);
-}
-
-value_t stdfile_close(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-		
-	fclose(fp);
-	return nil();
-}
-
-value_t stdfile_write(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_STRING);
-	
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-	
-	string_t* str = stringarg(1);
-	for (size_t i = 0; i < str->len; i++)
-		putc(str->bytes[i], fp);
-	
-	return nil();
-}
-
-value_t stdfile_read(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-	
-	fseek(fp, 0, SEEK_END);
-	size_t size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-
-	string_t* str = string_new(NULL, size, ctx);
-	fread(str->bytes, 1, size, fp);
-	string_rehash(str, ctx);
-
-	return wrapstring(str);
-}
-
-value_t stdfile_size(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	
-	int64_t handle = (int64_t)numarg(0);
-	FILE* fp = ctx->vm->files[handle];
-	if (!fp)
-		halt(ctx, E_INVALID_HANDLE(handle));
-	
-	fseek(fp, 0, SEEK_END);
-	size_t size = ftell(fp);
-	fseek(fp, 0, SEEK_SET);
-	return wrapnum(size);
-}
-
-value_t stdfile_del(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	string_t* path = stringarg(0);
-	remove((char*)path->bytes);
 	return nil();
 }
 
@@ -2835,19 +2743,19 @@ value_t stdsys_src(sylt_t* ctx) {
 }
 
 value_t stdsys_run(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	system((char*)stringarg(0)->bytes);
 	return nil();
 }
 
 value_t stdsys_halt(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	halt(ctx, (const char*)stringarg(0)->bytes);
 	return nil();
 }
 
 value_t stdsys_time(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* fmt = stringarg(0);
 	
 	time_t timer;
@@ -2875,23 +2783,31 @@ value_t stdsys_cpu_clock(sylt_t* ctx) {
 
 /* == list lib == */
 
+value_t stdlist_init(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM);
+	list_t* ls = list_new(ctx);
+	for (size_t i = 0; i < numarg(0); i++)
+		list_push(ls, arg(0), ctx);
+	return wraplist(ls);
+}
+
 value_t stdlist_get(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_LIST);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_LIST);
 	return list_get(listarg(1), numarg(0), ctx);
 }
 
 value_t stdlist_set(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(2), TYPE_LIST);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 2, TYPE_LIST);
 	list_set(listarg(2), numarg(0), arg(1), ctx);
 	return nil();
 }
 
 value_t stdlist_swap(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
-	typecheck(ctx, arg(2), TYPE_LIST);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 2, TYPE_LIST);
 
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
@@ -2904,42 +2820,42 @@ value_t stdlist_swap(sylt_t* ctx) {
 }
 
 value_t stdlist_add(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(2), TYPE_LIST);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 2, TYPE_LIST);
 	list_insert(listarg(2), numarg(0), arg(1), ctx);
 	return nil();
 }
 
 value_t stdlist_del(sylt_t* ctx) {
-	typecheck(ctx, arg(1), TYPE_LIST);
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 1, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_NUM);
 	return list_delete(listarg(1), numarg(0), ctx);
 }
 
 value_t stdlist_first(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
+	argcheck(ctx, 0, TYPE_LIST);
 	return list_get(listarg(0), 0, ctx);
 }
 
 value_t stdlist_last(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
+	argcheck(ctx, 0, TYPE_LIST);
 	return list_get(listarg(0), -1, ctx);
 }
 
 value_t stdlist_count(sylt_t* ctx) {
-	typecheck(ctx, arg(1), TYPE_LIST);
+	argcheck(ctx, 1, TYPE_LIST);
 	size_t result = list_count(listarg(1), arg(0));
 	return wrapnum(result);
 }
 
 value_t stdlist_contains(sylt_t* ctx) {
-	typecheck(ctx, arg(1), TYPE_LIST);
+	argcheck(ctx, 1, TYPE_LIST);
 	bool result = list_count(listarg(1), arg(0)) > 0;
 	return wrapbool(result);
 }
 
 value_t stdlist_rev(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
+	argcheck(ctx, 0, TYPE_LIST);
 	
 	list_t* old_ls = listarg(0);
 	if (old_ls->len == 0)
@@ -2953,8 +2869,8 @@ value_t stdlist_rev(sylt_t* ctx) {
 }
 
 value_t stdlist_range(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
 
 	sylt_num_t min = numarg(0);
 	sylt_num_t max = numarg(1);
@@ -2968,8 +2884,8 @@ value_t stdlist_range(sylt_t* ctx) {
 /* == dict lib == */
 
 value_t stddict_get(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_DICT);
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 1, TYPE_DICT);
 	value_t* val = dict_get(dictarg(1), stringarg(0));
 
 	if (!val) {
@@ -2981,20 +2897,20 @@ value_t stddict_get(sylt_t* ctx) {
 }
 
 value_t stddict_set(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(2), TYPE_DICT);
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 2, TYPE_DICT);
 	dict_set(dictarg(2), stringarg(0), arg(1), ctx);
 	return nil();
 }
 
 value_t stddict_has_key(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_DICT);
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 1, TYPE_DICT);
 	return wrapbool(dict_get(dictarg(1), stringarg(0)) != NULL);
 }
 
 value_t stddict_keys(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_DICT);
+	argcheck(ctx, 0, TYPE_DICT);
 	dict_t* dc = dictarg(0);
 	list_t* keys = list_new(ctx);
 	for (size_t i = 0; i < dc->cap; i++) {
@@ -3007,7 +2923,7 @@ value_t stddict_keys(sylt_t* ctx) {
 }
 
 value_t stddict_values(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_DICT);
+	argcheck(ctx, 0, TYPE_DICT);
 	dict_t* dc = dictarg(0);
 	list_t* values = list_new(ctx);
 	for (size_t i = 0; i < dc->cap; i++) {
@@ -3022,7 +2938,7 @@ value_t stddict_values(sylt_t* ctx) {
 /* == string lib == */
 
 value_t stdstring_chars(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* str = stringarg(0);
 	list_t* ls = list_new(ctx);
 	
@@ -3035,7 +2951,7 @@ value_t stdstring_chars(sylt_t* ctx) {
 }
 
 value_t stdstring_ascii(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* str = stringarg(0);
 	list_t* ls = list_new(ctx);
 	
@@ -3047,7 +2963,7 @@ value_t stdstring_ascii(sylt_t* ctx) {
 }
 
 value_t stdstring_join(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_LIST);
+	argcheck(ctx, 0, TYPE_LIST);
 	
 	list_t* ls = listarg(0);
 	string_t* str = string_new(NULL, 0, ctx);
@@ -3068,8 +2984,8 @@ value_t stdstring_join(sylt_t* ctx) {
 }
 
 value_t stdstring_split(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_LIST);
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 1, TYPE_LIST);
 	
 	string_t* str = stringarg(0);
 	list_t* separators = listarg(1);
@@ -3108,7 +3024,7 @@ value_t stdstring_split(sylt_t* ctx) {
 }
 
 value_t stdstring_lowercase(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
 	for (size_t i = 0; i < copy->len; i++) {
@@ -3120,7 +3036,7 @@ value_t stdstring_lowercase(sylt_t* ctx) {
 }
 
 value_t stdstring_uppercase(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
 	for (size_t i = 0; i < copy->len; i++)
@@ -3131,7 +3047,7 @@ value_t stdstring_uppercase(sylt_t* ctx) {
 }
 
 value_t stdstring_swapcase(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	
 	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
@@ -3145,7 +3061,7 @@ value_t stdstring_swapcase(sylt_t* ctx) {
 }
 
 value_t stdstring_is_lower(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* str = stringarg(0);
 
 	bool is_lower = true;
@@ -3160,7 +3076,7 @@ value_t stdstring_is_lower(sylt_t* ctx) {
 }
 
 value_t stdstring_is_upper(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* str = stringarg(0);
 
 	bool is_upper = true;
@@ -3175,7 +3091,7 @@ value_t stdstring_is_upper(sylt_t* ctx) {
 }
 
 value_t stdstring_is_whitespace(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* str = stringarg(0);
 
 	bool is_whitespace = true;
@@ -3190,8 +3106,8 @@ value_t stdstring_is_whitespace(sylt_t* ctx) {
 }
 
 value_t stdstring_starts_with(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 1, TYPE_STRING);
 	
 	string_t* str = stringarg(0);
 	string_t* other = stringarg(1);
@@ -3199,8 +3115,8 @@ value_t stdstring_starts_with(sylt_t* ctx) {
 }
 
 value_t stdstring_ends_with(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 1, TYPE_STRING);
 	
 	string_t* str = stringarg(0);
 	string_t* other = stringarg(1);
@@ -3208,7 +3124,7 @@ value_t stdstring_ends_with(sylt_t* ctx) {
 }
 
 value_t stdstring_trim_start(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* src = stringarg(0);
 	string_t* dst = string_new(src->bytes, src->len, ctx);
 	
@@ -3227,7 +3143,7 @@ value_t stdstring_trim_start(sylt_t* ctx) {
 }
 
 value_t stdstring_trim_end(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	string_t* src = stringarg(0);
 	string_t* dst = string_new(src->bytes, src->len, ctx);
 	
@@ -3246,16 +3162,16 @@ value_t stdstring_trim_end(sylt_t* ctx) {
 }
 
 value_t stdstring_trim(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
 	value_t res = stdstring_trim_end(ctx);
 	res = stdstring_trim_start(ctx);
 	return res;
 }
 
 value_t stdstring_find(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
-	typecheck(ctx, arg(2), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 1, TYPE_STRING);
+	argcheck(ctx, 2, TYPE_NUM);
 
 	string_t* str = stringarg(0);
 	string_t* find = stringarg(1);
@@ -3277,9 +3193,9 @@ value_t stdstring_find(sylt_t* ctx) {
 }
 
 value_t stdstring_replace(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_STRING);
-	typecheck(ctx, arg(1), TYPE_STRING);
-	typecheck(ctx, arg(2), TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 1, TYPE_STRING);
+	argcheck(ctx, 2, TYPE_STRING);
 	
 	string_t* str = stringarg(0);
 	string_t* find = stringarg(1);
@@ -3314,6 +3230,107 @@ value_t stdstring_replace(sylt_t* ctx) {
 	return wrapstring(new_str);
 }
 
+/* == file lib == */
+
+value_t stdfile_open(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 1, TYPE_NUM);
+	
+	string_t* path = stringarg(0);
+	int64_t mode = (int64_t)numarg(1);
+	const char* mode_str = NULL;
+
+	switch (mode) {
+	case 0: mode_str = "r"; break;
+	case 1: mode_str = "rb"; break; 
+	case 2: mode_str = "w"; break; 
+	case 3: mode_str = "wb"; break; 
+	case 4: mode_str = "a"; break; 
+	case 5: mode_str = "ab"; break; 
+	default: unreachable();
+	}
+	
+	/* get a handle from the VM */
+	int handle = -1;
+	for (size_t i = 1; i < MAX_FILES; i++)
+		if (!ctx->vm->files[i]) {
+			handle = i;
+			break;
+		}
+	
+	if (handle == -1) halt(ctx, E_OPEN_FAILED(path));
+	
+	ctx->vm->files[handle] = fopen((const char*)path->bytes, mode_str);
+	return wrapnum(handle);
+}
+
+value_t stdfile_close(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM);
+	int64_t handle = (int64_t)numarg(0);
+
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp) halt(ctx, E_INVALID_HANDLE(handle));
+	ctx->vm->files[handle] = NULL;
+		
+	fclose(fp);
+	return nil();
+}
+
+value_t stdfile_read(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp) halt(ctx, E_INVALID_HANDLE(handle));
+	
+	fseek(fp, 0, SEEK_END);
+	size_t size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+
+	string_t* str = string_new(NULL, size, ctx);
+	fread(str->bytes, 1, size, fp);
+	string_rehash(str, ctx);
+
+	return wrapstring(str);
+}
+
+value_t stdfile_write(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 1, TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(1);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	string_t* str = stringarg(0);
+	for (size_t i = 0; i < str->len; i++)
+		putc(str->bytes[i], fp);
+	
+	return nil();
+}
+
+value_t stdfile_size(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM);
+	
+	int64_t handle = (int64_t)numarg(0);
+	FILE* fp = ctx->vm->files[handle];
+	if (!fp)
+		halt(ctx, E_INVALID_HANDLE(handle));
+	
+	fseek(fp, 0, SEEK_END);
+	size_t size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	return wrapnum(size);
+}
+
+value_t stdfile_del(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_STRING);
+	string_t* path = stringarg(0);
+	remove((char*)path->bytes);
+	return nil();
+}
+
 /* == math lib == */
 
 #ifndef M_PI
@@ -3325,15 +3342,15 @@ value_t stdstring_replace(sylt_t* ctx) {
 #endif
 
 value_t stdmath_abs(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	sylt_num_t result =
 		num_func(fabsf, fabs)(numarg(0));
 	return wrapnum(result);
 }
 
 value_t stdmath_log(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
 	
 	sylt_num_t x = numarg(0);
 	sylt_num_t base = numarg(1);
@@ -3360,8 +3377,8 @@ value_t stdmath_log(sylt_t* ctx) {
 }
 
 value_t stdmath_pow(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
 	
 	sylt_num_t base = numarg(0);
 	sylt_num_t exp = numarg(1);
@@ -3370,27 +3387,27 @@ value_t stdmath_pow(sylt_t* ctx) {
 }
 
 value_t stdmath_sqrt(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	sylt_num_t result = num_func(sqrtf, sqrt)(numarg(0));
 	return wrapnum(result);
 }
 
 value_t stdmath_min(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
 	return wrapnum((numarg(0) < numarg(1)) ? numarg(0) : numarg(1));
 }
 
 value_t stdmath_max(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
 	return wrapnum((numarg(0) > numarg(1)) ? numarg(0) : numarg(1));
 }
 
 value_t stdmath_clamp(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
-	typecheck(ctx, arg(2), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 2, TYPE_NUM);
 	sylt_num_t x = numarg(0);
 	sylt_num_t lo = numarg(1);
 	sylt_num_t hi = numarg(2);
@@ -3403,9 +3420,9 @@ value_t stdmath_clamp(sylt_t* ctx) {
 }
 
 value_t stdmath_lerp(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
-	typecheck(ctx, arg(2), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 2, TYPE_NUM);
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
 	sylt_num_t t = numarg(2);
@@ -3415,95 +3432,95 @@ value_t stdmath_lerp(sylt_t* ctx) {
 }
 
 value_t stdmath_floor(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(floorf, floor)(numarg(0)));
 }
 
 value_t stdmath_ceil(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(ceilf, ceil)(numarg(0)));
 }
 
 value_t stdmath_round(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(roundf, round)(numarg(0)));
 }
 
 value_t stdmath_rad(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(numarg(0) * M_PI / 180.0);
 }
 
 value_t stdmath_deg(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(numarg(0) * 180.0 / M_PI);
 }
 
 value_t stdmath_sin(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(sinf, sin)(numarg(0)));
 }
 
 value_t stdmath_cos(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(cosf, cos)(numarg(0)));
 }
 
 value_t stdmath_tan(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(tanf, tan)(numarg(0)));
 }
 
 value_t stdmath_asin(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(asinf, asin)(numarg(0)));
 }
 
 value_t stdmath_acos(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(acosf, acos)(numarg(0)));
 }
 
 value_t stdmath_atan(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(atanf, atan)(numarg(0)));
 }
 
 value_t stdmath_sinh(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(sinhf, sinh)(numarg(0)));
 }
 
 value_t stdmath_cosh(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(coshf, cosh)(numarg(0)));
 }
 
 value_t stdmath_tanh(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(tanhf, tanh)(numarg(0)));
 }
 
 value_t stdmath_asinh(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(asinhf, asinh)(numarg(0)));
 }
 
 value_t stdmath_acosh(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(acoshf, acosh)(numarg(0)));
 }
 
 value_t stdmath_atanh(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	return wrapnum(num_func(atanhf, atanh)(numarg(0)));
 }
 
 /* == rand library == */
 
 value_t stdrand_range(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
-	typecheck(ctx, arg(1), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_NUM);
 	sylt_num_t min = numarg(0);
 	sylt_num_t max = numarg(1);
 	
@@ -3512,7 +3529,7 @@ value_t stdrand_range(sylt_t* ctx) {
 }
 
 value_t stdrand_seed(sylt_t* ctx) {
-	typecheck(ctx, arg(0), TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM);
 	srand(numarg(0));
 	return nil();
 }
@@ -3587,17 +3604,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "todo", std_todo, 0);
 	std_addf(ctx, "unreachable", std_unreachable, 0);
 	std_addlib(ctx);
-	
-	/* file */
-	std_setlib(ctx, "File");
-	std_addf(ctx, "open", stdfile_open, 2);
-	std_addf(ctx, "close", stdfile_close, 1);
-	std_addf(ctx, "write", stdfile_write, 2);
-	std_addf(ctx, "read", stdfile_read, 1);
-	std_addf(ctx, "size", stdfile_size, 1);
-	std_addf(ctx, "del", stdfile_del, 1);
-	std_addlib(ctx);
-		
+
 	/* system */
 	std_setlib(ctx, "System");
 	std_add(ctx, "version",	wrapstring(string_lit(SYLT_VERSION_STR, ctx)));
@@ -3614,6 +3621,7 @@ void std_init(sylt_t* ctx) {
 		
 	/* list */
 	std_setlib(ctx, "List");
+	std_addf(ctx, "init", stdlist_init, 2);
 	std_addf(ctx, "get", stdlist_get, 2);
 	std_addf(ctx, "set", stdlist_set, 3);
 	std_addf(ctx, "swap", stdlist_swap, 3);
@@ -3663,6 +3671,16 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "trim", stdstring_trim, 1);
 	std_addf(ctx, "find", stdstring_find, 3);
 	std_addf(ctx, "replace", stdstring_replace, 3);
+	std_addlib(ctx);
+		
+	/* file */
+	std_setlib(ctx, "File");
+	std_addf(ctx, "open", stdfile_open, 2);
+	std_addf(ctx, "close", stdfile_close, 1);
+	std_addf(ctx, "read", stdfile_read, 1);
+	std_addf(ctx, "write", stdfile_write, 2);
+	std_addf(ctx, "size", stdfile_size, 1);
+	std_addf(ctx, "del", stdfile_del, 1);
 	std_addlib(ctx);
 	
 	/* math */
@@ -5025,15 +5043,9 @@ void gc_collect(sylt_t* ctx, const char* func_name, int line) {
 	return;
 	#endif
 	
-	if (ctx->mem.gc.state == GC_STATE_PAUSED)
-		return;
-		
-	if (ctx->state != SYLT_STATE_EXEC)
+	if (ctx->mem.gc.state != GC_STATE_IDLE || ctx->state != SYLT_STATE_EXEC)
 		return;
 	
-	assert(ctx->mem.gc.state
-		== GC_STATE_IDLE);
-
 	gc_mark(ctx, func_name, line);
 	gc_sweep(ctx);
 	gc_set_state(ctx, GC_STATE_IDLE);
@@ -5292,33 +5304,41 @@ void print_stack_trace(const sylt_t* ctx) {
 	}
 }
 
+void find_source_line_offset(const func_t* func, uint32_t line, size_t* offset, size_t* len) {
+	assert(line && offset);
+	size_t count = 1;
+
+	for (size_t i = 0; i < func->src->len; i++) {
+		uint8_t byte = func->src->bytes[i];
+
+		if (byte == '\n') {
+			*len = i - *offset;
+			
+			count++;
+			if (count - 1 == line)
+				break;
+
+			*offset = i + 1;
+		}
+	}
+}
+
 /* prints the actual line from the source code */
 void print_source_line(const func_t* func, uint32_t line) {
 	sylt_eprintf("src: ");
 	string_eprint(func->path);
 	sylt_eprintf("\n");
 
-	size_t start = 0; /* start of the current line */
-	size_t len = 0;
-	size_t line_count = 1;
+	for (int i = 0; i < 3; i++) {
+		size_t offset = 0;
+		size_t len = 0;
+		find_source_line_offset(func, line - 1 + i, &offset, &len);
 
-	for (size_t i = 0; i < func->src->len; i++) {
-		uint8_t byte = func->src->bytes[i];
-
-		if (byte == '\n') {
-			len = i - start;
-
-			line_count++;
-			if (line_count - 1 == line)
-				break;
-
-			start = i + 1;
-		}
+		if (i == 1)
+			sylt_eprintf("%5d | %.*s\n", line, (int)len, func->src->bytes + offset);
+		else
+			sylt_eprintf("      | %.*s\n", (int)len, func->src->bytes + offset);
 	}
-
-	sylt_eprintf("     |\n");
-	sylt_eprintf("%4d | %.*s", line, (int)len, func->src->bytes + start);
-	sylt_eprintf("     |\n");
 }
 
 void sylt_handle_halt(sylt_t** ctx) {

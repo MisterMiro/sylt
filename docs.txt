@@ -97,8 +97,16 @@ name: rep
 args: f times
 comment: Calls a function f n times with the current iteration as the argument.
 
+name: rep2
+args: f timesX timesY
+comment: Calls a function f in a nested loop with the two loop indices as arguments.
+
 
 title: File
+
+name: Mode
+args:
+comment: Enumeration containing Read, ReadBinary, Write, WriteBinary, Append, and AppendBinary.
 
 name: open
 args: path mode
@@ -109,12 +117,12 @@ args: handle
 comment: Closes an open file handle.
 
 name: write
-args: handle value
-comment: Writes a value to a file.
+args: value handle
+comment: Converts the value to a string and writes it to a file.
 
 name: read
-args: handle bytes
-comment: Reads n bytes from a file.
+args: handle
+comment: Reads the entire file into a string.
 
 name: size
 args: handle

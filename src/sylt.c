@@ -2640,9 +2640,7 @@ value_t std_read_in(sylt_t* ctx) {
 	
 	/* get rid of trailing newline */
 	buffer[strlen(buffer) - 1] = '\0';
-	
-	return wrapstring(
-		string_lit(buffer, ctx));
+	return wrapstring(string_lit(buffer, ctx));
 }
 
 value_t std_to_string(sylt_t* ctx) {
@@ -2787,7 +2785,7 @@ value_t stdlist_init(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM);
 	list_t* ls = list_new(ctx);
 	for (size_t i = 0; i < numarg(0); i++)
-		list_push(ls, arg(0), ctx);
+		list_push(ls, arg(1), ctx);
 	return wraplist(ls);
 }
 
@@ -2808,7 +2806,6 @@ value_t stdlist_swap(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM);
 	argcheck(ctx, 1, TYPE_NUM);
 	argcheck(ctx, 2, TYPE_LIST);
-
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
 	list_t* ls = listarg(2);
@@ -2826,10 +2823,21 @@ value_t stdlist_add(sylt_t* ctx) {
 	return nil();
 }
 
+value_t stdlist_push(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM);
+	list_push(listarg(1), arg(0), ctx);
+	return nil();
+}
+
 value_t stdlist_del(sylt_t* ctx) {
 	argcheck(ctx, 1, TYPE_LIST);
 	argcheck(ctx, 0, TYPE_NUM);
 	return list_delete(listarg(1), numarg(0), ctx);
+}
+
+value_t stdlist_pop(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM);
+	return list_pop(listarg(0), ctx);
 }
 
 value_t stdlist_first(sylt_t* ctx) {
@@ -3379,7 +3387,6 @@ value_t stdmath_log(sylt_t* ctx) {
 value_t stdmath_pow(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM);
 	argcheck(ctx, 1, TYPE_NUM);
-	
 	sylt_num_t base = numarg(0);
 	sylt_num_t exp = numarg(1);
 	sylt_num_t result = num_func(powf, pow)(base, exp);
@@ -3626,7 +3633,9 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "set", stdlist_set, 3);
 	std_addf(ctx, "swap", stdlist_swap, 3);
 	std_addf(ctx, "add", stdlist_add, 3);
+	std_addf(ctx, "push", stdlist_push, 2);
 	std_addf(ctx, "del", stdlist_del, 2);
+	std_addf(ctx, "pop", stdlist_pop, 1);
 	std_addf(ctx, "first", stdlist_first, 1);
 	std_addf(ctx, "last", stdlist_last, 1);
 	std_addf(ctx, "count", stdlist_count, 2);
@@ -5292,13 +5301,13 @@ void print_stack_trace(const sylt_t* ctx) {
 		sylt_eprintf("  %ld. ", ctx->vm->nframes - i);
 
 		if (i == (int64_t)ctx->vm->nframes - 1)
-			sylt_eprintf("> ");
+			sylt_eprintf(">");
 
 		string_eprint(frame->func->path);
 		sylt_eprintf(":%d", vm_line(frame));
 
 		if (i == (int64_t)ctx->vm->nframes - 1)
-			sylt_eprintf(" <");
+			sylt_eprintf("<");
 
 		sylt_eprintf("\n");
 	}
@@ -5313,7 +5322,7 @@ void find_source_line_offset(const func_t* func, uint32_t line, size_t* offset, 
 
 		if (byte == '\n') {
 			*len = i - *offset;
-			
+
 			count++;
 			if (count - 1 == line)
 				break;

@@ -1,36 +1,136 @@
-## renders a scene using raytracing
+## renders a static scene using raytracing
+## based on Raytracing in One Weekend (https://raytracing.github.io/books/RayTracingInOneWeekend.html)
 
 let cfg = {
     "output": "projects/raytraced_image.ppm"
-    "w": 960 / 8
-    "h": 540 / 8
+    "w": 960 / 4
+    "h": 0
+    "aspectRatio": 16 / 9
 }
+
+cfg.h <- Math.floor((960 / 4) / cfg.aspectRatio)
 
 ## writes a PPM file
 let writeOutput(pixels w h path) = do
-    ##ensure(#pixels is 3 * w * h)
+    ensure(#pixels is w * h)
 
     printLn("Writing " + w + "x" + h + " image to " + path + "...")
 
-    let file = File.open(path File.Mode.Write)
+    let file = File.open(path File.Mode.WriteBinary)
     File.write("P3\n" file)
     File.write(w + " " + h + "\n" file)
     File.write("255\n" file)
 
-    let writeTriplet(rgb) = do
-        let r = toString(List.get(0 rgb))
-        let g = toString(List.get(1 rgb))
-        let b = toString(List.get(2 rgb))
+    let formatTriplet(rgb) = do
+        let output = List.init(3 "")
+        List.iter(fun index channel -> do
+            let x = toString(Math.round(List.get(index rgb) * 255.999))
+            x <- String.leftPad(x 4 " ")
+            List.set(index x output)
+        end
+        rgb)
 
-        r <- String.leftPad(r 4 " ")
-        g <- String.leftPad(g 4 " ")
-        b <- String.leftPad(b 4 " ")
-
-        File.write(r + g + b + "\n" file)
+        List.get(0 output) + List.get(1 output) + List.get(2 output)
     end
 
-    rep2(fun x y -> writeTriplet(List.get(x + y * w pixels)) w h)
+    let y = 0
+	while y < h: do
+		let x = 0
+		while x < w: do
+            File.write(formatTriplet(List.get(x + y * w pixels)) + "\n" file)
+			x += 1
+		end
+
+		y += 1
+	end
 end
 
-let pixels = List.init(cfg.w * cfg.h [[255 255 255]])
-writeOutput(pixels cfg.w cfg.h cfg.output)
+let impl = do
+    let new(start dir) = {
+        "start": start
+        "dir": dir
+    }
+
+    let at(ray time) = Vec3.add(ray.origin Vec3.scale(ray.dir time))
+
+    Dict.set("Ray" {} gdict)
+	let lib = Dict.get("Ray" gdict)
+    Dict.set("new" new lib)
+    Dict.set("at" at lib)
+end
+
+let hitsASphere(pos radius ray) = do
+    let center = Vec3.sub(pos ray.start)
+    let a = Vec3.dot(ray.dir ray.dir)
+    let b = -2 * Vec3.dot(ray.dir center)
+    let c = Vec3.dot(center center) - radius * radius
+    let discriminant = b * b - a * c * 4
+    discriminant >= 0
+end
+
+let getSkyGradient(rd) = do
+    let a = 0.5 * (rd.y + 1)
+    [
+        1 - a + a * 0.25
+        1 - a + a * 0.65
+        1 - a + a * 0.75
+    ]
+end
+
+let sampleColor(ray) = do
+    let rd = Vec3.norm(ray.dir)
+    let color = getSkyGradient(rd)
+
+    if hitsASphere(Vec3.new(0 0 0 - 1) 0.5 ray):
+        color <- [1 0.9 0.15]
+
+    color
+end
+
+let trace() = do
+    let w = cfg.w
+    let h = cfg.h
+    let pixels = List.init(w * h [1 1 1])
+
+    let focalLength = 1
+    let viewportHeight = 2
+    let viewportWidth = viewportHeight * w / h
+    let camera = Vec3.new(0 0 0)
+
+    let viewportU = Vec3.new(viewportWidth 0 0)
+
+    let negViewportHeight = -viewportHeight
+    let viewportV = Vec3.new(0 negViewportHeight 0)
+
+    let pixelDeltaU = Vec3.divScalar(viewportU w)
+    let pixelDeltaV = Vec3.divScalar(viewportV h)
+
+    let leftCorner = Vec3.sub(camera Vec3.new(0 0 focalLength))
+    let leftCorner = Vec3.sub(leftCorner Vec3.scale(viewportU 0.5))
+    let leftCorner = Vec3.sub(leftCorner Vec3.scale(viewportV 0.5))
+
+    let pixelDelta = Vec3.add(pixelDeltaU pixelDeltaV)
+    let leftCornerPixel = Vec3.add(leftCorner Vec3.scale(pixelDelta 0.5))
+
+    let y = 0
+	while y < h: do
+		let x = 0
+		while x < w: do
+            let pixelCenter = leftCornerPixel
+            pixelCenter <- Vec3.add(pixelCenter Vec3.scale(pixelDeltaU x))
+            pixelCenter <- Vec3.add(pixelCenter Vec3.scale(pixelDeltaV y))
+
+            let ray = Ray.new(camera Vec3.sub(pixelCenter camera))
+            let color = sampleColor(ray)
+
+            List.set(x + y * w color pixels)
+			x += 1
+		end
+
+		y += 1
+	end
+
+    pixels
+end
+
+writeOutput(trace() cfg.w cfg.h cfg.output)

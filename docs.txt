@@ -198,9 +198,17 @@ name: add
 args: index value list
 comment: Inserts a value at the given index.
 
+name: push
+args: value list
+comment: Appends a value to the back of the list.
+
 name: del
 args: index list
 comment: Deletes the value at the given index.
+
+name: pop
+args: list
+comment: Deletes the value at the end of the list and returns it.
 
 name: first
 args: list
@@ -562,10 +570,6 @@ name: norm
 args: vec
 comment: Returns a normalized (scaled so that its size=1) version of the vector. 
 
-name: scale
-args: vec scalar
-comment: Scales the vector by a scalar on all axis.
-
 name: add
 args: a b
 comment: Adds two vectors and returns the result.
@@ -573,6 +577,22 @@ comment: Adds two vectors and returns the result.
 name: sub
 args: a b
 comment: Subtracts two vectors and returns the result.
+
+name: addScalar
+args: v s
+comment: Adds a scalar to a vector and returns the result.
+
+name: subScalar
+args: v s
+comment: Subtracts a scalar from a vector and returns the result.
+
+name: divScalar
+args: v s
+comment: Divides a vector by a scalar and returns the result.
+
+name: scale
+args: vec scalar
+comment: Scales the vector by on all axis.
 
 
 title: Rand

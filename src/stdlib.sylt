@@ -33,18 +33,6 @@ let rep(f n) = do
 	end
 end
 
-let rep2(f nx ny) = do
-	let i = 0
-	while i < nx: do
-		let j = 0
-		while j < ny: do
-			f(i j)
-			j += 1
-		end
-		i += 1
-	end
-end
-
 ## List      |
 ## ===========
 
@@ -247,10 +235,30 @@ let impl = do
 		a.y + b.y
 		a.z + b.z)
 
-	let sub(v other) = Vec3.new(
+	let sub(a b) = Vec3.new(
 		a.x - b.x
 		a.y - b.y
 		a.z - b.z)
+
+	let mul(a b) = Vec3.new(
+		a.x * b.x
+		a.y * b.y
+		a.z * b.z)
+
+	let addScalar(v s) = Vec3.new(
+		v.x + s
+		v.y + s
+		v.z + s)
+
+	let subScalar(v s) = Vec3.new(
+		v.x - s
+		v.y - s
+		v.z - s)
+
+	let divScalar(v s) = Vec3.new(
+		v.x / s
+		v.y / s
+		v.z / s)
 
 	let scale(v s) = Vec3.new(
 		v.x * s
@@ -265,6 +273,10 @@ let impl = do
 	Dict.set("norm" norm lib)
 	Dict.set("add" add lib)
 	Dict.set("sub" sub lib)
+	Dict.set("mul" mul lib)
+	Dict.set("addScalar" addScalar lib)
+	Dict.set("subScalar" subScalar lib)
+	Dict.set("divScalar" divScalar lib)
 	Dict.set("scale" scale lib)
 end
 

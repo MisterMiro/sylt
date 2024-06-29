@@ -251,8 +251,9 @@ void halt(sylt_t*, const char*, ...);
 	"%s, got '%.*s'", msg, (int)got->len, got->bytes
 #define E_TYPE(ex, got) \
 	"expected %s, got %s", user_type_name(ex), user_type_name(got)
-#define E_ARG_TYPE(ex, got, n) \
-	"expected %s for argument %d, got %s", user_type_name(ex), n, user_type_name(got)
+#define E_ARG_TYPE(ex, got, n, fname) \
+	"expected %s for argument #%d to %s, got %s", \
+	user_type_name(ex), (n) + 1, (fname), user_type_name(got)
 #define E_NOT_CALLABLE(tag) \
 	"cannot call a value of type %s", user_type_name(tag)
 #define E_NO_LENGTH(tag) \
@@ -1504,8 +1505,7 @@ void string_print(string_t* str) {
 		return;
 	}
 	
-	sylt_printf("%.*s",
-		(int)str->len, str->bytes);
+	sylt_printf("%.*s", (int)str->len, str->bytes);
 }
 
 void string_eprint(string_t* str) {
@@ -1514,8 +1514,7 @@ void string_eprint(string_t* str) {
 		return;
 	}
 	
-	sylt_eprintf("%.*s",
-		(int)str->len, str->bytes);
+	sylt_eprintf("%.*s", (int)str->len, str->bytes);
 }
 
 void string_dprint(string_t* str) {
@@ -1524,8 +1523,7 @@ void string_dprint(string_t* str) {
 		return;
 	}
 	
-	sylt_dprintf("%.*s",
-		(int)str->len, str->bytes);
+	sylt_dprintf("%.*s", (int)str->len, str->bytes);
 }
 
 /* == function == */
@@ -1707,6 +1705,8 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 
 		sylt_pushstring(ctx, val_tostring(wrapnum(range->end), ctx));
 		sylt_concat(ctx);
+		
+		str = sylt_popstring(ctx);
 		break;
 	}
 	case TYPE_LIST: {
@@ -2184,15 +2184,13 @@ void vm_exec(vm_t* vm) {
 		case OP_PUSH_RANGE: {
 			sylt_num_t max = getnum(pop());
 			sylt_num_t min = getnum(pop());
-			range_t* range = range_new(vm->ctx, min, max, false);
-			push(wraprange(range));
+			push(wraprange(range_new(vm->ctx, min, max, false)));
 			break;
 		}
 		case OP_PUSH_RANGE_INC: {
 			sylt_num_t max = getnum(pop());
 			sylt_num_t min = getnum(pop());
-			range_t* range = range_new(vm->ctx, min, max, true);
-			push(wraprange(range));
+			push(wraprange(range_new(vm->ctx, min, max, true)));
 			break;
 		}
 		case OP_PUSH_LIST: {
@@ -2200,9 +2198,8 @@ void vm_exec(vm_t* vm) {
 			list_t* ls = list_new(vm->ctx);
 			
 			push(wraplist(ls)); /* GC */
-			for (int i = len; i > 0; i--) {
+			for (int i = len; i > 0; i--)
 				list_push(ls, peek(i), vm->ctx);
-			}
 			pop(); /* GC */
 			
 			shrink(len);
@@ -2616,9 +2613,9 @@ void sylt_call(sylt_t* ctx, int argc) {
 #define stringarg(n) getstring(arg(n))
 #define closurearg(n) getclosure(arg(n))
 
-#define argcheck(ctx, n, t) \
+#define argcheck(ctx, n, t, fname) \
 	if (arg(n).tag != t) \
-		halt(ctx, E_ARG_TYPE(t, arg(n).tag, n))
+		halt(ctx, E_ARG_TYPE(t, arg(n).tag, n, fname))
 
 /* == prelude lib == */
 
@@ -2664,9 +2661,9 @@ value_t std_to_num(sylt_t* ctx) {
 }
 
 value_t std_float_eq(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
-	argcheck(ctx, 2, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	argcheck(ctx, 2, TYPE_NUM, __func__);
 	
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
@@ -2684,7 +2681,7 @@ value_t std_type_of(sylt_t* ctx) {
 }
 
 value_t std_ensure(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_BOOL);
+	argcheck(ctx, 0, TYPE_BOOL, __func__);
 	if (!boolarg(0)) {
 		halt(ctx, E_ENSURE_FAILED);
 		unreachable();
@@ -2741,19 +2738,19 @@ value_t stdsys_src(sylt_t* ctx) {
 }
 
 value_t stdsys_run(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	system((char*)stringarg(0)->bytes);
 	return nil();
 }
 
 value_t stdsys_halt(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	halt(ctx, (const char*)stringarg(0)->bytes);
 	return nil();
 }
 
 value_t stdsys_time(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* fmt = stringarg(0);
 	
 	time_t timer;
@@ -2782,7 +2779,7 @@ value_t stdsys_cpu_clock(sylt_t* ctx) {
 /* == list lib == */
 
 value_t stdlist_init(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	list_t* ls = list_new(ctx);
 	for (size_t i = 0; i < numarg(0); i++)
 		list_push(ls, arg(1), ctx);
@@ -2790,22 +2787,22 @@ value_t stdlist_init(sylt_t* ctx) {
 }
 
 value_t stdlist_get(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_LIST, __func__);
 	return list_get(listarg(1), numarg(0), ctx);
 }
 
 value_t stdlist_set(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 2, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 2, TYPE_LIST, __func__);
 	list_set(listarg(2), numarg(0), arg(1), ctx);
 	return nil();
 }
 
 value_t stdlist_swap(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
-	argcheck(ctx, 2, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	argcheck(ctx, 2, TYPE_LIST, __func__);
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
 	list_t* ls = listarg(2);
@@ -2817,53 +2814,52 @@ value_t stdlist_swap(sylt_t* ctx) {
 }
 
 value_t stdlist_add(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 2, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 2, TYPE_LIST, __func__);
 	list_insert(listarg(2), numarg(0), arg(1), ctx);
 	return nil();
 }
 
 value_t stdlist_push(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_LIST, __func__);
 	list_push(listarg(1), arg(0), ctx);
 	return nil();
 }
 
 value_t stdlist_del(sylt_t* ctx) {
-	argcheck(ctx, 1, TYPE_LIST);
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 1, TYPE_LIST, __func__);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return list_delete(listarg(1), numarg(0), ctx);
 }
 
 value_t stdlist_pop(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
 	return list_pop(listarg(0), ctx);
 }
 
 value_t stdlist_first(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_LIST, __func__);
 	return list_get(listarg(0), 0, ctx);
 }
 
 value_t stdlist_last(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_LIST, __func__);
 	return list_get(listarg(0), -1, ctx);
 }
 
 value_t stdlist_count(sylt_t* ctx) {
-	argcheck(ctx, 1, TYPE_LIST);
+	argcheck(ctx, 1, TYPE_LIST, __func__);
 	size_t result = list_count(listarg(1), arg(0));
 	return wrapnum(result);
 }
 
 value_t stdlist_contains(sylt_t* ctx) {
-	argcheck(ctx, 1, TYPE_LIST);
+	argcheck(ctx, 1, TYPE_LIST, __func__);
 	bool result = list_count(listarg(1), arg(0)) > 0;
 	return wrapbool(result);
 }
 
 value_t stdlist_rev(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_LIST, __func__);
 	
 	list_t* old_ls = listarg(0);
 	if (old_ls->len == 0)
@@ -2877,8 +2873,8 @@ value_t stdlist_rev(sylt_t* ctx) {
 }
 
 value_t stdlist_range(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
 
 	sylt_num_t min = numarg(0);
 	sylt_num_t max = numarg(1);
@@ -2892,8 +2888,8 @@ value_t stdlist_range(sylt_t* ctx) {
 /* == dict lib == */
 
 value_t stddict_get(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 1, TYPE_DICT);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 1, TYPE_DICT, __func__);
 	value_t* val = dict_get(dictarg(1), stringarg(0));
 
 	if (!val) {
@@ -2905,20 +2901,20 @@ value_t stddict_get(sylt_t* ctx) {
 }
 
 value_t stddict_set(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 2, TYPE_DICT);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 2, TYPE_DICT, __func__);
 	dict_set(dictarg(2), stringarg(0), arg(1), ctx);
 	return nil();
 }
 
 value_t stddict_has_key(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 1, TYPE_DICT);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 1, TYPE_DICT, __func__);
 	return wrapbool(dict_get(dictarg(1), stringarg(0)) != NULL);
 }
 
 value_t stddict_keys(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_DICT);
+	argcheck(ctx, 0, TYPE_DICT, __func__);
 	dict_t* dc = dictarg(0);
 	list_t* keys = list_new(ctx);
 	for (size_t i = 0; i < dc->cap; i++) {
@@ -2931,7 +2927,7 @@ value_t stddict_keys(sylt_t* ctx) {
 }
 
 value_t stddict_values(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_DICT);
+	argcheck(ctx, 0, TYPE_DICT, __func__);
 	dict_t* dc = dictarg(0);
 	list_t* values = list_new(ctx);
 	for (size_t i = 0; i < dc->cap; i++) {
@@ -2946,7 +2942,7 @@ value_t stddict_values(sylt_t* ctx) {
 /* == string lib == */
 
 value_t stdstring_chars(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* str = stringarg(0);
 	list_t* ls = list_new(ctx);
 	
@@ -2959,7 +2955,7 @@ value_t stdstring_chars(sylt_t* ctx) {
 }
 
 value_t stdstring_ascii(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* str = stringarg(0);
 	list_t* ls = list_new(ctx);
 	
@@ -2971,7 +2967,7 @@ value_t stdstring_ascii(sylt_t* ctx) {
 }
 
 value_t stdstring_join(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_LIST, __func__);
 	
 	list_t* ls = listarg(0);
 	string_t* str = string_new(NULL, 0, ctx);
@@ -2992,8 +2988,8 @@ value_t stdstring_join(sylt_t* ctx) {
 }
 
 value_t stdstring_split(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 1, TYPE_LIST);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 1, TYPE_LIST, __func__);
 	
 	string_t* str = stringarg(0);
 	list_t* separators = listarg(1);
@@ -3032,7 +3028,7 @@ value_t stdstring_split(sylt_t* ctx) {
 }
 
 value_t stdstring_lowercase(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
 	for (size_t i = 0; i < copy->len; i++) {
@@ -3044,7 +3040,7 @@ value_t stdstring_lowercase(sylt_t* ctx) {
 }
 
 value_t stdstring_uppercase(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
 	for (size_t i = 0; i < copy->len; i++)
@@ -3055,7 +3051,7 @@ value_t stdstring_uppercase(sylt_t* ctx) {
 }
 
 value_t stdstring_swapcase(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	
 	string_t* copy = string_new(stringarg(0)->bytes, stringarg(0)->len, ctx);
 	
@@ -3069,7 +3065,7 @@ value_t stdstring_swapcase(sylt_t* ctx) {
 }
 
 value_t stdstring_is_lower(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* str = stringarg(0);
 
 	bool is_lower = true;
@@ -3084,7 +3080,7 @@ value_t stdstring_is_lower(sylt_t* ctx) {
 }
 
 value_t stdstring_is_upper(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* str = stringarg(0);
 
 	bool is_upper = true;
@@ -3099,7 +3095,7 @@ value_t stdstring_is_upper(sylt_t* ctx) {
 }
 
 value_t stdstring_is_whitespace(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* str = stringarg(0);
 
 	bool is_whitespace = true;
@@ -3114,8 +3110,8 @@ value_t stdstring_is_whitespace(sylt_t* ctx) {
 }
 
 value_t stdstring_starts_with(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 1, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 1, TYPE_STRING, __func__);
 	
 	string_t* str = stringarg(0);
 	string_t* other = stringarg(1);
@@ -3123,8 +3119,8 @@ value_t stdstring_starts_with(sylt_t* ctx) {
 }
 
 value_t stdstring_ends_with(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 1, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 1, TYPE_STRING, __func__);
 	
 	string_t* str = stringarg(0);
 	string_t* other = stringarg(1);
@@ -3132,7 +3128,7 @@ value_t stdstring_ends_with(sylt_t* ctx) {
 }
 
 value_t stdstring_trim_start(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* src = stringarg(0);
 	string_t* dst = string_new(src->bytes, src->len, ctx);
 	
@@ -3151,7 +3147,7 @@ value_t stdstring_trim_start(sylt_t* ctx) {
 }
 
 value_t stdstring_trim_end(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* src = stringarg(0);
 	string_t* dst = string_new(src->bytes, src->len, ctx);
 	
@@ -3170,16 +3166,16 @@ value_t stdstring_trim_end(sylt_t* ctx) {
 }
 
 value_t stdstring_trim(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	value_t res = stdstring_trim_end(ctx);
 	res = stdstring_trim_start(ctx);
 	return res;
 }
 
 value_t stdstring_find(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 1, TYPE_STRING);
-	argcheck(ctx, 2, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 1, TYPE_STRING, __func__);
+	argcheck(ctx, 2, TYPE_NUM, __func__);
 
 	string_t* str = stringarg(0);
 	string_t* find = stringarg(1);
@@ -3201,9 +3197,9 @@ value_t stdstring_find(sylt_t* ctx) {
 }
 
 value_t stdstring_replace(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 1, TYPE_STRING);
-	argcheck(ctx, 2, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 1, TYPE_STRING, __func__);
+	argcheck(ctx, 2, TYPE_STRING, __func__);
 	
 	string_t* str = stringarg(0);
 	string_t* find = stringarg(1);
@@ -3241,8 +3237,8 @@ value_t stdstring_replace(sylt_t* ctx) {
 /* == file lib == */
 
 value_t stdfile_open(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
 	
 	string_t* path = stringarg(0);
 	int64_t mode = (int64_t)numarg(1);
@@ -3273,7 +3269,7 @@ value_t stdfile_open(sylt_t* ctx) {
 }
 
 value_t stdfile_close(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	int64_t handle = (int64_t)numarg(0);
 
 	FILE* fp = ctx->vm->files[handle];
@@ -3285,7 +3281,7 @@ value_t stdfile_close(sylt_t* ctx) {
 }
 
 value_t stdfile_read(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	
 	int64_t handle = (int64_t)numarg(0);
 	FILE* fp = ctx->vm->files[handle];
@@ -3303,8 +3299,8 @@ value_t stdfile_read(sylt_t* ctx) {
 }
 
 value_t stdfile_write(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
-	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
 	
 	int64_t handle = (int64_t)numarg(1);
 	FILE* fp = ctx->vm->files[handle];
@@ -3319,7 +3315,7 @@ value_t stdfile_write(sylt_t* ctx) {
 }
 
 value_t stdfile_size(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	
 	int64_t handle = (int64_t)numarg(0);
 	FILE* fp = ctx->vm->files[handle];
@@ -3333,7 +3329,7 @@ value_t stdfile_size(sylt_t* ctx) {
 }
 
 value_t stdfile_del(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING);
+	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* path = stringarg(0);
 	remove((char*)path->bytes);
 	return nil();
@@ -3350,15 +3346,15 @@ value_t stdfile_del(sylt_t* ctx) {
 #endif
 
 value_t stdmath_abs(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	sylt_num_t result =
 		num_func(fabsf, fabs)(numarg(0));
 	return wrapnum(result);
 }
 
 value_t stdmath_log(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
 	
 	sylt_num_t x = numarg(0);
 	sylt_num_t base = numarg(1);
@@ -3385,8 +3381,8 @@ value_t stdmath_log(sylt_t* ctx) {
 }
 
 value_t stdmath_pow(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
 	sylt_num_t base = numarg(0);
 	sylt_num_t exp = numarg(1);
 	sylt_num_t result = num_func(powf, pow)(base, exp);
@@ -3394,27 +3390,27 @@ value_t stdmath_pow(sylt_t* ctx) {
 }
 
 value_t stdmath_sqrt(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	sylt_num_t result = num_func(sqrtf, sqrt)(numarg(0));
 	return wrapnum(result);
 }
 
 value_t stdmath_min(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
 	return wrapnum((numarg(0) < numarg(1)) ? numarg(0) : numarg(1));
 }
 
 value_t stdmath_max(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
 	return wrapnum((numarg(0) > numarg(1)) ? numarg(0) : numarg(1));
 }
 
 value_t stdmath_clamp(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
-	argcheck(ctx, 2, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	argcheck(ctx, 2, TYPE_NUM, __func__);
 	sylt_num_t x = numarg(0);
 	sylt_num_t lo = numarg(1);
 	sylt_num_t hi = numarg(2);
@@ -3427,9 +3423,9 @@ value_t stdmath_clamp(sylt_t* ctx) {
 }
 
 value_t stdmath_lerp(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
-	argcheck(ctx, 2, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	argcheck(ctx, 2, TYPE_NUM, __func__);
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
 	sylt_num_t t = numarg(2);
@@ -3439,95 +3435,95 @@ value_t stdmath_lerp(sylt_t* ctx) {
 }
 
 value_t stdmath_floor(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(floorf, floor)(numarg(0)));
 }
 
 value_t stdmath_ceil(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(ceilf, ceil)(numarg(0)));
 }
 
 value_t stdmath_round(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(roundf, round)(numarg(0)));
 }
 
 value_t stdmath_rad(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(numarg(0) * M_PI / 180.0);
 }
 
 value_t stdmath_deg(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(numarg(0) * 180.0 / M_PI);
 }
 
 value_t stdmath_sin(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(sinf, sin)(numarg(0)));
 }
 
 value_t stdmath_cos(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(cosf, cos)(numarg(0)));
 }
 
 value_t stdmath_tan(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(tanf, tan)(numarg(0)));
 }
 
 value_t stdmath_asin(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(asinf, asin)(numarg(0)));
 }
 
 value_t stdmath_acos(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(acosf, acos)(numarg(0)));
 }
 
 value_t stdmath_atan(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(atanf, atan)(numarg(0)));
 }
 
 value_t stdmath_sinh(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(sinhf, sinh)(numarg(0)));
 }
 
 value_t stdmath_cosh(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(coshf, cosh)(numarg(0)));
 }
 
 value_t stdmath_tanh(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(tanhf, tanh)(numarg(0)));
 }
 
 value_t stdmath_asinh(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(asinhf, asinh)(numarg(0)));
 }
 
 value_t stdmath_acosh(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(acoshf, acosh)(numarg(0)));
 }
 
 value_t stdmath_atanh(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(atanhf, atanh)(numarg(0)));
 }
 
 /* == rand library == */
 
 value_t stdrand_range(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
-	argcheck(ctx, 1, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
 	sylt_num_t min = numarg(0);
 	sylt_num_t max = numarg(1);
 	
@@ -3536,7 +3532,7 @@ value_t stdrand_range(sylt_t* ctx) {
 }
 
 value_t stdrand_seed(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
 	srand(numarg(0));
 	return nil();
 }
@@ -3768,6 +3764,7 @@ typedef enum {
 	T_IS,
 	T_NOT,
 	T_USING,
+	T_RETURN,
 	T_DO,
 	T_END,
 	T_STRING,
@@ -3824,7 +3821,7 @@ typedef enum {
 	PREC_AND,
 	/* boolean 'not' in infix position */
 	PREC_NOT,
-	/* equality: = != */
+	/* equality: is is not */
 	PREC_EQ,
 	/* comparison: < <= > >= */
 	PREC_CMP,
@@ -3832,10 +3829,16 @@ typedef enum {
 	PREC_TERM,
 	/* multiplication: * / % */
 	PREC_FACTOR,
-	/* unary prefix: - ! */
+	/* unary prefix: not # */
 	PREC_UNARY_PREFIX,
-	/* unary postfix: () . .. ..= */
-	PREC_UNARY_INFIX,
+	/* .. ..= */
+	PREC_RANGE,
+	/* unary postfix: . */
+	PREC_DOT,
+	/* function application: () */
+	PREC_FUNC_CALL,
+	/* unary minus: - */
+	PREC_UNARY_MINUS,
 	/* unused */
 	PREC_PRIM,
 } prec_t;
@@ -4226,8 +4229,7 @@ token_t scan(comp_t* cmp) {
 	
 	/* remember first non-whitespace char */
 	const char* start = cmp->pos;
-	if (eof())
-		return token(T_EOF);
+	if (eof()) goto return_eof;
 	
 	/* symbol name or keyword */
 	if (isalpha(peek()) || is('_')) {
@@ -4250,6 +4252,7 @@ token_t scan(comp_t* cmp) {
 		if (keyword("is")) return token(T_IS);
 		if (keyword("not")) return token(T_NOT);
 		if (keyword("using")) return token(T_USING);
+		if (keyword("return")) return token(T_RETURN);
 		if (keyword("do")) return token(T_DO);
 		if (keyword("end")) return token(T_END);
 			
@@ -4285,7 +4288,7 @@ token_t scan(comp_t* cmp) {
 		while (isdigit(peek()))
 			step();
 		
-		if (is('.')) {
+		if (is('.') && isdigit(peek_next())) {
 			step();
 			while (isdigit(peek()))
 				step();
@@ -4328,15 +4331,20 @@ token_t scan(comp_t* cmp) {
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
 	case '.':
-		if (match('=')) return token(T_STAR_EQ);
+		if (match('.')) {
+			if (match('=')) return token(T_DOT_DOT_EQ);
+			return token(T_DOT_DOT);
+		}
 		return token(T_DOT);
 	case '#': return token(T_HASH);
-	case '\0': return token(T_EOF);
+	case '\0': break;
 	default: halt(cmp->ctx, E_UNEXPECTED_CHAR(cmp->pos[-1]));
 	}
 	
-	unreachable();
-	return token(T_EOF);
+	return_eof:
+	token_t tok = token(T_EOF);
+	tok.lex = string_lit("<end of file>", cmp->ctx);
+	return tok;
 }
 
 #undef token
@@ -4398,6 +4406,7 @@ void grouping(comp_t*);
 void unary(comp_t*);
 void binary(comp_t*);
 void using(comp_t*);
+void ret(comp_t*);
 void let(comp_t*);
 void fun(comp_t*);
 void if_else(comp_t*);
@@ -4429,6 +4438,7 @@ static parserule_t RULES[] = {
 	[T_IS] = {NULL, binary, PREC_EQ},
 	[T_NOT] = {unary, binary, PREC_NOT},
 	[T_USING] = {using, NULL, PREC_NONE},
+	[T_RETURN] = {ret, NULL, PREC_NONE},
 	[T_DO] = {block, NULL, PREC_NONE},
 	[T_END] = {NULL, NULL, PREC_NONE},
 	[T_STRING] = {string, NULL, PREC_NONE},
@@ -4450,7 +4460,7 @@ static parserule_t RULES[] = {
 	[T_GT] = {NULL, binary, PREC_CMP},
 	[T_GT_EQ] = {NULL, binary, PREC_CMP},
 	[T_EQ] = {NULL, NULL, PREC_NONE},
-	[T_LPAREN] = {grouping, binary, PREC_UNARY_INFIX},
+	[T_LPAREN] = {grouping, binary, PREC_FUNC_CALL},
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
 	[T_LCURLY] = {dict, NULL, PREC_NONE},
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
@@ -4458,9 +4468,9 @@ static parserule_t RULES[] = {
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
-	[T_DOT] = {NULL, binary, PREC_UNARY_INFIX},
-	[T_DOT_DOT] = {NULL, binary, PREC_UNARY_INFIX},
-	[T_DOT_DOT_EQ] = {NULL, binary, PREC_UNARY_INFIX},
+	[T_DOT] = {NULL, binary, PREC_DOT},
+	[T_DOT_DOT] = {NULL, binary, PREC_RANGE},
+	[T_DOT_DOT_EQ] = {NULL, binary, PREC_RANGE},
 	[T_HASH] = {unary, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -4480,9 +4490,8 @@ void expr(comp_t* cmp, prec_t prec, const char* name) {
 		return;
 	}
 	
-	prefix(cmp);
-	
 	/* parse the rest of the expression */
+	prefix(cmp);
 	while (prec <= RULES[cmp->cur.tag].prec) {
 		step(cmp);
 		parsefn_t infix = RULES[cmp->prev.tag].infix;
@@ -4691,7 +4700,10 @@ void unary(comp_t* cmp) {
 	token_type_t token = cmp->prev.tag;
 	
 	/* parse the operand */
-	expr(cmp, PREC_UNARY_PREFIX, "right-hand side expression");
+	if (token == T_MINUS)
+		expr(cmp, PREC_UNARY_PREFIX, "expression to negate");
+	else
+		expr(cmp, PREC_UNARY_PREFIX, "right-hand side expression");
 	
 	op_t opcode = -1;
 	switch (token) {
@@ -4787,8 +4799,16 @@ void binary(comp_t* cmp) {
 		emit_nullary(cmp, OP_LOAD_KEY);
 		return;
 	}
-	case T_DOT_DOT: opcode = OP_PUSH_RANGE; return;
-	case T_DOT_DOT_EQ: opcode = OP_PUSH_RANGE_INC; return;
+	case T_DOT_DOT: {
+		expr(cmp, ANY_PREC, "right-hand side of range");
+		emit_nullary(cmp, OP_PUSH_RANGE);
+		return;
+	}
+	case T_DOT_DOT_EQ: {
+		expr(cmp, ANY_PREC, "right-hand side of range");
+		emit_nullary(cmp, OP_PUSH_RANGE_INC);
+		return;
+	}
 	default: unreachable();
 	}
 	
@@ -4831,6 +4851,12 @@ void using(comp_t* cmp) {
 		load_file((const char*)path->bytes, cmp->ctx), path, &import);
 }
 
+/* parses an early return */
+void ret(comp_t* cmp) {
+	expr(cmp, ANY_PREC, "return value");
+	emit_nullary(cmp, OP_RET);
+}
+
 void parse_func(comp_t*, string_t*);
 
 /* parses a variable or function binding */
@@ -4863,7 +4889,7 @@ void let(comp_t* cmp) {
 		
 		/* compile the right hand side
 	 	* of the expression */
-		expr(cmp, ANY_PREC, "right-hand side expression");
+		expr(cmp, ANY_PREC, "right-hand side expression after '='");
 		
 		if (is_local) {
 			add_symbol(cmp, name);
@@ -5290,14 +5316,13 @@ void halt(sylt_t* ctx, const char* fmt, ...) {
 }
 
 void print_stack_trace(const sylt_t* ctx) {
-	if (ctx->vm->nframes == 1)
+	if (ctx->vm->nframes <= 1)
 		return;
 
 	sylt_eprintf("\n[stack trace]:\n");
 
 	for (int64_t i = ctx->vm->nframes - 1; i >= 0; i--) {
 		const cframe_t* frame = &ctx->vm->frames[i];
-
 		sylt_eprintf("  %ld. ", ctx->vm->nframes - i);
 
 		if (i == (int64_t)ctx->vm->nframes - 1)
@@ -5313,21 +5338,23 @@ void print_stack_trace(const sylt_t* ctx) {
 	}
 }
 
-void find_source_line_offset(const func_t* func, uint32_t line, size_t* offset, size_t* len) {
-	assert(line && offset);
-	size_t count = 1;
+void find_source_line(const func_t* func, uint32_t line, size_t* start, size_t* len) {
+	assert(start && len);
+	if (line == 0 || line > func->lines[func->nlines - 1])
+		return;
 
-	for (size_t i = 0; i < func->src->len; i++) {
+	size_t n = 0;
+	for (size_t i = *start; i < func->src->len; i++) {
 		uint8_t byte = func->src->bytes[i];
 
-		if (byte == '\n') {
-			*len = i - *offset;
+		if (byte == '\n' && i > 0) {
+			*len = i - *start;
 
-			count++;
-			if (count - 1 == line)
+			n++;
+			if (n == line)
 				break;
 
-			*offset = i + 1;
+			*start = i + 1;
 		}
 	}
 }
@@ -5338,16 +5365,10 @@ void print_source_line(const func_t* func, uint32_t line) {
 	string_eprint(func->path);
 	sylt_eprintf("\n");
 
-	for (int i = 0; i < 3; i++) {
-		size_t offset = 0;
-		size_t len = 0;
-		find_source_line_offset(func, line - 1 + i, &offset, &len);
-
-		if (i == 1)
-			sylt_eprintf("%5d | %.*s\n", line, (int)len, func->src->bytes + offset);
-		else
-			sylt_eprintf("      | %.*s\n", (int)len, func->src->bytes + offset);
-	}
+	size_t offset = 0;
+	size_t len = 0;
+	find_source_line(func, line, &offset, &len);
+	sylt_eprintf("%5d | %.*s\n", line, (int)len, func->src->bytes + offset);
 }
 
 void sylt_handle_halt(sylt_t** ctx) {

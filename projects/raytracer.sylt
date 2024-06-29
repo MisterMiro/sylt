@@ -2,7 +2,7 @@
 ## based on Raytracing in One Weekend (https://raytracing.github.io/books/RayTracingInOneWeekend.html)
 
 let cfg = {
-    "output": "projects/raytraced_image.ppm"
+    "output": "projects/render.ppm"
     "w": 960 / 4
     "h": 0
     "aspectRatio": 16 / 9
@@ -46,26 +46,53 @@ let writeOutput(pixels w h path) = do
 end
 
 let impl = do
+    let new(pos radius) = {
+        "pos": pos
+        "color": [0.2 0.2 0.2]
+        "radius": radius
+    }
+
+    let hit(ray sphere) = do
+        let center = Vec3.sub(sphere.pos ray.start)
+        let a = Vec3.sizeSquared(ray.dir)
+        let h = Vec3.dot(ray.dir center)
+        let c = Vec3.sizeSquared(center) - sphere.radius * sphere.radius
+
+        let discriminant = h * h - a * c
+        let t = if discriminant < 0: 0 - 1 else (h - Math.sqrt(discriminant)) / a
+        RayHit.new(ray t Vec3.sub(Ray.at(ray t) Vec3.new(0 0 0 - 1)))
+    end
+    
+    Dict.set("Sphere" {} gdict)
+	let lib = Dict.get("Sphere" gdict)
+    Dict.set("new" new lib)
+    Dict.set("hit" hit lib)
+end
+
+let impl = do
+    let new(ray time norm) = {
+        "pos": Vec3.add(ray.start Vec3.scale(ray.dir time))
+        "time": time
+        "norm": norm
+    }
+
+    Dict.set("RayHit" {} gdict)
+	let lib = Dict.get("RayHit" gdict)
+    Dict.set("new" new lib)
+end
+
+let impl = do
     let new(start dir) = {
         "start": start
         "dir": dir
     }
 
-    let at(ray time) = Vec3.add(ray.origin Vec3.scale(ray.dir time))
+    let at(ray time) = Vec3.add(ray.start Vec3.scale(ray.dir time))
 
     Dict.set("Ray" {} gdict)
 	let lib = Dict.get("Ray" gdict)
     Dict.set("new" new lib)
     Dict.set("at" at lib)
-end
-
-let hitsASphere(pos radius ray) = do
-    let center = Vec3.sub(pos ray.start)
-    let a = Vec3.dot(ray.dir ray.dir)
-    let b = -2 * Vec3.dot(ray.dir center)
-    let c = Vec3.dot(center center) - radius * radius
-    let discriminant = b * b - a * c * 4
-    discriminant >= 0
 end
 
 let getSkyGradient(rd) = do
@@ -77,17 +104,22 @@ let getSkyGradient(rd) = do
     ]
 end
 
-let sampleColor(ray) = do
+let sampleColor(ray scene) = do
     let rd = Vec3.norm(ray.dir)
     let color = getSkyGradient(rd)
 
-    if hitsASphere(Vec3.new(0 0 0 - 1) 0.5 ray):
-        color <- [1 0.9 0.15]
-
+    List.forEach(fun sphere -> do
+        let hit = Sphere.hit(ray sphere)
+        if hit.time > 0: do
+            color <- [hit.norm.x + 1 * 0.5 hit.norm.y + 1 * 0.5 hit.norm.z + 1 * 0.5]
+        end
+    end
+    scene)
+    
     color
 end
 
-let trace() = do
+let trace(scene) = do
     let w = cfg.w
     let h = cfg.h
     let pixels = List.init(w * h [1 1 1])
@@ -98,10 +130,7 @@ let trace() = do
     let camera = Vec3.new(0 0 0)
 
     let viewportU = Vec3.new(viewportWidth 0 0)
-
-    let negViewportHeight = -viewportHeight
-    let viewportV = Vec3.new(0 negViewportHeight 0)
-
+    let viewportV = Vec3.new(0 0 - viewportHeight 0)
     let pixelDeltaU = Vec3.divScalar(viewportU w)
     let pixelDeltaV = Vec3.divScalar(viewportV h)
 
@@ -121,7 +150,7 @@ let trace() = do
             pixelCenter <- Vec3.add(pixelCenter Vec3.scale(pixelDeltaV y))
 
             let ray = Ray.new(camera Vec3.sub(pixelCenter camera))
-            let color = sampleColor(ray)
+            let color = sampleColor(ray scene)
 
             List.set(x + y * w color pixels)
 			x += 1
@@ -133,4 +162,25 @@ let trace() = do
     pixels
 end
 
-writeOutput(trace() cfg.w cfg.h cfg.output)
+let buildScene() = do
+    let scene = []
+
+    let pos = Vec3.new(0 0 0 - 1)
+    List.push(Sphere.new(pos 0.5) scene)
+
+    let pos = Vec3.new(1 0 0 - 1)
+    List.push(Sphere.new(pos 0.5) scene)
+
+    let pos = Vec3.new(0 - 1 0 0 - 1)
+    List.push(Sphere.new(pos 0.5) scene)
+
+    scene
+end
+
+let main() = do
+    let scene = buildScene()
+    let pixels = trace(scene)
+    writeOutput(pixels cfg.w cfg.h cfg.output)
+end
+
+main()

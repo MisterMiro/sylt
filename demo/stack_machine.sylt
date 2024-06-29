@@ -11,21 +11,18 @@ let OpCode = makeEnum([
     "Ret"
 ])
 
-let exec(prog) = do
+let exec(program) = do
     let ip = 0
     let stack = []
 
     let read() = do
-        let code = List.get(ip prog)
+        let code = List.get(ip program)
         ip += 1
         code
     end
 
-    let pop() = do
-        let value = List.get(-1 stack)
-        stack -= 1
-        value
-    end
+    let push(value) = List.push(value stack)
+    let pop() = List.pop(stack)
 
     let run = true
     while run: do
@@ -34,34 +31,37 @@ let exec(prog) = do
         else if code is OpCode.Add: do
             let b = pop()
             let a = pop()
-            stack += a + b
+            push(a + b)
         end
         else if code is OpCode.Sub: do
             let b = pop()
             let a = pop()
-            stack += a - b
+            push(a - b)
         end
         else if code is OpCode.Mul: do
             let b = pop()
             let a = pop()
-            stack += a * b
+            push(a * b)
         end
         else if code is OpCode.Div: do
             let b = pop()
+            if b is 0: return "tried to divide a number by zero"
             let a = pop()
-            stack += a / b
+            push(a / b)
         end
         else if code is OpCode.Eq: do
             let b = pop()
             let a = pop()
-            stack += a is b
+            push(a is b)
         end
         else if code is OpCode.Print: printLn(List.last(stack))
         else if code is OpCode.Ret: run <- false
     end
+
+    "success!"
 end
 
-let prog = [
+let program = [
     OpCode.Push 1
     OpCode.Push 2
     OpCode.Add
@@ -84,4 +84,6 @@ let prog = [
     OpCode.Print
     OpCode.Ret
 ]
-exec(prog)
+
+let result = exec(program)
+printLn(result)

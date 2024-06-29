@@ -1,4 +1,5 @@
-
-## exclusive range, i.e. one that ranges from min up and to but not including max
+## inclusive range, i.e. one that ranges from min up and to but not including max
 let range = 0..=1
 
+## exclusive range
+let range = 5..10

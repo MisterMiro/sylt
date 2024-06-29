@@ -223,7 +223,9 @@ let impl = do
 		a.z * b.x - a.x * b.z
 		a.x * b.y - a.y * b.x)
 
-	let size(v) = Math.sqrt(Vec3.dot(v v))
+	let sizeSquared(v) = Vec3.dot(v v)
+
+	let size(v) = Math.sqrt(sizeSquared(v))
 
 	let norm(v) = Vec3.new(
 		v.x / Vec3.size(v)
@@ -269,6 +271,7 @@ let impl = do
 	Dict.set("new" new lib)
 	Dict.set("dot" dot lib)
 	Dict.set("cross" cross lib)
+	Dict.set("sizeSquared" sizeSquared lib)
 	Dict.set("size" size lib)
 	Dict.set("norm" norm lib)
 	Dict.set("add" add lib)

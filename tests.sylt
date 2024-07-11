@@ -83,7 +83,7 @@ let addition() = do
 	
 	## correct result
 	let sum = 20
-	ensure(x + y = sum)
+	ensure(x + y is sum)
 	
 	## commutative
 	ensure(y + x is sum)
@@ -386,7 +386,7 @@ let functions() = do
 		let f2() = keep
 		f2
 	end
-	ensure(f()() = "jewel")
+	ensure(f()() is "jewel")
 	
 	## anonymous functions using 'fun'
 	let anon = fun r s t -> r * s * t
@@ -457,7 +457,8 @@ let preludeLib() = do
 	## typeOf
 	ensure(typeOf(nil) is "Nil")
 	ensure(typeOf(true) is "Bool")
-	ensure(typeOf(1) is "Num")
+	ensure(typeOf(1) is "Number")
+	ensure(typeOf(0..1) is "Range")
 	ensure(typeOf([]) is "List")
 	ensure(typeOf("") is "String")
 	ensure(typeOf(fun -> do end) is "Function")
@@ -554,10 +555,8 @@ let listLib() = do
 	ensure(List.rev([1]) is [1])
 	
 	## range
-	let a = List.range(-3 3)
-	let b = [-3 -2 -1 0 1 2 3]
-	printLn(b)
-	ensure(a is b)
+	let ls = List.range(0..3)
+	ensure(ls is [0 1 2])
 	
 	## iter
 	let indices = [0 1 2]
@@ -637,10 +636,10 @@ let dictLib() = do
 	}
 		
 	## keys
-	ensure(Dict.keys(dict) = ["door" "car" "box"])
+	ensure(Dict.keys(dict) is ["door" "car" "box"])
 		
 	## values
-	ensure(Dict.values(dict) = ["window" "helicopter" "pyramid"])
+	ensure(Dict.values(dict) is ["window" "helicopter" "pyramid"])
 end
 
 let stringLib() = do
@@ -800,7 +799,7 @@ let mathLib() = do
 		ensure(Math.round(low) is n)
 		ensure(Math.round(high) is n + 1)
 	
-		ensure(Math.round(mid) = if n < 0: n else n + 1)
+		ensure(Math.round(mid) is if n < 0: n else n + 1)
 	end
 	
 	##List.forEach(checkRounding [-1 0 1])
@@ -879,7 +878,7 @@ let tests = List.flatten([
 
 ## let's go!
 List.forEach(fun test ->
-	if typeOf(test) = "String": do
+	if typeOf(test) is "String": do
 		printLn(test + ":")
 		
 	end

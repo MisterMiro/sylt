@@ -1,0 +1,10 @@
+let x = [2 4 8 16 32]
+
+let isPowerOfTwo(x) = do
+    if x is 0:
+        return false
+    Math.ceil(Math.log(x 2)) is Math.ceil(Math.log(x 2))
+end
+
+printLn(isPowerOfTwo(8))
+printLn(isPowerOfTwo(7))

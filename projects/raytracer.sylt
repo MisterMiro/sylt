@@ -165,14 +165,14 @@ end
 let buildScene() = do
     let scene = []
 
-    let pos = Vec3.new(0 0 0 - 1)
-    List.push(Sphere.new(pos 0.5) scene)
+    ##let pos = Vec3.new(0 0 0 - 1)
+    ##List.push(Sphere.new(pos 0.5) scene)
 
     let pos = Vec3.new(1 0 0 - 1)
     List.push(Sphere.new(pos 0.5) scene)
 
-    let pos = Vec3.new(0 - 1 0 0 - 1)
-    List.push(Sphere.new(pos 0.5) scene)
+    ##let pos = Vec3.new(0 - 1 0 0 - 1)
+    ##List.push(Sphere.new(pos 0.5) scene)
 
     scene
 end

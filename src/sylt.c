@@ -492,7 +492,6 @@ typedef enum {
 	OP_PUSH_TRUE,
 	OP_PUSH_FALSE,
 	OP_PUSH_RANGE,
-	OP_PUSH_RANGE_INC,
 	OP_PUSH_LIST,
 	OP_PUSH_DICT,
 	OP_PUSH_FUNC,
@@ -556,7 +555,6 @@ static opinfo_t OPINFO[] = {
 	[OP_PUSH_TRUE] = {"pushTrue", 0, +1},
 	[OP_PUSH_FALSE] = {"pushFalse", 0, +1},
 	[OP_PUSH_RANGE] = {"pushRange", 0, +1},
-	[OP_PUSH_RANGE_INC] = {"pushRangeInc", 0, +1},
 	[OP_PUSH_LIST] = {"pushList", 1, +1},
 	[OP_PUSH_DICT] = {"pushDict", 1, +1},
 	[OP_PUSH_FUNC] = {"pushFunc", 1, +1},
@@ -670,9 +668,8 @@ typedef struct value_s {
 /* numeric range */
 typedef struct {
 	obj_t obj;
-	sylt_num_t start;
-	sylt_num_t end;
-	bool inc;
+	sylt_num_t min;
+	sylt_num_t max;
 } range_t;
 
 /* list object */
@@ -1068,11 +1065,10 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 
 /* == range == */
 
-range_t* range_new(sylt_t* ctx, sylt_num_t start, sylt_num_t end, bool inc) {
+range_t* range_new(sylt_t* ctx, sylt_num_t min, sylt_num_t max) {
 	range_t* range = (range_t*)obj_new(sizeof(range_t), TYPE_RANGE, ctx);
-	range->start = start;
-	range->end = end;
-	range->inc = inc;
+	range->min = min;
+	range->max = max;
 	return range;
 }
 
@@ -1083,7 +1079,7 @@ void range_free(range_t* range, sylt_t* ctx) {
 bool range_eq(const range_t* a, const range_t* b) {
 	if (!a || !b) return false;
 	if (a == b) return true;
-	return a->start == b->start && a->end == b->end && a->inc == b->inc;
+	return a->min == b->min && a->max == b->max;
 }
 
 /* == list == */
@@ -1699,11 +1695,11 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 	}
 	case TYPE_RANGE: {
 		const range_t* range = getrange(val);
-		sylt_pushstring(ctx, val_tostring(wrapnum(range->start), ctx));
-		sylt_pushstring(ctx, string_lit((range->inc) ? "..=" : "..", ctx));
+		sylt_pushstring(ctx, val_tostring(wrapnum(range->min), ctx));
+		sylt_pushstring(ctx, string_lit("..", ctx));
 		sylt_concat(ctx);
 
-		sylt_pushstring(ctx, val_tostring(wrapnum(range->end), ctx));
+		sylt_pushstring(ctx, val_tostring(wrapnum(range->max), ctx));
 		sylt_concat(ctx);
 		
 		str = sylt_popstring(ctx);
@@ -2184,13 +2180,7 @@ void vm_exec(vm_t* vm) {
 		case OP_PUSH_RANGE: {
 			sylt_num_t max = getnum(pop());
 			sylt_num_t min = getnum(pop());
-			push(wraprange(range_new(vm->ctx, min, max, false)));
-			break;
-		}
-		case OP_PUSH_RANGE_INC: {
-			sylt_num_t max = getnum(pop());
-			sylt_num_t min = getnum(pop());
-			push(wraprange(range_new(vm->ctx, min, max, true)));
+			push(wraprange(range_new(vm->ctx, min, max)));
 			break;
 		}
 		case OP_PUSH_LIST: {
@@ -2607,7 +2597,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 
 #define boolarg(n) getbool(arg(n))
 #define numarg(n) getnum(arg(n))
-#define rangearg(n) getnum(arg(n))
+#define rangearg(n) getrange(arg(n))
 #define listarg(n) getlist(arg(n))
 #define dictarg(n) getdict(arg(n))
 #define stringarg(n) getstring(arg(n))
@@ -2873,13 +2863,11 @@ value_t stdlist_rev(sylt_t* ctx) {
 }
 
 value_t stdlist_range(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
+	argcheck(ctx, 0, TYPE_RANGE, __func__);
+	range_t* range = rangearg(0);
 
-	sylt_num_t min = numarg(0);
-	sylt_num_t max = numarg(1);
 	list_t* ls = list_new(ctx);
-	for (int64_t i = min; i <= max; i++)
+	for (int64_t i = range->min; i < range->max; i++)
 		list_push(ls, wrapnum(i), ctx);
 	
 	return wraplist(ls);
@@ -3522,13 +3510,11 @@ value_t stdmath_atanh(sylt_t* ctx) {
 /* == rand library == */
 
 value_t stdrand_range(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	sylt_num_t min = numarg(0);
-	sylt_num_t max = numarg(1);
+	argcheck(ctx, 0, TYPE_RANGE, __func__);
+	const range_t* range = rangearg(0);
 	
 	float r = (sylt_num_t)rand() / RAND_MAX;
-    return wrapnum(min + r * (max - min));
+    return wrapnum(range->min + r * (range->max - range->min));
 }
 
 value_t stdrand_seed(sylt_t* ctx) {
@@ -3637,7 +3623,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "count", stdlist_count, 2);
 	std_addf(ctx, "contains", stdlist_contains, 2);
 	std_addf(ctx, "rev", stdlist_rev, 1);
-	std_addf(ctx, "range", stdlist_range, 2);
+	std_addf(ctx, "range", stdlist_range, 1);
 	std_addlib(ctx);
 	
 	/* dict */
@@ -3725,7 +3711,7 @@ void std_init(sylt_t* ctx) {
 
 	/* rand */
 	std_setlib(ctx, "Rand");
-	std_addf(ctx, "range", stdrand_range, 2);
+	std_addf(ctx, "range", stdrand_range, 1);
 	std_addf(ctx, "seed", stdrand_seed, 1);
 	std_addlib(ctx);
 
@@ -3796,7 +3782,6 @@ typedef enum {
 	T_COLON,
 	T_DOT,
 	T_DOT_DOT,
-	T_DOT_DOT_EQ,
 	T_HASH,
 	T_EOF,
 } token_type_t;
@@ -4332,7 +4317,6 @@ token_t scan(comp_t* cmp) {
 	case ':': return token(T_COLON);
 	case '.':
 		if (match('.')) {
-			if (match('=')) return token(T_DOT_DOT_EQ);
 			return token(T_DOT_DOT);
 		}
 		return token(T_DOT);
@@ -4470,7 +4454,6 @@ static parserule_t RULES[] = {
 	[T_COLON] = {NULL, NULL, PREC_NONE},
 	[T_DOT] = {NULL, binary, PREC_DOT},
 	[T_DOT_DOT] = {NULL, binary, PREC_RANGE},
-	[T_DOT_DOT_EQ] = {NULL, binary, PREC_RANGE},
 	[T_HASH] = {unary, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -4590,7 +4573,7 @@ void name(comp_t* cmp) {
 void list(comp_t* cmp) {
 	int len = 0;
 	while (!check(cmp, T_RSQUARE) && !check(cmp, T_EOF)) {
-		expr(cmp, PREC_OR, "a list item or ']'");
+		expr(cmp, PREC_OR, "a list item, or ']'");
 		len++;
 	}
 	
@@ -4802,11 +4785,6 @@ void binary(comp_t* cmp) {
 	case T_DOT_DOT: {
 		expr(cmp, ANY_PREC, "right-hand side of range");
 		emit_nullary(cmp, OP_PUSH_RANGE);
-		return;
-	}
-	case T_DOT_DOT_EQ: {
-		expr(cmp, ANY_PREC, "right-hand side of range");
-		emit_nullary(cmp, OP_PUSH_RANGE_INC);
 		return;
 	}
 	default: unreachable();

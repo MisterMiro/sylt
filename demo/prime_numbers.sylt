@@ -1,8 +1,7 @@
 ## code for checking whether a number is prime
 
 let isPrime(num) = do
-    if num < 2:
-        return false
+    if num < 2: return false
     
     let check(i) = if num is i: true
         else if num % i is 0: false

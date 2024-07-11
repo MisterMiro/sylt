@@ -97,10 +97,6 @@ name: rep
 args: f times
 comment: Calls a function f n times with the current iteration as the argument.
 
-name: rep2
-args: f timesX timesY
-comment: Calls a function f in a nested loop with the two loop indices as arguments.
-
 
 title: File
 
@@ -287,7 +283,7 @@ args: f list
 comment: Returns true if any value in the list satisfies the predicate f.
 
 name: all
-args: list
+args: f list
 comment: Returns true if all values in the list satisfy the predicate f.
 
 

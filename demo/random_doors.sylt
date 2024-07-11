@@ -2,8 +2,8 @@
 
 Rand.seed(System.timestamp())
 
+let n = 300000
 let states = []
-let n = 30000
 rep(fun _ -> states += if Rand.oneIn(20): "open" else "closed" n)
 
 let closed = List.count("closed" states)

@@ -492,6 +492,7 @@ typedef enum {
 	OP_PUSH_TRUE,
 	OP_PUSH_FALSE,
 	OP_PUSH_RANGE,
+	OP_PUSH_RANGE_INC,
 	OP_PUSH_LIST,
 	OP_PUSH_DICT,
 	OP_PUSH_FUNC,
@@ -555,6 +556,7 @@ static opinfo_t OPINFO[] = {
 	[OP_PUSH_TRUE] = {"pushTrue", 0, +1},
 	[OP_PUSH_FALSE] = {"pushFalse", 0, +1},
 	[OP_PUSH_RANGE] = {"pushRange", 0, +1},
+	[OP_PUSH_RANGE_INC] = {"pushRangeInc", 0, +1},
 	[OP_PUSH_LIST] = {"pushList", 1, +1},
 	[OP_PUSH_DICT] = {"pushDict", 1, +1},
 	[OP_PUSH_FUNC] = {"pushFunc", 1, +1},
@@ -670,6 +672,7 @@ typedef struct {
 	obj_t obj;
 	sylt_num_t min;
 	sylt_num_t max;
+	bool inc;
 } range_t;
 
 /* list object */
@@ -1065,10 +1068,11 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 
 /* == range == */
 
-range_t* range_new(sylt_t* ctx, sylt_num_t min, sylt_num_t max) {
+range_t* range_new(sylt_t* ctx, sylt_num_t min, sylt_num_t max, bool inc) {
 	range_t* range = (range_t*)obj_new(sizeof(range_t), TYPE_RANGE, ctx);
 	range->min = min;
 	range->max = max;
+	range->inc = inc;
 	return range;
 }
 
@@ -2180,7 +2184,13 @@ void vm_exec(vm_t* vm) {
 		case OP_PUSH_RANGE: {
 			sylt_num_t max = getnum(pop());
 			sylt_num_t min = getnum(pop());
-			push(wraprange(range_new(vm->ctx, min, max)));
+			push(wraprange(range_new(vm->ctx, min, max, false)));
+			break;
+		}
+		case OP_PUSH_RANGE_INC: {
+			sylt_num_t max = getnum(pop());
+			sylt_num_t min = getnum(pop());
+			push(wraprange(range_new(vm->ctx, min, max, true)));
 			break;
 		}
 		case OP_PUSH_LIST: {
@@ -2867,7 +2877,8 @@ value_t stdlist_range(sylt_t* ctx) {
 	range_t* range = rangearg(0);
 
 	list_t* ls = list_new(ctx);
-	for (int64_t i = range->min; i < range->max; i++)
+	int64_t max = (range->inc) ? range->max + 1 : range->max;
+	for (int64_t i = range->min; i < max; i++)
 		list_push(ls, wrapnum(i), ctx);
 	
 	return wraplist(ls);
@@ -3514,7 +3525,8 @@ value_t stdrand_range(sylt_t* ctx) {
 	const range_t* range = rangearg(0);
 	
 	float r = (sylt_num_t)rand() / RAND_MAX;
-    return wrapnum(range->min + r * (range->max - range->min));
+	int64_t max = (range->inc) ? range->max + 1 : range->max;
+    return wrapnum(range->min + r * (max - range->min));
 }
 
 value_t stdrand_seed(sylt_t* ctx) {
@@ -3782,6 +3794,7 @@ typedef enum {
 	T_COLON,
 	T_DOT,
 	T_DOT_DOT,
+	T_DOT_DOT_EQ,
 	T_HASH,
 	T_EOF,
 } token_type_t;
@@ -4317,6 +4330,7 @@ token_t scan(comp_t* cmp) {
 	case ':': return token(T_COLON);
 	case '.':
 		if (match('.')) {
+			if (match('=')) return token(T_DOT_DOT_EQ);
 			return token(T_DOT_DOT);
 		}
 		return token(T_DOT);
@@ -4454,6 +4468,7 @@ static parserule_t RULES[] = {
 	[T_COLON] = {NULL, NULL, PREC_NONE},
 	[T_DOT] = {NULL, binary, PREC_DOT},
 	[T_DOT_DOT] = {NULL, binary, PREC_RANGE},
+	[T_DOT_DOT_EQ] = {NULL, binary, PREC_RANGE},
 	[T_HASH] = {unary, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -4783,8 +4798,13 @@ void binary(comp_t* cmp) {
 		return;
 	}
 	case T_DOT_DOT: {
-		expr(cmp, ANY_PREC, "right-hand side of range");
+		expr(cmp, ANY_PREC, "right-hand side of exclusive range");
 		emit_nullary(cmp, OP_PUSH_RANGE);
+		return;
+	}
+	case T_DOT_DOT_EQ: {
+		expr(cmp, ANY_PREC, "right-hand side of inclusive range");
+		emit_nullary(cmp, OP_PUSH_RANGE_INC);
 		return;
 	}
 	default: unreachable();

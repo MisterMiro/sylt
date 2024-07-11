@@ -18,6 +18,10 @@ operators.
 
 <p> The number type is used for numbers. </p>
 
+<h4> Range </h4>
+
+<p> A range of numbers. </p>
+
 <h4> List </h4>
 
 <p> A dynamic array. It is able to contain an indefinite number of values
@@ -134,3 +138,7 @@ the right-hand side the new value. </p>
 <h4> %= </h4>
 
 <p> Shorthand for assigning a variable to itself % something. </p>
+
+<h4> .. </h4>
+
+<p> Used for creating a range. </p>

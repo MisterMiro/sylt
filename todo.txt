@@ -1,0 +1,9 @@
+Give System.timestamp millisecond precision
+
+Add a for loop, allowing iteration over a collection or range of numbers
+
+Add tuples
+
+Allow simple pattern matching in the form of let (a b) = (x y)
+
+

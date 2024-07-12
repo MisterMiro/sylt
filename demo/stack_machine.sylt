@@ -12,6 +12,8 @@ let OpCode = makeEnum([
 ])
 
 let exec(program) = do
+    ensure(List.last(program) is OpCode.Ret)
+    
     let ip = 0
     let stack = []
 

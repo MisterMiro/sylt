@@ -601,6 +601,10 @@ name: fiftyFifty
 args:
 comment: Has a 50/50 chance to return true.
 
+name: item
+args: list
+comment: Returns a random item from the list.
+
 name: scramble
 args: list
 comment: Sorts the list in a random order.

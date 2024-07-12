@@ -144,7 +144,7 @@ let trace(scene) = do
     let y = 0
 	while y < h: do
 		let x = 0
-		while x < w: do
+		while x < cfg.w: do
             let pixelCenter = leftCornerPixel
             pixelCenter <- Vec3.add(pixelCenter Vec3.scale(pixelDeltaU x))
             pixelCenter <- Vec3.add(pixelCenter Vec3.scale(pixelDeltaV y))
@@ -165,14 +165,8 @@ end
 let buildScene() = do
     let scene = []
 
-    ##let pos = Vec3.new(0 0 0 - 1)
-    ##List.push(Sphere.new(pos 0.5) scene)
-
-    let pos = Vec3.new(1 0 0 - 1)
+    let pos = Vec3.new(0 0 0 - 1)
     List.push(Sphere.new(pos 0.5) scene)
-
-    ##let pos = Vec3.new(0 - 1 0 0 - 1)
-    ##List.push(Sphere.new(pos 0.5) scene)
 
     scene
 end

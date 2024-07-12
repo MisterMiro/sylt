@@ -287,11 +287,11 @@ void halt(sylt_t*, const char*, ...);
 	(int)name->len, name->bytes, \
 	(need), ((need) == 1 ? "" : "s"), (got)
 #define E_ENSURE_FAILED \
-	"ensure() failed"
+	"assertion failed"
 #define E_TODO_REACHED \
-	"todo() reached"
+	"code marked todo was reached"
 #define E_UNREACHABLE_REACHED \
-	"unreachable() reached"
+	"code marked unreachable was reached"
 #define E_SYLT_EXTENSION \
 	"the .sylt extension is not required"
 
@@ -5321,7 +5321,7 @@ void print_stack_trace(const sylt_t* ctx) {
 
 	for (int64_t i = ctx->vm->nframes - 1; i >= 0; i--) {
 		const cframe_t* frame = &ctx->vm->frames[i];
-		sylt_eprintf("  %ld. ", ctx->vm->nframes - i);
+		sylt_eprintf("  %ld. ", i);
 
 		if (i == (int64_t)ctx->vm->nframes - 1)
 			sylt_eprintf(">");

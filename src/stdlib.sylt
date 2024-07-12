@@ -21,7 +21,7 @@ let rem(a b) = a % b
 
 let makeEnum(ls) = do
 	let enum = {}
-	List.iter(fun num name -> Dict.set(name num enum) ls)
+	List.iter(fun index name -> Dict.set(name index enum) ls)
 	enum
 end
 
@@ -289,10 +289,12 @@ end
 let impl = do
 	let fiftyFifty() = Rand.range(0..1) > 0.5
 	let oneIn(n) = Rand.range(0..n) < 1
+	let item(ls) = List.get(Rand.range(0..#ls) ls)
 	let scramble(ls) = List.sortBy(fun _ _ -> fiftyFifty() ls)
 
 	let lib = Dict.get("Rand" gdict)
 	Dict.set("fiftyFifty" fiftyFifty lib)
 	Dict.set("oneIn" oneIn lib)
+	Dict.set("item" item lib)
 	Dict.set("scramble" scramble lib)
 end

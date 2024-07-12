@@ -64,8 +64,6 @@ def index_submit():
     if not debug_mode:
         args.append("-sbox")
     
-    args.append("-v")
-    
     if disassemble:
         args.append("-d")
     output = run_sylt_binary(args)    

@@ -94,6 +94,7 @@ textarea {
 
 .doc-function {
     font-family: 'Courier New', Courier, monospace;
+    font-size: 90%;
     display: inline-block;
 }
 
@@ -109,7 +110,7 @@ textarea {
 }
 
 hr {
-    color:rgb(176, 176, 176);
+    color:rgb(222, 222, 222);
     margin-top: 0px;
     margin-bottom: 0px;
 }

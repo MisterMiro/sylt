@@ -52,6 +52,8 @@
  * all of these should be set to 0 in
  * release builds */
 
+#if DEBUG
+
 /* enables assertions */
 #define DBG_ASSERTIONS 1
 
@@ -62,7 +64,7 @@
 
 /* triggers the GC on every allocation,
  * super slow but good for bug hunting */
-#define DBG_GC_EVERY_ALLOC 0
+#define DBG_GC_EVERY_ALLOC 1
 
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
@@ -70,6 +72,20 @@
 #define DBG_PRINT_NAMES 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
+
+#else
+
+#define DBG_ASSERTIONS 0
+#define DBG_NO_GC 0
+#define DBG_GC_EVERY_ALLOC 0
+#define DBG_PRINT_SYLT_STATE 0
+#define DBG_PRINT_GC_STATE 0
+#define DBG_PRINT_TOKENS 0
+#define DBG_PRINT_NAMES 0
+#define DBG_PRINT_DATA 0
+#define DBG_PRINT_STACK 0
+
+#endif
 
 /* prints all debug flags that are set */
 static void dbg_print_flags(void) {
@@ -297,6 +313,7 @@ void halt(sylt_t*, const char*, ...);
 
 /* triggers one of each error */
 void test_errors(sylt_t* ctx) {
+	#if DEBUG
 	#define testsrc() \
 		sylt_dprintf("(expected) "); \
 		assert(!sylt_xstring(ctx, src));
@@ -356,6 +373,9 @@ void test_errors(sylt_t* ctx) {
 	/* unreachable() */
 	src = "unreachable()";
 	testsrc();
+	#else
+	(void)ctx;
+	#endif
 }
 
 static const char* get_platform(void) {
@@ -1670,8 +1690,11 @@ bool val_eq(value_t a, value_t b) {
 	case TYPE_FUNCTION:
 	case TYPE_CLOSURE:
 	case TYPE_UPVALUE: return getobj(a) == getobj(b);
-	default: unreachable();
+	default: break;
 	}
+
+	unreachable();
+	return false;
 }
 
 string_t* val_tostring_opts(value_t, bool, sylt_t*);
@@ -4774,7 +4797,7 @@ void binary(comp_t* cmp) {
 				unreachable();
 			}
 				
-			expr(cmp, ANY_PREC, "argument");
+			expr(cmp, ANY_PREC, "argument or ')'");
 			argc++;
 		}
 		

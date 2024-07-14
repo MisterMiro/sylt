@@ -558,7 +558,11 @@ name: cross
 args: a b
 comment: Computes the cross product of two vectors.
 
-name: length
+name: sizeSquared
+args: vec
+comment: Computes the squared size of a vector.
+
+name: size
 args: vec
 comment: Computes the size of a vector.
 
@@ -574,6 +578,14 @@ name: sub
 args: a b
 comment: Subtracts two vectors and returns the result.
 
+name: mul
+args: a b
+comment: Multiplies two vectors and returns the result.
+
+name: div
+args: a b
+comment: Divides two vectors and returns the result.
+
 name: addScalar
 args: v s
 comment: Adds a scalar to a vector and returns the result.
@@ -582,13 +594,13 @@ name: subScalar
 args: v s
 comment: Subtracts a scalar from a vector and returns the result.
 
+name: mulScalar
+args: vec scalar
+comment: Scales the vector by a scalar on all axis.
+
 name: divScalar
 args: v s
 comment: Divides a vector by a scalar and returns the result.
-
-name: scale
-args: vec scalar
-comment: Scales the vector by on all axis.
 
 
 title: Rand

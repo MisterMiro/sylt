@@ -247,6 +247,11 @@ let impl = do
 		a.y * b.y
 		a.z * b.z)
 
+	let div(a b) = Vec3.new(
+		a.x / b.x
+		a.y / b.y
+		a.z / b.z)
+
 	let addScalar(v s) = Vec3.new(
 		v.x + s
 		v.y + s
@@ -257,15 +262,15 @@ let impl = do
 		v.y - s
 		v.z - s)
 
+	let mulScalar(v s) = Vec3.new(
+		v.x * s
+		v.y * s
+		v.z * s)
+
 	let divScalar(v s) = Vec3.new(
 		v.x / s
 		v.y / s
 		v.z / s)
-
-	let scale(v s) = Vec3.new(
-		v.x * s
-		v.y * s
-		v.z * s)
 
 	let lib = Dict.get("Vec3" gdict)
 	Dict.set("new" new lib)
@@ -277,10 +282,11 @@ let impl = do
 	Dict.set("add" add lib)
 	Dict.set("sub" sub lib)
 	Dict.set("mul" mul lib)
+	Dict.set("div" mul lib)
 	Dict.set("addScalar" addScalar lib)
 	Dict.set("subScalar" subScalar lib)
+	Dict.set("mulScalar" mulScalar lib)
 	Dict.set("divScalar" divScalar lib)
-	Dict.set("scale" scale lib)
 end
 
 ## Rand      |

@@ -563,7 +563,7 @@ let listLib() = do
 	let copy = []
 
 	List.iter(fun index value -> do
-		ensure(index is indices[index])
+		ensure(index is List.get(index indices))
 		copy <- copy + value
 	end
 	indices)
@@ -652,7 +652,7 @@ let stringLib() = do
 	ensure(String.digits is str)
 
 	## punctuation
-	let str = "!\"#$%&'()*+-./:;<=>?@[\\]^_`{|}~"
+	let str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
 	ensure(String.punctuation is str)
 	
 	## length
@@ -664,15 +664,15 @@ let stringLib() = do
 	ensure(String.join([1 "2" 34 "5"]) is "12345")
 		
 	## split
-	ensure(String.split("lol" "") is ["lol"])
-	ensure(String.split("lol" " ") is ["lol"])
-	ensure(String.split("abcrstxyz" "") is ["abc" "rst" "xyz"])
+	ensure(String.split("lol" [""]) is ["lol"])
+	ensure(String.split("lol" [" "]) is ["lol"])
+	ensure(String.split("abc rst xyz" [" "]) is ["abc" "rst" "xyz"])
 		
-	## lower + upper + swapCase
+	## lowercase + uppercase + swapCase
 	let str = "MiXeD!"
-	ensure(String.lower(str) is "mixed!")
-	ensure(String.upper(str) is "MIXED!")
-	ensure(String.swapCase(str) is "mIxEd!")
+	ensure(String.lowercase(str) is "mixed!")
+	ensure(String.uppercase(str) is "MIXED!")
+	ensure(String.swapcase(str) is "mIxEd!")
 
 	## isLower + isUpper + isWhitespace
 	ensure(String.isLower("x") and not String.isLower("X"))
@@ -739,9 +739,9 @@ let mathLib() = do
 	ensure(not floatEq(0 epsilon epsilon))
 	
 	## signum
-	ensure(Math.signum(-80) is -1)
-	ensure(Math.signum(0) is 0)
-	ensure(Math.signum(80) is 1)
+	ensure(Math.signum(0 - 80) is Math.Sign.Negative)
+	ensure(Math.signum(0) is Math.Sign.Zero)
+	ensure(Math.signum(80) is Math.Sign.Positive)
 	
 	## abs
 	ensure(Math.abs(-8) is 8 and Math.abs(8) is 8)
@@ -771,13 +771,13 @@ let mathLib() = do
 	
 	## clamp
 	let x = 2
-	ensure(Math.clamp(x -5 5) is x)
+	ensure(Math.clamp(x 0 - 5 5) is x)
 	
 	let x = 20
 	ensure(Math.clamp(x 1 4) is 4)
 	
 	let x = -12
-	ensure(Math.clamp(x -8 3) is -8)
+	ensure(Math.clamp(x 0 - 8 3) is -8)
 	
 	## lerp
 	ensure(Math.lerp(-10 10 0) is -10)
@@ -810,8 +810,8 @@ let mathLib() = do
 	
 	## sin + cos + tan
 	ensure(floatEq(Math.sin(90) 0.8939 0.001))
-	ensure(floatEq(Math.cos(90) -0.4480 0.001))
-	ensure(floatEq(Math.tan(90) -1.9952 0.001))
+	ensure(floatEq(Math.cos(90) 0 - 0.4480 0.001))
+	ensure(floatEq(Math.tan(90) 0 - 1.9952 0.001))
 			
 	## asin + acos + atan
 	ensure(floatEq(Math.asin(1) 1.5708 0.001))

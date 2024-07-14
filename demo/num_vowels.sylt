@@ -1,9 +1,0 @@
-## counts how many vowels are in a given string
-
-let vowels = String.chars("aeiouy")
-let numVowels = 0
-
-let str = "Hello World!"
-let chars = String.chars(str)
-List.forEach(fun ch -> if List.contains(ch vowels): numVowels += 1 chars)
-printLn("'" + str + "' contains " + numVowels + " vowels")

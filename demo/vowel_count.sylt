@@ -1,0 +1,10 @@
+## counts how many vowels are in a given string
+
+let vowels = String.chars("aeiouy")
+
+let str = "Hello World!"
+let chars = String.chars(str)
+let count = 0
+
+List.forEach(fun ch -> if List.contains(ch vowels): count += 1 chars)
+printLn("'" + str + "' contains " + count + " vowels and " + #chars - count + " consonants")

@@ -1,4 +1,4 @@
 ## a factorial is the product of all positive integers <= a given positive integer
 
 let factorial(n) = if n < 1: 1 else n * factorial(n - 1)
-printLn(factorial(5))
+printLn(factorial(5) is 120)

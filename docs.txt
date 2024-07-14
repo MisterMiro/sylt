@@ -385,11 +385,11 @@ args: string
 comment: Returns true if all characters in the string are whitespace.
 
 name: startsWith
-args: string start
+args: start string
 comment: Returns true if the string starts with the given phrase.
 
 name: endsWith
-args: string end
+args: end string
 comment: Returns true if the string ends with the given phrase.
 
 name: trimStart

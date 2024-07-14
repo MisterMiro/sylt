@@ -680,12 +680,12 @@ let stringLib() = do
 	ensure(String.isWhitespace(" \t\n\r"))
 	
 	## startsWith
-	ensure(String.startsWith(String.letters "abc"))
-	ensure(not String.startsWith(String.letters "xyz"))
+	ensure(String.startsWith("abc" String.letters))
+	ensure(not String.startsWith("xyz" String.letters))
 		
 	## endsWith
-	ensure(String.endsWith(String.letters "xyz"))
-	ensure(not String.endsWith(String.letters "abc"))
+	ensure(String.endsWith("xyz" String.letters))
+	ensure(not String.endsWith("abc" String.letters))
 		
 	## trimStart
 	ensure(String.trimStart("\t\n hi") is "hi")

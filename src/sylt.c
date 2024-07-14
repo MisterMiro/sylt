@@ -3135,8 +3135,8 @@ value_t stdstring_starts_with(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	argcheck(ctx, 1, TYPE_STRING, __func__);
 	
-	string_t* str = stringarg(0);
-	string_t* other = stringarg(1);
+	string_t* other = stringarg(0);
+	string_t* str = stringarg(1);
 	return wrapbool(string_starts_with(str, other));
 }
 
@@ -3144,8 +3144,8 @@ value_t stdstring_ends_with(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	argcheck(ctx, 1, TYPE_STRING, __func__);
 	
-	string_t* str = stringarg(0);
-	string_t* other = stringarg(1);
+	string_t* other = stringarg(0);
+	string_t* str = stringarg(1);
 	return wrapbool(string_ends_with(str, other));
 }
 
@@ -3850,7 +3850,7 @@ typedef enum {
 	PREC_TERM,
 	/* multiplication: * / % */
 	PREC_FACTOR,
-	/* unary prefix: not # */
+	/* unary prefix: - not # */
 	PREC_UNARY_PREFIX,
 	/* .. ..= */
 	PREC_RANGE,
@@ -4254,7 +4254,6 @@ token_t scan(comp_t* cmp) {
 	
 	/* symbol name or keyword */
 	if (isalpha(peek()) || is('_')) {
-		
 		while (isalnum(peek()) || is('_') || is('/')) step();
 		
 		size_t len = cmp->pos - start;

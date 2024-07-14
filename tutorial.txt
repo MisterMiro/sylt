@@ -54,7 +54,7 @@ value.
 <h4> - </h4>
 
 <p> Used for subtracting two numbers, as a unary (prefix) minus for 
-negating numbers or whole expressions, and for adding elements to the start or end of lists.
+negating numbers or whole expressions, and for removing elements at the start or end of lists.
 </p>
 
 <h4> * </h4>

@@ -5359,15 +5359,13 @@ void print_stack_trace(const sylt_t* ctx) {
 }
 
 void find_source_line(const func_t* func, uint32_t line, size_t* start, size_t* len) {
-	assert(start && len);
-	if (line == 0 || line > func->lines[func->nlines - 1])
-		return;
+	assert(start && len && line > 0);
 
 	size_t n = 0;
 	for (size_t i = *start; i < func->src->len; i++) {
 		uint8_t byte = func->src->bytes[i];
 
-		if (byte == '\n' && i > 0) {
+		if (byte == '\n' || byte == '\0' || i == func->src->len - 1) {
 			*len = i - *start;
 
 			n++;

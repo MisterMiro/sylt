@@ -15,37 +15,32 @@ a {
     color: white;
 }
 
-.header a {
-    color: rgb(234, 234, 234);
-}
-
-.header a:hover {
-    color: rgb(255, 255, 255);
-}
-
-.header-title {
-    background: linear-gradient(rgb(23, 8, 90), rgb(31, 10, 122));
-    font-size: 48px;
-    width: 300px;
+.header-link {
+    font-size: 32px;
+    width: 200px;
     padding: 4px;
-    margin-right: 20px;
+    margin-right: 0px;
     display: inline-block;
+    text-align: center;
     font-family: 'Courier New', Courier, monospace;
 }
 
-.header-link {
-    background: linear-gradient(rgb(37, 12, 147), rgb(38, 19, 125));
-    font-size: 30px;
-    width: 200px;
-    padding: 4px;
-}
-
 .header-link a {
+    color: rgb(234, 234, 234);
     font-size: 32px;
 }
 
+.header-link:hover {
+    background: linear-gradient(rgb(56, 61, 158), rgb(23, 27, 86));
+    color: rgb(255, 255, 255);
+}
+
+.header-link:active {
+    background: linear-gradient(rgb(57, 43, 123), rgb(31, 10, 122));
+}
+
 #code-region {
-    width: 1024px;
+    width: 78%;
 }
 
 textarea {
@@ -57,14 +52,13 @@ textarea {
     resize: none;
 }
 
-#run-code {
-}
-
 .demos {
     background-color: rgb(17, 15, 46);
+    width: 15%;
     float: right;
     padding: 8px;
     padding-right: 64px;
+    margin: 0px;
 }
 
 .demos p {
@@ -120,7 +114,7 @@ h2 {
 }
 
 h4 {
-    color: #8d90a1; 
+    color: #383d5d; 
 }
 
 h2 {

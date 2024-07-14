@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 debug_mode = True
-sylt_binary = "bin/sylt_v0.1"
+sylt_binary = "bin/sylt_0.1"
 sylt_demos = "demo/"
 timeout = 10
 
@@ -29,6 +29,9 @@ def get_demo_list():
 # loads the source code of a demo from file
 def load_demo_code(file):
     if not file:
+        return None
+
+    if not file.startswith("demo/") and file != "src/stdlib.sylt" and file != "tests.sylt":
         return None
     
     with open(file, "r") as file:

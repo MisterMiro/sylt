@@ -1,6 +1,6 @@
 ## demonstrates how to use the Rand.oneIn function to implement probability
 
-Rand.seed(System.timestamp())
+Rand.seed(OS.tstamp())
 
 let n = 300000
 let states = []

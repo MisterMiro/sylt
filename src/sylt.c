@@ -2760,7 +2760,7 @@ value_t stdsys_src(sylt_t* ctx) {
 	return wrapdict(dc);
 }
 
-value_t stdsys_run(sylt_t* ctx) {
+value_t stdsys_exec(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	system((char*)stringarg(0)->bytes);
 	return nil();
@@ -2772,7 +2772,7 @@ value_t stdsys_halt(sylt_t* ctx) {
 	return nil();
 }
 
-value_t stdsys_time(sylt_t* ctx) {
+value_t stdsys_tformat(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* fmt = stringarg(0);
 	
@@ -2788,9 +2788,11 @@ value_t stdsys_time(sylt_t* ctx) {
     return wrapstring(str);
 }
 
-value_t stdsys_timestamp(sylt_t* ctx) {
+value_t stdsys_tstamp(sylt_t* ctx) {
 	(void)ctx;
-	return wrapnum(time(NULL));
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return wrapnum(ts.tv_nsec);
 }
 
 value_t stdsys_cpu_clock(sylt_t* ctx) {
@@ -3629,17 +3631,17 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "unreachable", std_unreachable, 0);
 	std_addlib(ctx);
 
-	/* system */
-	std_setlib(ctx, "System");
+	/* os */
+	std_setlib(ctx, "OS");
 	std_add(ctx, "version",	wrapstring(string_lit(SYLT_VERSION_STR, ctx)));
 	std_add(ctx, "platform", wrapstring(string_lit(get_platform(), ctx)));
 	std_addf(ctx, "memInfo", stdsys_mem_info, 0);
 	std_addf(ctx, "memSizes", stdsys_mem_sizes, 0);
 	std_addf(ctx, "src", stdsys_src, 0);
-	std_addf(ctx, "run", stdsys_run, 1);
+	std_addf(ctx, "exec", stdsys_exec, 1);
 	std_addf(ctx, "halt", stdsys_halt, 1);
-	std_addf(ctx, "time", stdsys_time, 1);
-	std_addf(ctx, "timestamp", stdsys_timestamp, 0);
+	std_addf(ctx, "tformat", stdsys_tformat, 1);
+	std_addf(ctx, "tstamp", stdsys_tstamp, 0);
 	std_addf(ctx, "cpuClock", stdsys_cpu_clock, 0);
 	std_addlib(ctx);
 		
@@ -3758,14 +3760,14 @@ void std_init(sylt_t* ctx) {
 }
 
 void std_sandbox(sylt_t* ctx) {
-	sylt_dprintf("Running in sandbox mode; File API and System.run() are disabled\n");
+	sylt_dprintf("Running in sandbox mode; File API and OS.exec() are disabled\n");
 
 	/* disable entire File API */
 	dict_set(ctx->vm->gdict, string_lit("File", ctx), nil(), ctx);
 
-	/* disable System.run */
-	dict_t* system = getdict(*dict_get(ctx->vm->gdict, string_lit("System", ctx)));
-	dict_set(system, string_lit("run", ctx), nil(), ctx);
+	/* disable OS.exec */
+	dict_t* system = getdict(*dict_get(ctx->vm->gdict, string_lit("OS", ctx)));
+	dict_set(system, string_lit("exec", ctx), nil(), ctx);
 }
 
 /* == compiler == */

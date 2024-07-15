@@ -129,7 +129,7 @@ args: path
 comment: Deletes a file.
 
     
-title: System
+title: OS
 
 name: version
 args:
@@ -159,11 +159,11 @@ name: halt
 args: message
 comment: Halts execution with an error message.
 
-name: time
+name: tformat
 args: fmt
 comment: Returns the current time and/or date, formatted using %H-%M-%S notation.
 
-name: timestamp
+name: tstamp
 args:
 comment: Returns a numeric timestamp accurate to a second.
 

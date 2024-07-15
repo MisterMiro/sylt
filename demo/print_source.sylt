@@ -1,6 +1,6 @@
 ## this program prints its own source code, including line numbers
 
-let src = System.src().text
+let src = OS.src().text
 let lines = String.split(src ["\n"])
 if String.endsWith("\n" src): lines += ""
 

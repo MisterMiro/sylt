@@ -174,10 +174,6 @@ comment: Returns how much CPU time was used.
     
 title: List
 
-name: length
-args: list
-comment: Returns the number of items in the list.
-
 name: get
 args: index list
 comment: Returns the value at the given index.
@@ -289,10 +285,6 @@ comment: Returns true if all values in the list satisfy the predicate f.
 
 title: Dict
 
-name: length
-args: dict
-comment: Returns the number of items (keys) in the dictionary.
-
 name: get
 args: key dict
 comment: Returns the value with the given key.
@@ -344,13 +336,13 @@ name: whitespace
 args:
 comment: A string containing all ASCII whitespace characters.
 
-name: length
-args: string
-comment: The number of characters (bytes) in the string.
-
 name: chars
 args: string
-comment: A list of all characters in the string.
+comment: A list of all the characters in a string, each as a separate string.
+
+name: ascii
+args: string
+comment: A list of all the numeric ASCII values in a string.
 
 name: join
 args: list

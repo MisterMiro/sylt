@@ -3352,6 +3352,29 @@ value_t stdfile_size(sylt_t* ctx) {
 	return wrapnum(size);
 }
 
+#include <dirent.h> 
+
+value_t stdfile_listdir(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_STRING, __func__);
+
+	list_t* ls = list_new(ctx);
+	struct dirent* dir;
+	DIR* d = opendir((const char*)stringarg(0)->bytes);
+	if (d) {
+		while ((dir = readdir(d)) != NULL) {
+			if (strncmp(dir->d_name, ".", 1) == 0) continue;
+			if (strncmp(dir->d_name, "..", 2) == 0) continue;
+
+			string_t* str = string_lit(dir->d_name, ctx);
+			list_push(ls, wrapstring(str), ctx);
+		}
+
+		closedir(d);
+	}
+
+	return wraplist(ls);
+}
+
 value_t stdfile_del(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* path = stringarg(0);
@@ -3708,6 +3731,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "read", stdfile_read, 1);
 	std_addf(ctx, "write", stdfile_write, 2);
 	std_addf(ctx, "size", stdfile_size, 1);
+	std_addf(ctx, "listdir", stdfile_listdir, 1);
 	std_addf(ctx, "del", stdfile_del, 1);
 	std_addlib(ctx);
 	

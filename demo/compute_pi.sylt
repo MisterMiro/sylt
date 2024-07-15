@@ -1,0 +1,44 @@
+## computes PI using https://en.wikipedia.org/wiki/Chudnovsky_algorithm
+
+let binary_split(a b) = do
+    let pab = 0
+    let qab = 0
+    let rab = 0
+
+    if b is a + 1: do
+        pab <- -(6 * a - 5) * (2 * a - 1) * (6 * a - 1)
+        qab <- 10939058860032000 * Math.pow(a 3)
+        rab <- pab * (545140134 * a + 13591409)
+    end
+    else do
+        let m = (a + b) / 2
+
+        let split1 = binary_split(a m)
+        let pam = List.get(0 split1)
+        let qam = List.get(1 split1)
+        let ram = List.get(2 split1)
+
+        let split2 = binary_split(m b)
+        let pmb = List.get(0 split2)
+        let qmb = List.get(1 split2)
+        let rmb = List.get(2 split2)
+        
+        pab <- pam * pmb
+        qab <- qam * qmb
+        rab <- qmb * ram + pam * rmb
+    end
+
+    [pab qab rab]
+end
+
+let chudnovsky(n) = do
+    let split = binary_split(1 n)
+    let p1n = List.get(0 split)
+    let q1n = List.get(1 split)
+    let r1n = List.get(2 split)
+    return (426880 * Math.sqrt(10005) * q1n) / (13591409 * q1n + r1n)
+end
+
+let pi = chudnovsky(5)
+printLn(pi)
+printLn(floatEq(pi Math.pi 0.00001))

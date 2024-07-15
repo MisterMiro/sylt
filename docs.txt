@@ -360,15 +360,15 @@ name: split
 args: string sep
 comment: Splits a string into a list of substrings based on a separator.
 
-name: lower
+name: lowercase
 args: string
 comment: Returns the all-lowercase version of a string.
 
-name: upper
+name: uppercase
 args: string
 comment: Returns the all-uppercase version of a string.
 
-name: swapCase
+name: swapcase
 args: string
 comment: Swaps all uppercase and lowercase letters in a string.
 

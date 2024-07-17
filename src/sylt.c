@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <math.h>
 #include <time.h>
+#include <dirent.h> 
 
 #define SYLT_VERSION_STR "Sylt Dev 0.1"
 #define SYLT_VERSION_MAJ 0
@@ -3351,8 +3352,6 @@ value_t stdfile_size(sylt_t* ctx) {
 	fseek(fp, 0, SEEK_SET);
 	return wrapnum(size);
 }
-
-#include <dirent.h> 
 
 value_t stdfile_listdir(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);

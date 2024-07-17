@@ -124,6 +124,10 @@ name: size
 args: handle
 comment: Returns the size in bytes of a file.
 
+name: listdir
+args: path
+comment: Lists all files in a directory.
+
 name: del
 args: path
 comment: Deletes a file.
@@ -151,7 +155,7 @@ name: src
 args:
 comment: Returns information about the current source code and line number.
 
-name: run
+name: exec
 args: command
 comment: Runs a command in the OS shell.
 

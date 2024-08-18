@@ -124,7 +124,7 @@ name: size
 args: handle
 comment: Returns the size in bytes of a file.
 
-name: listdir
+name: listDir
 args: path
 comment: Lists all files in a directory.
 

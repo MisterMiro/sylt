@@ -7,31 +7,35 @@ app = Flask(__name__)
 
 debug_mode = True
 sylt_binary = "bin/sylt_0.1"
-sylt_demos = "demo/"
+sylt_samples = "samples/"
 timeout = 10
 
 # converts 'example_file.sylt' to 'Example File'
-def prettify_demo_name(file):
+def prettify_sample_name(file):
     return file.replace("_", " ").replace(".sylt", "").title()
 
-# returns a list of all demos
-def get_demo_list():
-    demos = []
-    for file in os.listdir(sylt_demos):
-        demos.append((sylt_demos + file, prettify_demo_name(file)))
-    demos = sorted(demos)
+# returns a list of all samples
+def get_sample_list():
+    samples = []
+    for file in os.listdir(sylt_samples):
+        samples.append((sylt_samples + file, prettify_sample_name(file)))
+    samples = sorted(samples)
 
-    demos.append(("", ""))
-    demos.append(("src/stdlib.sylt", "Standard library"))
-    demos.append(("tests.sylt", "Tests"))
-    return demos
+    samples.append(("", ""))
+    samples.append(("src/stdlib.sylt", "Standard library"))
+    samples.append(("tests.sylt", "Tests"))
+    return samples
 
-# loads the source code of a demo from file
-def load_demo_code(file):
+# loads the source code of a sample from file
+def load_sample_code(file):
     if not file:
         return None
 
-    if not file.startswith("demo/") and file != "src/stdlib.sylt" and file != "tests.sylt":
+    ## whitelist
+    if not file.startswith("sample/") and file != "src/stdlib.sylt" and file != "tests.sylt":
+        return None
+
+    if not file.endswith(".sylt"):
         return None
     
     with open(file, "r") as file:
@@ -48,8 +52,8 @@ def run_sylt_binary(args):
 
 @app.route("/", methods=["GET"])
 def index():
-    demo = load_demo_code(request.args.get("load"))
-    return render_template("index.html", demos=get_demo_list(), code=demo)
+    sample = load_sample_code(request.args.get("load"))
+    return render_template("index.html", samples=get_sample_list(), code=sample)
 
 @app.route("/", methods=["POST"])
 def index_submit():
@@ -71,8 +75,8 @@ def index_submit():
         args.append("-d")
     output = run_sylt_binary(args)    
 
-    demos = get_demo_list()
-    return render_template("index.html", demos=demos, code=code, disassemble=disassemble, output=output)
+    samples = get_samples_list()
+    return render_template("index.html", samples=samples, code=code, disassemble=disassemble, output=output)
 
 @app.route("/docs")
 def docs():

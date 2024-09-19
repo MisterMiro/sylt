@@ -786,7 +786,7 @@ let mathLib _ = do
 	ensure(Math.lerp(-10 10 1) is 10)
 	
 	## floor + ceil + round
-	let checkRounding(n) = do
+	let checkRounding n = do
 		let low = n + 0.2
 		let mid = n + 0.5
 		let high = n + 0.8

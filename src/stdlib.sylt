@@ -113,7 +113,7 @@ let impl = do
 	Dict.set("map" map lib)
 	Dict.set("filter" filter lib)
 	Dict.set("fold" fold lib)
-        Dict.set("find" find lib)
+    Dict.set("find" find lib)
 	Dict.set("sum" sum lib)
 	Dict.set("average" average lib)
 	Dict.set("mean" mean lib)

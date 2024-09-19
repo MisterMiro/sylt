@@ -4884,10 +4884,10 @@ void let(comp_t* cmp) {
 	string_t* name = cmp->prev.lex;
 	
 	bool is_local = cmp->depth > 0;
-	if (match(cmp, T_LPAREN)) {
+	if (check(cmp, T_NAME) {
 		/* parse a function declaration
  		* in the form of
- 		* let name(p1, p2, ..) = body */
+ 		* let name p1 p2 .. = body */
  
 		/* add symbol first in order
 	 	* to support recursion */
@@ -4948,7 +4948,7 @@ void parse_func(
 	comp_open_scope(cmp);
 		
 	/* parse parameter list */
-	while (!check(&fcmp, T_RPAREN) && !check(&fcmp, T_MINUS_GT) && !check(&fcmp, T_EOF)) {
+	while (!check(&fcmp, T_EQ) && !check(&fcmp, T_MINUS_GT) && !check(&fcmp, T_EOF)) {
 		if (fcmp.func->params >= MAX_PARAMS) {
 			halt(fcmp.ctx, E_TOO_MANY_PARAMS);
 			unreachable();
@@ -4962,7 +4962,6 @@ void parse_func(
 	if (is_lambda) {
 		eat(&fcmp, T_MINUS_GT, "expected '->' after ')'");
 	} else {
-		eat(&fcmp, T_RPAREN, "expected ')' or a parameter name");
 		eat(&fcmp, T_EQ, "expected '=' after ')'");
 	}
 			

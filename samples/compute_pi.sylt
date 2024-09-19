@@ -36,7 +36,7 @@ let chudnovsky(n) = do
     let p1n = List.get(0 split)
     let q1n = List.get(1 split)
     let r1n = List.get(2 split)
-    (426880 * Math.sqrt(10005) * q1n) / (13591409 * q1n + r1n)
+    426880 * Math.sqrt(10005) * q1n / (13591409 * q1n + r1n)
 end
 
 let pi = chudnovsky(5)

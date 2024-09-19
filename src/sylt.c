@@ -4884,7 +4884,7 @@ void let(comp_t* cmp) {
 	string_t* name = cmp->prev.lex;
 	
 	bool is_local = cmp->depth > 0;
-	if (check(cmp, T_NAME) {
+	if (check(cmp, T_NAME)) {
 		/* parse a function declaration
  		* in the form of
  		* let name p1 p2 .. = body */

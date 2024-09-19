@@ -3458,11 +3458,8 @@ value_t stdmath_clamp(sylt_t* ctx) {
 	sylt_num_t x = numarg(0);
 	sylt_num_t lo = numarg(1);
 	sylt_num_t hi = numarg(2);
-	
-	if (x < lo)
-		return wrapnum(lo);
-	if (x > hi)
-		return wrapnum(hi);
+	if (x < lo) return wrapnum(lo);
+	if (x > hi) return wrapnum(hi);
 	return wrapnum(x);
 }
 
@@ -3473,7 +3470,6 @@ value_t stdmath_lerp(sylt_t* ctx) {
 	sylt_num_t a = numarg(0);
 	sylt_num_t b = numarg(1);
 	sylt_num_t t = numarg(2);
-	
 	sylt_num_t res = a * (1.0f - t) + b * t;
 	return wrapnum(res);
 }
@@ -3586,7 +3582,7 @@ static dict_t* lib_dict = NULL;
 void std_setlib(
 	sylt_t* ctx, const char* lib)
 {
-	lib_dict = dict_new(ctx);
+    lib_dict = dict_new(ctx);
 	if (strlen(lib) == 0)
 		lib_name = NULL;
 	else

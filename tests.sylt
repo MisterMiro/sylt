@@ -700,16 +700,16 @@ let stringLib _ = do
 	
 	## replace
 	let str = "Country: SE"
-	str <- String.replace(str "SE" "Sweden")
+	str <- String.replace("SE" "Sweden" str)
 	ensure(str is "Country: Sweden")
 	
-	str <- String.replace(str "Sweden" "SE")
+	str <- String.replace("Sweden" "SE" str)
 	ensure(str is "Country: SE")
 	
 	str <- "leet"
-	str <- String.replace(str "l" "1")
-	str <- String.replace(str "e" "3")
-	str <- String.replace(str "t" "7")
+	str <- String.replace("l" "1" str)
+	str <- String.replace("e" "3" str)
+	str <- String.replace("t" "7" str)
 	ensure(str is "1337")
 	
 	## leftPad

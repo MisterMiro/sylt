@@ -4383,9 +4383,9 @@ token_t scan(comp_t* cmp) {
 	case '\0': break;
 	default: halt(cmp->ctx, E_UNEXPECTED_CHAR(cmp->pos[-1]));
 	}
-	
-	return_eof:
+
 	token_t tok = token(T_EOF);
+	return_eof:
 	tok.lex = string_lit("<end of file>", cmp->ctx);
 	return tok;
 }

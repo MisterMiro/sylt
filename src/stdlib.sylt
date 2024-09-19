@@ -34,12 +34,6 @@ end
 ## List
 
 let impl = do
-    let find val ls = do
-        let index = -1
-        List.iter(fun i v -> if v is val: index <- i ls)
-        index
-    end
-
 	let iter f ls = rep(fun i -> f(i List.get(i ls)) #ls)
 	let forEach f ls = rep(fun i -> f(List.get(i ls)) #ls)
 
@@ -60,6 +54,12 @@ let impl = do
 		List.forEach(fun item -> result <- f(result item) ls)
 		result
 	end
+
+    let find val ls = do
+        let index = -1
+        List.iter(fun i v -> if v is val: index <- i ls)
+        index
+    end
 
 	let sum ls = List.fold(add 0 ls)
 	let average ls = if ls is []: 0 else List.sum(ls) / #ls
@@ -105,12 +105,12 @@ let impl = do
 	let all f ls = List.fold(fun all value -> all and f(value) true ls)
 
 	let lib = Dict.get("List" gdict)
-    Dict.set("find" find lib)
 	Dict.set("iter" iter lib)
 	Dict.set("forEach" forEach lib)
 	Dict.set("map" map lib)
 	Dict.set("filter" filter lib)
 	Dict.set("fold" fold lib)
+        Dict.set("find" find lib)
 	Dict.set("sum" sum lib)
 	Dict.set("average" average lib)
 	Dict.set("mean" mean lib)

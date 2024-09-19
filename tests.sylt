@@ -478,7 +478,7 @@ let fileLib _ = do
 	File.close(handle)
 	
 	## size
-	let handle = File.open(path "r")
+	let handle = File.open(path File.Mode.Read)
 	let size = File.size(handle)
 	ensure(size is #str)
 	File.close(handle)

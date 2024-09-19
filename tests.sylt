@@ -36,7 +36,7 @@ let strings _ = do
 	let quote = "\""
 	let tab = "\t"
 	let newline = "\n"
-	let carriage_return = "\r"
+	let carriageReturn = "\r"
 	let null = "\0"
 	
 	## ...translate properly
@@ -45,7 +45,7 @@ let strings _ = do
 	ensure(quote is "\x22")
 	ensure(tab is "\x09")
 	ensure(newline is "\x0a")
-	ensure(carriage_return is "\x0d")
+	ensure(carriageReturn is "\x0d")
 	ensure(null is "\x00")
 end
 

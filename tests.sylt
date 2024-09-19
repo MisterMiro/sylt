@@ -473,7 +473,7 @@ let fileLib _ = do
 	let str = "Hey\n"
 	
 	## open + write + close
-	let handle = File.open(path "w")
+	let handle = File.open(path File.Mode.Write)
 	File.write(handle str)
 	File.close(handle)
 	

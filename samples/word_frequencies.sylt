@@ -8,7 +8,7 @@ let text = "However, word overuse is a style issue; there's nothing 'incorrect'
     structure that is easy to follow and almost poetic to read: - J.R. @ stackexchange"
 
 let sep = String.chars(String.whitespace + String.punctuation)
-let words = String.split(text sep)
+let words = String.split(sep text)
 let frequencies = {}
 
 ## build a dictionary from the text, with each word as the key,

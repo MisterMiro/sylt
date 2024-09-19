@@ -4,8 +4,8 @@ let numbers = List.range(1..=5)
 List.del(3 numbers)
 printLn(numbers)
 
-let findTheGap() = do
-    let check(index) = do
+let findTheGap _ = do
+    let check index = do
         let num = List.get(index numbers)
         let next = List.get(index + 1 numbers)
 

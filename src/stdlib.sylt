@@ -37,6 +37,13 @@ let impl = do
 	let iter f ls = rep(fun i -> f(i List.get(i ls)) #ls)
 	let forEach f ls = rep(fun i -> f(List.get(i ls)) #ls)
 
+    let find val = do
+        let index = -1
+        List.iter(fun i v ->
+            if v is val: index <- i
+        index
+    end
+
 	let map f ls = do
 		let newList = []
 		List.forEach(fun item -> newList += f(item) ls)

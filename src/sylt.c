@@ -5302,7 +5302,7 @@ string_t* load_file(const char* path, sylt_t* ctx) {
 	/* read the file contents */
 	fread(str->bytes, 1, len, fp);
 	fclose(fp);
-	puts("3");
+	
 	string_rehash(str, ctx);
 	return str;
 }
@@ -5492,6 +5492,7 @@ void compile_and_run(sylt_t* ctx, string_t* src, string_t* name, comp_t* cmp) {
 	
 	/* scan initial token for lookahead */
 	step(cmp);
+	puts("hello");
 	cmp->prev.line = 1; /* hack */
 	
 	/* parse the entire source */
@@ -5503,7 +5504,7 @@ void compile_and_run(sylt_t* ctx, string_t* src, string_t* name, comp_t* cmp) {
 	
 	emit_nullary(cmp, OP_RET);
 	set_state(ctx, SYLT_STATE_COMPILED);
-	puts("4");
+	
 	/* load program */
 	sylt_pushclosure(ctx, closure_new(ctx, cmp->func));
 	sylt_call(ctx, 0);
@@ -5539,7 +5540,7 @@ bool sylt_xfile(
 		sylt_handle_halt(&ctx);
 		return false;
 	}
-	puts("2");
+	
 	compile_and_run(ctx, load_file(path, ctx), string_lit(path, ctx), ctx->cmp);
 	return true;
 }
@@ -5575,7 +5576,6 @@ void print_version(void) {
 int main(int argc, char *argv[]) {
 	dbg_print_flags();
 	sylt_t* ctx = sylt_new();
-	puts("1");
 	
 	int path = -1;
 	for (int i = 1; i < argc; i++) {

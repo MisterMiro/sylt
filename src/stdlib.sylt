@@ -4,7 +4,7 @@ ensure(System.version is "sylt 0.1")
 
 ## Prelude
 
-let isZero num = Math.signum(num) is Math.Sign.Zero
+let isZero num = num is 0
 let isOne num = num is 1
 let isPositive num = Math.signum(num) is Math.Sign.Positive
 let isNegative num = Math.signum(num) is Math.Sign.Negative

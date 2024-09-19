@@ -275,8 +275,6 @@ void halt(sylt_t*, const char*, ...);
 	"cannot call a value of type %s", user_type_name(tag)
 #define E_NO_LENGTH(tag) \
 	"cannot get the length of a variable of type %s", user_type_name(tag)
-#define E_INDEX_TYPE(got) \
-	"cannot use [] to index a %s", user_type_name(got)
 #define E_CONCAT_TYPE(a, b) \
 	"cannot concatenate a %s with a %s", user_type_name(a), user_type_name(b)
 #define E_ESCAPE_SEQ(code) \

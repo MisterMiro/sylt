@@ -5539,7 +5539,7 @@ bool sylt_xfile(
 		sylt_handle_halt(&ctx);
 		return false;
 	}
-	
+	puts("2");
 	compile_and_run(ctx, load_file(path, ctx), string_lit(path, ctx), ctx->cmp);
 	return true;
 }
@@ -5575,6 +5575,7 @@ void print_version(void) {
 int main(int argc, char *argv[]) {
 	dbg_print_flags();
 	sylt_t* ctx = sylt_new();
+	puts("1");
 	
 	int path = -1;
 	for (int i = 1; i < argc; i++) {

@@ -3011,11 +3011,11 @@ value_t stdstring_join(sylt_t* ctx) {
 }
 
 value_t stdstring_split(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING, __func__);
-	argcheck(ctx, 1, TYPE_LIST, __func__);
+	argcheck(ctx, 0, TYPE_LIST, __func__);
+	argcheck(ctx, 1, TYPE_STRING, __func__);
 	
-	string_t* str = stringarg(0);
-	list_t* separators = listarg(1);
+	list_t* separators = listarg(0);
+	string_t* str = stringarg(1);
 	list_t* parts = list_new(ctx);
 	
 	if (str->len == 0)

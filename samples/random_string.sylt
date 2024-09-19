@@ -1,7 +1,7 @@
 ## this program generates a string consisting of a random series of letters and digits
 
 let length = 24
-let chars = String.chars(String.letters + String.digits + String.punctuation)
+let chars = String.chars(String.letters + String.digits)
 
 ## seed the RNG using the current time so we get different random values
 ## every time we run the program

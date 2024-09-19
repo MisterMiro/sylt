@@ -64,7 +64,7 @@ let impl = do
 			List.get(#ls / 2 ls)])
 
 	let sortBy f ls = do
-		let bubbleSort(ls n) = do
+		let bubbleSort ls n = do
 			let swapped = 0
 
 			rep(fun i -> do

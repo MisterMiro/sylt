@@ -60,7 +60,6 @@ let impl = do
 
 	let sum(ls) = List.fold(add 0 ls)
 	let average(ls) = if ls is []: 0 else List.sum(ls) / #ls
-		
 	let mean(ls) = 
 		if isOdd(#ls): List.get(#ls / 2 ls)
 		else List.average([
@@ -100,7 +99,6 @@ let impl = do
 	end
 
 	let any(f ls) = List.fold(fun any value -> any or f(value) false ls)
-
 	let all(f ls) = List.fold(fun all value -> all and f(value) true ls)
 
 	let lib = Dict.get("List" gdict)

@@ -377,7 +377,7 @@ let functions _ = do
 	## a functions stack window
 	let outside = "outside"
 	let f _ = outside
-	ensure(f() is outside)
+	ensure(f(nil) is outside)
 	
 	## moving surrounding context to
 	## the heap if necessary
@@ -386,7 +386,7 @@ let functions _ = do
 		let f2 _ = keep
 		f2
 	end
-	ensure(f()() is "jewel")
+	ensure(f(nil)(nil) is "jewel")
 	
 	## anonymous functions using 'fun'
 	let anon = fun r s t -> r * s * t

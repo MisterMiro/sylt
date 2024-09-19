@@ -1,0 +1,4 @@
+## runs all sample files
+
+let samples = File.listDir("samples/")
+List.forEach(System.exec(s) samples)

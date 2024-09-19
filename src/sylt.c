@@ -4884,7 +4884,7 @@ void let(comp_t* cmp) {
 	string_t* name = cmp->prev.lex;
 	
 	bool is_local = cmp->depth > 0;
-	if (match(cmp, T_LPAREN) || check(cmp, T_NAME)) {
+	if (match(cmp, T_LPAREN) || match(cmp, T_NAME)) {
 		/* parse a function declaration
  		* in the form of
  		* let name(p1, p2, ..) = body */
@@ -4947,7 +4947,7 @@ void parse_func(
 	
 	comp_open_scope(cmp);
 
-	bool used_paren = check(&fcmp, T_RPAREN);
+	bool used_paren = check(&fcmp, T_LPAREN);
 		
 	/* parse parameter list */
 	while (!check(&fcmp, T_RPAREN) && !check(&fcmp, T_NAME) && !check(&fcmp, T_MINUS_GT) && !check(&fcmp, T_EOF)) {

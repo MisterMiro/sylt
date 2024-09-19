@@ -363,11 +363,11 @@ let functions _ = do
 	ensure(empty() is nil)
 	
 	## argument passing
-	let add(a b) = a + b
+	let add a b = a + b
 	ensure(add(3 4) is 7)
 	
 	## arguments + local variables
-	let add(a b) = do
+	let add a b = do
 		let stack_mate = 18
 		a + b
 	end
@@ -376,12 +376,12 @@ let functions _ = do
 	## accessing variable outside of
 	## a functions stack window
 	let outside = "outside"
-	let f() = outside
+	let f _ = outside
 	ensure(f() is outside)
 	
 	## moving surrounding context to
 	## the heap if necessary
-	let f() = do
+	let f _ = do
 		let keep = "jewel"
 		let f2() = keep
 		f2
@@ -393,7 +393,7 @@ let functions _ = do
 	ensure(anon(2 4 8) is 64)
 	
 	## recursion
-	let clear(ls) = if ls not []: do
+	let clear ls = if ls not []: do
 		ls -= 1
 		clear(ls)
 	end
@@ -417,8 +417,7 @@ let ifElse _ = do
 	
 	## else if / chaining
 	let i = 10
-	let result =
-		if i < 0: "A"
+	let result = if i < 0: "A"
 		else if i > 0: "B"
 		else "C"
 	ensure(result is "B")

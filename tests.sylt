@@ -359,7 +359,7 @@ end
 
 let functions _ = do
 	## empty body returns nil
-	let empty() = do end
+	let empty _ = do end
 	ensure(empty() is nil)
 	
 	## argument passing

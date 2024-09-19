@@ -11,6 +11,9 @@ let isOdd num = isOne(num % 2)
 let isPositive num = Math.signum(num) is Math.Sign.Positive
 let isNegative num = Math.signum(num) is Math.Sign.Negative
 
+let twice num = num * 2
+let half num = num / 2
+
 let add a b = a + b
 let sub a b = a - b
 let mul a b = a * b
@@ -165,9 +168,9 @@ let impl = do
 		let text = ""
 		let n = (w - #str) / #pattern
 
-		rep(fun _ -> text += pattern n / 2)
+		rep(fun _ -> text += pattern half(n))
 		text += str
-		rep(fun _ -> text += pattern n / 2)
+		rep(fun _ -> text += pattern half(n))
 		text
 	end
 

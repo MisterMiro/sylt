@@ -67,10 +67,10 @@
  * super slow but good for bug hunting */
 #define DBG_GC_EVERY_ALLOC 1
 
-#define DBG_PRINT_SYLT_STATE 0
-#define DBG_PRINT_GC_STATE 0
-#define DBG_PRINT_TOKENS 0
-#define DBG_PRINT_NAMES 0
+#define DBG_PRINT_SYLT_STATE 1
+#define DBG_PRINT_GC_STATE 1
+#define DBG_PRINT_TOKENS 1
+#define DBG_PRINT_NAMES 1
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
 

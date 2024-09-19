@@ -474,7 +474,7 @@ let fileLib _ = do
 	
 	## open + write + close
 	let handle = File.open(path File.Mode.Write)
-	File.write(handle str)
+	File.write(str handle)
 	File.close(handle)
 	
 	## size
@@ -485,7 +485,7 @@ let fileLib _ = do
 	
 	## read
 	let handle = File.open(path "r")
-	let contents = File.read(handle size)
+	let contents = File.read(size handle)
 	ensure(contents is str)
 	File.close(handle)
 	

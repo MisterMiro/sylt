@@ -1,6 +1,6 @@
 ## this program generates a string consisting of a random series of letters and digits
 
-let length = 24
+let length = 12
 let chars = String.chars(String.letters + String.digits)
 
 ## seed the RNG using the current time so we get different random values

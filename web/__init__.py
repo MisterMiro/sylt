@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 debug_mode = True
-sylt_binary = "bin/sylt_0.1"
+sylt_binary = "sylt"
 sylt_samples = "samples/"
 timeout = 10
 

@@ -42,15 +42,15 @@ let impl = do
 	let forEach f ls = rep(fun i -> f(List.get(i ls)) #ls)
 
 	let map f ls = do
-		let newList = []
-		List.forEach(fun item -> newList += f(item) ls)
-		newList
+		let new = []
+		List.forEach(fun item -> new += f(item) ls)
+		new
 	end
 
 	let filter f ls = do
-		let newList = []
-		List.forEach(fun item -> if f(item): newList += item ls)
-		newList
+		let new = []
+		List.forEach(fun item -> if f(item): new += item ls)
+		new
 	end
 
 	let fold f init ls = do
@@ -94,15 +94,15 @@ let impl = do
 	let sort ls = sortBy(fun a b -> a > b ls)
 
 	let flatten ls = do
-		let newList = []
-		List.forEach(fun item -> newList += if typeOf(item) is "List": List.flatten(item) else item ls)
-		newList
+		let new = []
+		List.forEach(fun item -> new += if typeOf(item) is "List": List.flatten(item) else item ls)
+		new
 	end
 
 	let dedup ls = do
-		let newList = []
-		List.forEach(fun item -> if not List.contains(item newList): newList += item ls)
-		newList
+		let new = []
+		List.forEach(fun item -> if not List.contains(item new): new += item ls)
+		new
 	end
 
 	let any f ls = List.fold(fun any value -> any or f(value) false ls)

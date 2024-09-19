@@ -4,7 +4,7 @@ let isPrime n = do
     if n < 2: return false
     let check index = if num is index: true
         else if num % index is 0: false
-        else check(i + 1)
+        else check(index + 1)
     check(2)
 end
 

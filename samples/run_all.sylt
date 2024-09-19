@@ -1,4 +1,6 @@
 ## runs all sample files
+let ls = [1 2 3]
+printLn(List.find(2 ls))
 
 let samples = File.listDir("samples/")
 samples <- List.del(List.find("run_all.sylt" samples) samples)

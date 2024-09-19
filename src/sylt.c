@@ -1899,11 +1899,11 @@ void dbg_print_header(const vm_t* vm, const closure_t* cls) {
 	sylt_dprintf("stack %ld/%ld\n", used, vm->maxstack);
 	
 	sylt_dprintf(
-		"%ld bytes, "
-		"%ld constants, "
-		"%ld slots, "
+		"%zu bytes, "
+		"%zu constants, "
+		"%zu slots, "
 		"%d params, "
-		"%ld upvals\n",
+		"%zu upvals\n",
 		func->ncode,
 		func->ndata,
 		func->slots,
@@ -2044,7 +2044,7 @@ void dbg_print_stack(const vm_t* vm, const func_t* func) {
 	value_t* v = start;
 	
 	if (diff > maxvals)
-		sylt_dprintf("             [ <+%ld, ", diff - maxvals);
+		sylt_dprintf("             [ <+%zu, ", diff - maxvals);
 	else
 		sylt_dprintf("             [ ");
 	
@@ -5368,7 +5368,7 @@ void print_stack_trace(const sylt_t* ctx) {
 
 	for (int64_t i = ctx->vm->nframes - 1; i >= 0; i--) {
 		const cframe_t* frame = &ctx->vm->frames[i];
-		sylt_eprintf("  %ld. ", i);
+		sylt_eprintf("  %zu. ", i);
 
 		if (i == (int64_t)ctx->vm->nframes - 1)
 			sylt_eprintf(">");
@@ -5485,7 +5485,7 @@ void sylt_free(sylt_t* ctx) {
 	assert(ctx->mem.gc.pause_depth == 0);
 	ptrdiff_t bytesleft = ctx->mem.bytes - sizeof(sylt_t);
 	if (bytesleft)
-		sylt_dprintf("%ld bytes leaked\n", bytesleft);
+		sylt_dprintf("%zu bytes leaked\n", bytesleft);
 	assert(!bytesleft);
 	
 	set_state(ctx, SYLT_STATE_FREE);

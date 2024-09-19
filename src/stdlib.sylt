@@ -4,26 +4,26 @@ ensure(System.version is "sylt 0.1")
 
 ## Prelude
 
-let isZero(n) = Math.signum(n) is Math.Sign.Zero
-let isOne(n) = n is 1
-let isPositive(n) = Math.signum(n) is Math.Sign.Positive
-let isNegative(n) = Math.signum(n) is Math.Sign.Negative
-let isEven(n) = n % 2 is 0
-let isOdd(n) = n % 2 is 1
+let isZero n = Math.signum(n) is Math.Sign.Zero
+let isOne n = n is 1
+let isPositive n = Math.signum(n) is Math.Sign.Positive
+let isNegative n = Math.signum(n) is Math.Sign.Negative
+let isEven n = n % 2 is 0
+let isOdd n = n % 2 is 1
 
-let add(a b) = a + b
-let sub(a b) = a - b
-let mul(a b) = a * b
-let div(a b) = a / b
-let rem(a b) = a % b
+let add a b = a + b
+let sub a b = a - b
+let mul a b = a * b
+let div a b = a / b
+let rem a b = a % b
 
-let makeEnum(ls) = do
+let makeEnum ls = do
 	let enum = {}
 	List.iter(fun index name -> Dict.set(name index enum) ls)
 	enum
 end
 
-let rep(f n) = do
+let rep f n = do
 	let i = 0
 	while i < n: do
 		f(i)
@@ -34,36 +34,36 @@ end
 ## List
 
 let impl = do
-	let iter(f ls) = rep(fun i -> f(i List.get(i ls)) #ls)
-	let forEach(f ls) = rep(fun i -> f(List.get(i ls)) #ls)
+	let iter f ls = rep(fun i -> f(i List.get(i ls)) #ls)
+	let forEach f ls = rep(fun i -> f(List.get(i ls)) #ls)
 
-	let map(f ls) = do
+	let map f ls = do
 		let newList = []
 		List.forEach(fun item -> newList += f(item) ls)
 		newList
 	end
 
-	let filter(f ls) = do
+	let filter f ls = do
 		let newList = []
 		List.forEach(fun item -> if f(item): newList += item ls)
 		newList
 	end
 
-	let fold(f init ls) = do
+	let fold f init ls = do
 		let result = init
 		List.forEach(fun item -> result <- f(result item) ls)
 		result
 	end
 
-	let sum(ls) = List.fold(add 0 ls)
-	let average(ls) = if ls is []: 0 else List.sum(ls) / #ls
-	let mean(ls) = 
+	let sum ls = List.fold(add 0 ls)
+	let average ls = if ls is []: 0 else List.sum(ls) / #ls
+	let mean ls = 
 		if isOdd(#ls): List.get(#ls / 2 ls)
 		else List.average([
 			List.get(#ls / 2 - 1 ls)
 			List.get(#ls / 2 ls)])
 
-	let sortBy(f ls) = do
+	let sortBy f ls = do
 		let bubbleSort(ls n) = do
 			let swapped = 0
 
@@ -81,22 +81,22 @@ let impl = do
 		if n > 1: bubbleSort(ls n)
 	end
 
-	let sort(ls) = sortBy(fun a b -> a > b ls)
+	let sort ls = sortBy(fun a b -> a > b ls)
 
-	let flatten(ls) = do
+	let flatten ls = do
 		let newList = []
 		List.forEach(fun item -> newList += if typeOf(item) is "List": List.flatten(item) else item ls)
 		newList
 	end
 
-	let dedup(ls) = do
+	let dedup ls = do
 		let newList = []
 		List.forEach(fun item -> if not List.contains(item newList): newList += item ls)
 		newList
 	end
 
-	let any(f ls) = List.fold(fun any value -> any or f(value) false ls)
-	let all(f ls) = List.fold(fun all value -> all and f(value) true ls)
+	let any f ls = List.fold(fun any value -> any or f(value) false ls)
+	let all f ls = List.fold(fun all value -> all and f(value) true ls)
 
 	let lib = Dict.get("List" gdict)
 	Dict.set("iter" iter lib)
@@ -118,12 +118,12 @@ end
 ## Dict
 
 let impl = do
-	let getOrDefault(key default dc) = if Dict.hasKey(key dc): Dict.get(key dc)
+	let getOrDefault key default dc = if Dict.hasKey(key dc): Dict.get(key dc)
 		else default
 
-	let iter(f dc) = List.forEach(fun key -> f(key Dict.get(key dc)) Dict.keys(dc))
+	let iter f dc = List.forEach(fun key -> f(key Dict.get(key dc)) Dict.keys(dc))
 
-	let toList(dc) = do
+	let toList dc = do
 		let ls = []
 		Dict.iter(fun k v -> ls += [[k v]] dc)
 		ls
@@ -138,7 +138,7 @@ end
 ## String
 
 let impl = do
-	let leftPad(str w pattern) = do
+	let leftPad str w pattern = do
 		let text = ""
 		let n = (w - #str) / #pattern
 
@@ -146,7 +146,7 @@ let impl = do
 		text + str
 	end
 
-	let rightPad(str w pattern) = do
+	let rightPad str w pattern = do
 		let text = str
 		let n = (w - #str) / #pattern
 
@@ -154,7 +154,7 @@ let impl = do
 		text
 	end
 
-	let centerPad(str w pattern) = do
+	let centerPad str w pattern = do
 		let text = ""
 		let n = (w - #str) / #pattern
 
@@ -191,8 +191,8 @@ end
 let impl = do
 	let Sign = makeEnum(["Negative" "Zero" "Positive"])
 
-	let signum(num) = if num < 0: Sign.Negative
-		else if num is 0: Sign.Zero
+	let signum n = if n < 0: Sign.Negative
+		else if n is 0: Sign.Zero
 		else Sign.Positive
 
 	let lib = Dict.get("Math" gdict)
@@ -209,58 +209,58 @@ let impl = do
 		"z": z
 	}
 
-	let dot(a b) = a.x * b.x + a.y * b.y + a.z * b.z
+	let dot a b = a.x * b.x + a.y * b.y + a.z * b.z
 
-	let cross(a b) = Vec3.new(
+	let cross a b = Vec3.new(
 		a.y * b.z - a.z * b.y
 		a.z * b.x - a.x * b.z
 		a.x * b.y - a.y * b.x)
 
-	let sizeSquared(v) = Vec3.dot(v v)
+	let sizeSquared v = Vec3.dot(v v)
 
-	let size(v) = Math.sqrt(sizeSquared(v))
+	let size v = Math.sqrt(sizeSquared(v))
 
-	let norm(v) = Vec3.new(
+	let norm v = Vec3.new(
 		v.x / Vec3.size(v)
 		v.y / Vec3.size(v)
 		v.z / Vec3.size(v))
 
-	let add(a b) = Vec3.new(
+	let add a b = Vec3.new(
 		a.x + b.x
 		a.y + b.y
 		a.z + b.z)
 
-	let sub(a b) = Vec3.new(
+	let sub a b = Vec3.new(
 		a.x - b.x
 		a.y - b.y
 		a.z - b.z)
 
-	let mul(a b) = Vec3.new(
+	let mul a b = Vec3.new(
 		a.x * b.x
 		a.y * b.y
 		a.z * b.z)
 
-	let div(a b) = Vec3.new(
+	let div a b = Vec3.new(
 		a.x / b.x
 		a.y / b.y
 		a.z / b.z)
 
-	let addScalar(v s) = Vec3.new(
+	let addScalar v s = Vec3.new(
 		v.x + s
 		v.y + s
 		v.z + s)
 
-	let subScalar(v s) = Vec3.new(
+	let subScalar v s = Vec3.new(
 		v.x - s
 		v.y - s
 		v.z - s)
 
-	let mulScalar(v s) = Vec3.new(
+	let mulScalar v s = Vec3.new(
 		v.x * s
 		v.y * s
 		v.z * s)
 
-	let divScalar(v s) = Vec3.new(
+	let divScalar v s = Vec3.new(
 		v.x / s
 		v.y / s
 		v.z / s)
@@ -285,10 +285,10 @@ end
 ## Rand
 
 let impl = do
-	let fiftyFifty() = Rand.range(0..1) > 0.5
-	let oneIn(n) = Rand.range(0..n) < 1
-	let item(ls) = List.get(Rand.range(0..#ls) ls)
-	let scramble(ls) = List.sortBy(fun _ _ -> fiftyFifty() ls)
+	let fiftyFifty _ = Rand.range(0..1) > 0.5
+	let oneIn n = Rand.range(0..n) < 1
+	let item ls = List.get(Rand.range(0..#ls) ls)
+	let scramble ls = List.sortBy(fun _ _ -> fiftyFifty() ls)
 
 	let lib = Dict.get("Rand" gdict)
 	Dict.set("fiftyFifty" fiftyFifty lib)

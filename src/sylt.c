@@ -11,7 +11,7 @@
 #include <time.h>
 #include <dirent.h> 
 
-#define SYLT_VERSION_STR "Sylt Dev 0.1"
+#define SYLT_VERSION_STR "sylt 0.1"
 #define SYLT_VERSION_MAJ 0
 #define SYLT_VERSION_MIN 1
 #define SYLT_VERSION_REV 0

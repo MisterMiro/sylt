@@ -871,10 +871,10 @@ let tests = List.flatten([
 	"Standard library"
 	[
 		preludeLib
-		##fileLib
 		listLib
 		dictLib
 		stringLib
+        fileLib,
 		mathLib
 	]
 ])

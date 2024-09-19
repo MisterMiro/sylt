@@ -133,7 +133,7 @@ args: path
 comment: Deletes a file.
 
     
-title: OS
+title: System
 
 name: version
 args:
@@ -163,11 +163,11 @@ name: halt
 args: message
 comment: Halts execution with an error message.
 
-name: tformat
+name: timeFormat
 args: fmt
 comment: Returns the current time and/or date, formatted using %H-%M-%S notation.
 
-name: tstamp
+name: timeStamp
 args:
 comment: Returns a numeric timestamp accurate to a second.
 
@@ -189,6 +189,10 @@ comment: Sets the value at the given index.
 name: swap
 args: indexA indexB list
 comment: Swaps the values at the provided indices.
+
+name: find
+args: value ls
+comment: Returns the index of the value in the list.
 
 name: add
 args: index value list

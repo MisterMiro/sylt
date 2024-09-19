@@ -11,20 +11,20 @@ let OpCode = makeEnum([
     "Ret"
 ])
 
-let exec(program) = do
+let exec program = do
     ensure(List.last(program) is OpCode.Ret)
     
     let ip = 0
     let stack = []
 
-    let read() = do
+    let read _ = do
         let code = List.get(ip program)
         ip += 1
         code
     end
 
-    let push(value) = List.push(value stack)
-    let pop() = List.pop(stack)
+    let push value = List.push(value stack)
+    let pop _ = List.pop(stack)
 
     let run = true
     while run: do

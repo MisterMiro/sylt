@@ -2771,7 +2771,7 @@ value_t stdsys_halt(sylt_t* ctx) {
 	return nil();
 }
 
-value_t stdsys_tformat(sylt_t* ctx) {
+value_t stdsys_time_format(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* fmt = stringarg(0);
 	
@@ -2787,7 +2787,7 @@ value_t stdsys_tformat(sylt_t* ctx) {
     return wrapstring(str);
 }
 
-value_t stdsys_tstamp(sylt_t* ctx) {
+value_t stdsys_time_stamp(sylt_t* ctx) {
 	(void)ctx;
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -3651,8 +3651,8 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "unreachable", std_unreachable, 0);
 	std_addlib(ctx);
 
-	/* os */
-	std_setlib(ctx, "OS");
+	/* system */
+	std_setlib(ctx, "System");
 	std_add(ctx, "version",	wrapstring(string_lit(SYLT_VERSION_STR, ctx)));
 	std_add(ctx, "platform", wrapstring(string_lit(get_platform(), ctx)));
 	std_addf(ctx, "memInfo", stdsys_mem_info, 0);
@@ -3660,8 +3660,8 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "src", stdsys_src, 0);
 	std_addf(ctx, "exec", stdsys_exec, 1);
 	std_addf(ctx, "halt", stdsys_halt, 1);
-	std_addf(ctx, "tformat", stdsys_tformat, 1);
-	std_addf(ctx, "tstamp", stdsys_tstamp, 0);
+	std_addf(ctx, "timeFormat", stdsys_time_format, 1);
+	std_addf(ctx, "timeStamp", stdsys_time_stamp, 0);
 	std_addf(ctx, "cpuClock", stdsys_cpu_clock, 0);
 	std_addlib(ctx);
 		

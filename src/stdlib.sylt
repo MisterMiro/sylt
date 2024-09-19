@@ -1,1 +1,300 @@
 
+## note: most of the standard library is
+## implemented in C
+
+ensure(System.version is "sylt 0.1")
+
+## Prelude
+
+let isZero(num) = Math.signum(num) is Math.Sign.Zero
+let isOne(num) = num is 1
+let isPositive(num) = Math.signum(num) is Math.Sign.Positive
+let isNegative(num) = Math.signum(num) is Math.Sign.Negative
+let isEven(num) = num % 2 is 0
+let isOdd(num) = num % 2 is 1
+
+let add(a b) = a + b
+let sub(a b) = a - b
+let mul(a b) = a * b
+let div(a b) = a / b
+let rem(a b) = a % b
+
+let makeEnum(ls) = do
+	let enum = {}
+	List.iter(fun index name -> Dict.set(name index enum) ls)
+	enum
+end
+
+let rep(f n) = do
+	let i = 0
+	while i < n: do
+		f(i)
+		i += 1
+	end
+end
+
+## List
+
+let impl = do
+	let iter(f ls) = rep(fun i -> f(i List.get(i ls)) #ls)
+	let forEach(f ls) = rep(fun i -> f(List.get(i ls)) #ls)
+
+	let map(f ls) = do
+		let newList = []
+		List.forEach(fun item -> newList += f(item) ls)
+		newList
+	end
+
+	let filter(f ls) = do
+		let newList = []
+		List.forEach(fun item -> if f(item): newList += item ls)
+		newList
+	end
+
+	let fold(f init ls) = do
+		let result = init
+		List.forEach(fun item -> result <- f(result item) ls)
+		result
+	end
+
+	let sum(ls) = List.fold(add 0 ls)
+	let average(ls) = if ls is []: 0 else List.sum(ls) / #ls
+	let mean(ls) = 
+		if isOdd(#ls): List.get(#ls / 2 ls)
+		else List.average([
+			List.get(#ls / 2 - 1 ls)
+			List.get(#ls / 2 ls)])
+
+	let sortBy(f ls) = do
+		let bubbleSort(ls n) = do
+			let swapped = 0
+
+			rep(fun i -> do
+				if f(List.get(i ls) List.get(i + 1 ls)): do
+					List.swap(i i + 1 ls)
+					swapped += 1
+				end
+			end n - 1)
+
+			if swapped not 0: bubbleSort(ls n - 1)
+		end
+
+		let n = #ls
+		if n > 1: bubbleSort(ls n)
+	end
+
+	let sort(ls) = sortBy(fun a b -> a > b ls)
+
+	let flatten(ls) = do
+		let newList = []
+		List.forEach(fun item -> newList += if typeOf(item) is "List": List.flatten(item) else item ls)
+		newList
+	end
+
+	let dedup(ls) = do
+		let newList = []
+		List.forEach(fun item -> if not List.contains(item newList): newList += item ls)
+		newList
+	end
+
+	let any(f ls) = List.fold(fun any value -> any or f(value) false ls)
+	let all(f ls) = List.fold(fun all value -> all and f(value) true ls)
+
+	let lib = Dict.get("List" gdict)
+	Dict.set("iter" iter lib)
+	Dict.set("forEach" forEach lib)
+	Dict.set("map" map lib)
+	Dict.set("filter" filter lib)
+	Dict.set("fold" fold lib)
+	Dict.set("sum" sum lib)
+	Dict.set("average" average lib)
+	Dict.set("mean" mean lib)
+	Dict.set("sortBy" sortBy lib)
+	Dict.set("sort" sort lib)
+	Dict.set("flatten" flatten lib)
+	Dict.set("dedup" dedup lib)
+	Dict.set("any" any lib)
+	Dict.set("all" all lib)
+end
+
+## Dict
+
+let impl = do
+	let getOrDefault(key default dc) = if Dict.hasKey(key dc): Dict.get(key dc)
+		else default
+
+	let iter(f dc) = List.forEach(fun key -> f(key Dict.get(key dc)) Dict.keys(dc))
+
+	let toList(dc) = do
+		let ls = []
+		Dict.iter(fun k v -> ls += [[k v]] dc)
+		ls
+	end
+
+	let lib = Dict.get("Dict" gdict)
+	Dict.set("getOrDefault" getOrDefault lib)
+	Dict.set("iter" iter lib)
+	Dict.set("toList" toList lib)
+end
+
+## String
+
+let impl = do
+	let leftPad(str w pattern) = do
+		let text = ""
+		let n = (w - #str) / #pattern
+
+		rep(fun _ -> text += pattern n)
+		text + str
+	end
+
+	let rightPad(str w pattern) = do
+		let text = str
+		let n = (w - #str) / #pattern
+
+		rep(fun _ -> text += pattern n)
+		text
+	end
+
+	let centerPad(str w pattern) = do
+		let text = ""
+		let n = (w - #str) / #pattern
+
+		rep(fun _ -> text += pattern n / 2)
+		text += str
+		rep(fun _ -> text += pattern n / 2)
+		text
+	end
+
+	let lib = Dict.get("String" gdict)
+	Dict.set("leftPad" leftPad lib)
+	Dict.set("rightPad" rightPad lib)
+	Dict.set("centerPad" centerPad lib)
+end
+
+## File
+
+let impl = do
+	let Mode = makeEnum([
+		"Read"
+		"ReadBinary"
+		"Write"
+		"WriteBinary"
+		"Append"
+		"AppendBinary"
+	])
+
+	let lib = Dict.get("File" gdict)
+	Dict.set("Mode" Mode lib)
+end
+
+## Math
+
+let impl = do
+	let Sign = makeEnum(["Negative" "Zero" "Positive"])
+
+	let signum(num) = if num < 0: Sign.Negative
+		else if num is 0: Sign.Zero
+		else Sign.Positive
+
+	let lib = Dict.get("Math" gdict)
+	Dict.set("Sign" Sign lib)
+	Dict.set("signum" signum lib)
+end
+
+## Vec3
+
+let impl = do
+	let new(x y z) = {
+		"x": x
+		"y": y
+		"z": z
+	}
+
+	let dot(a b) = a.x * b.x + a.y * b.y + a.z * b.z
+
+	let cross(a b) = Vec3.new(
+		a.y * b.z - a.z * b.y
+		a.z * b.x - a.x * b.z
+		a.x * b.y - a.y * b.x)
+
+	let sizeSquared(v) = Vec3.dot(v v)
+
+	let size(v) = Math.sqrt(sizeSquared(v))
+
+	let norm(v) = Vec3.new(
+		v.x / Vec3.size(v)
+		v.y / Vec3.size(v)
+		v.z / Vec3.size(v))
+
+	let add(a b) = Vec3.new(
+		a.x + b.x
+		a.y + b.y
+		a.z + b.z)
+
+	let sub(a b) = Vec3.new(
+		a.x - b.x
+		a.y - b.y
+		a.z - b.z)
+
+	let mul(a b) = Vec3.new(
+		a.x * b.x
+		a.y * b.y
+		a.z * b.z)
+
+	let div(a b) = Vec3.new(
+		a.x / b.x
+		a.y / b.y
+		a.z / b.z)
+
+	let addScalar(v s) = Vec3.new(
+		v.x + s
+		v.y + s
+		v.z + s)
+
+	let subScalar(v s) = Vec3.new(
+		v.x - s
+		v.y - s
+		v.z - s)
+
+	let mulScalar(v s) = Vec3.new(
+		v.x * s
+		v.y * s
+		v.z * s)
+
+	let divScalar(v s) = Vec3.new(
+		v.x / s
+		v.y / s
+		v.z / s)
+
+	let lib = Dict.get("Vec3" gdict)
+	Dict.set("new" new lib)
+	Dict.set("dot" dot lib)
+	Dict.set("cross" cross lib)
+	Dict.set("sizeSquared" sizeSquared lib)
+	Dict.set("size" size lib)
+	Dict.set("norm" norm lib)
+	Dict.set("add" add lib)
+	Dict.set("sub" sub lib)
+	Dict.set("mul" mul lib)
+	Dict.set("div" mul lib)
+	Dict.set("addScalar" addScalar lib)
+	Dict.set("subScalar" subScalar lib)
+	Dict.set("mulScalar" mulScalar lib)
+	Dict.set("divScalar" divScalar lib)
+end
+
+## Rand
+
+let impl = do
+	let fiftyFifty() = Rand.range(0..1) > 0.5
+	let oneIn(n) = Rand.range(0..n) < 1
+	let item(ls) = List.get(Rand.range(0..#ls) ls)
+	let scramble(ls) = List.sortBy(fun _ _ -> fiftyFifty() ls)
+
+	let lib = Dict.get("Rand" gdict)
+	Dict.set("fiftyFifty" fiftyFifty lib)
+	Dict.set("oneIn" oneIn lib)
+	Dict.set("item" item lib)
+	Dict.set("scramble" scramble lib)
+end

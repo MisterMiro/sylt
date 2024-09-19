@@ -1,6 +1,6 @@
 ## computes PI using https://en.wikipedia.org/wiki/Chudnovsky_algorithm
 
-let binary_split(a b) = do
+let binary_split a b = do
     let pab = 0
     let qab = 0
     let rab = 0
@@ -31,7 +31,7 @@ let binary_split(a b) = do
     [pab qab rab]
 end
 
-let chudnovsky(n) = do
+let chudnovsky n = do
     let split = binary_split(1 n)
     let p1n = List.get(0 split)
     let q1n = List.get(1 split)

@@ -266,7 +266,7 @@ let variables _ = do
 	let func _ = do
 		y <- 333
 	end
-	func()
+	func(nil)
 	ensure(y is 333)
 	
 	## assigning closed upvalue
@@ -276,7 +276,7 @@ let variables _ = do
 			z <- 900
 		in
 	end
-	let z = out()()
+	let z = out(nil)(nil)
 	ensure(z is 900)
 	
 	## chaining assignments

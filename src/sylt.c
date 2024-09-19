@@ -1460,7 +1460,7 @@ static string_t* val_tostring(value_t, sylt_t*);
 void sylt_concat(sylt_t* ctx) {
 	value_t b = sylt_peek(ctx, 0);
 	value_t a = sylt_peek(ctx, 1);
-	value_t result;
+	value_t result = nil();
 	
 	if (a.tag == TYPE_LIST || b.tag == TYPE_LIST) {
 		if (a.tag == TYPE_LIST && b.tag == TYPE_LIST) {

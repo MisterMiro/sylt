@@ -383,7 +383,7 @@ let functions _ = do
 	## the heap if necessary
 	let f _ = do
 		let keep = "jewel"
-		let f2() = keep
+		let f2 _ = keep
 		f2
 	end
 	ensure(f()() is "jewel")

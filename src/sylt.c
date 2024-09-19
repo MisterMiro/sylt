@@ -5492,7 +5492,6 @@ void compile_and_run(sylt_t* ctx, string_t* src, string_t* name, comp_t* cmp) {
 	
 	/* scan initial token for lookahead */
 	step(cmp);
-	puts("hello");
 	cmp->prev.line = 1; /* hack */
 	
 	/* parse the entire source */
@@ -5504,7 +5503,7 @@ void compile_and_run(sylt_t* ctx, string_t* src, string_t* name, comp_t* cmp) {
 	
 	emit_nullary(cmp, OP_RET);
 	set_state(ctx, SYLT_STATE_COMPILED);
-	
+	puts("hello");
 	/* load program */
 	sylt_pushclosure(ctx, closure_new(ctx, cmp->func));
 	sylt_call(ctx, 0);

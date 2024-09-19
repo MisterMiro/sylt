@@ -3218,9 +3218,9 @@ value_t stdstring_replace(sylt_t* ctx) {
 	argcheck(ctx, 1, TYPE_STRING, __func__);
 	argcheck(ctx, 2, TYPE_STRING, __func__);
 	
-	string_t* str = stringarg(0);
-	string_t* find = stringarg(1);
-	string_t* replace = stringarg(2);
+	string_t* find = stringarg(0);
+	string_t* replace = stringarg(1);
+	string_t* str = stringarg(2);
 	string_t* new_str = string_lit("", ctx);
 		
 	for (size_t i = 0; i < str->len;) {

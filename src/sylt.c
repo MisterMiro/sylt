@@ -1894,7 +1894,7 @@ void dbg_print_header(const vm_t* vm, const closure_t* cls) {
 	sylt_dprintf("(%d/%d), ",(int)vm->nframes, MAX_CFRAMES);
 	
 	size_t used = vm->sp - vm->stack;
-	sylt_dprintf("stack %ld/%ld\n", used, vm->maxstack);
+	sylt_dprintf("stack %zu/%zu\n", used, vm->maxstack);
 	
 	sylt_dprintf(
 		"%zu bytes, "
@@ -5366,7 +5366,7 @@ void print_stack_trace(const sylt_t* ctx) {
 
 	for (int64_t i = ctx->vm->nframes - 1; i >= 0; i--) {
 		const cframe_t* frame = &ctx->vm->frames[i];
-		sylt_eprintf("  %zu. ", i);
+		sylt_eprintf("  %lld. ", i);
 
 		if (i == (int64_t)ctx->vm->nframes - 1)
 			sylt_eprintf(">");

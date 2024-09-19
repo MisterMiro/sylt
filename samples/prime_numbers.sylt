@@ -1,12 +1,10 @@
 ## code for checking whether a number is prime
 
-let isPrime(num) = do
-    if num < 2: return false
-    
-    let check(i) = if num is i: true
-        else if num % i is 0: false
+let isPrime n = do
+    if n < 2: return false
+    let check index = if num is index: true
+        else if num % index is 0: false
         else check(i + 1)
-
     check(2)
 end
 

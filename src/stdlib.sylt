@@ -11,8 +11,9 @@ let isOdd num = isOne(num % 2)
 let isPositive num = Math.signum(num) is Math.Sign.Positive
 let isNegative num = Math.signum(num) is Math.Sign.Negative
 
-let twice num = num * 2
 let half num = num / 2
+let twice num = num * 2
+let squared num = num * num
 
 let add a b = a + b
 let sub a b = a - b

@@ -4402,7 +4402,8 @@ void step(comp_t* cmp) {
 	cmp->prev = cmp->cur;
 	
 	#if DBG_PRINT_TOKENS
-	sylt_dprintf("%-4d '%.*s'\n", cmp->prev.tag, cmp->prev.len, cmp->prev.start);
+	sylt_dprintf("%-4d '%.*s'\n", cmp->prev.tag,
+		(int)cmp->prev.lex->len, cmp->prev.lex->bytes);
 	#endif
 	
 	cmp->cur = scan(cmp);

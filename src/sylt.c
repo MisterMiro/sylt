@@ -69,8 +69,6 @@
 
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
-#define DBG_PRINT_TOKENS 0
-#define DBG_PRINT_NAMES 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
 
@@ -81,8 +79,6 @@
 #define DBG_GC_EVERY_ALLOC 0
 #define DBG_PRINT_SYLT_STATE 0
 #define DBG_PRINT_GC_STATE 0
-#define DBG_PRINT_TOKENS 0
-#define DBG_PRINT_NAMES 0
 #define DBG_PRINT_DATA 0
 #define DBG_PRINT_STACK 0
 
@@ -99,8 +95,6 @@ static void dbg_print_flags(void) {
 	pflag(DBG_GC_EVERY_ALLOC);
 	pflag(DBG_PRINT_SYLT_STATE);
 	pflag(DBG_PRINT_GC_STATE);
-	pflag(DBG_PRINT_TOKENS);
-	pflag(DBG_PRINT_NAMES);
 	pflag(DBG_PRINT_DATA);
 	pflag(DBG_PRINT_STACK);
 			
@@ -4106,15 +4100,6 @@ void emit_loop(comp_t* cmp, int addr) {
 /* adds a name to the symbol table
  * and returns its index */
 int add_symbol(comp_t* cmp, string_t* name) {
-	#if DBG_PRINT_NAMES
-	for (int i = 0; i < cmp->depth; i++)
-		sylt_dprintf("  ");
-	
-	sylt_dprintf("(sym) ");
-	string_dprint(name);
-	sylt_dprintf("\n");
-	#endif
-	
 	symbol_t sym;
 	sym.name = name;
 	sym.depth = cmp->depth;
@@ -4380,8 +4365,8 @@ token_t scan(comp_t* cmp) {
 	default: halt(cmp->ctx, E_UNEXPECTED_CHAR(cmp->pos[-1]));
 	}
 
-	token_t tok = token(T_EOF);
 	return_eof:
+	token_t tok = token(T_EOF);
 	tok.lex = string_lit("<end of file>", cmp->ctx);
 	return tok;
 }
@@ -4400,12 +4385,6 @@ token_t scan(comp_t* cmp) {
 /* steps the parser one token forward */
 void step(comp_t* cmp) {
 	cmp->prev = cmp->cur;
-	
-	#if DBG_PRINT_TOKENS
-	sylt_dprintf("%-4d '%.*s'\n", cmp->prev.tag,
-		(int)cmp->prev.lex->len, cmp->prev.lex->bytes);
-	#endif
-	
 	cmp->cur = scan(cmp);
 }
 

@@ -203,7 +203,7 @@ end
 ## Vec3
 
 let impl = do
-	let new(x y z) = {
+	let new x y z = {
 		"x": x
 		"y": y
 		"z": z

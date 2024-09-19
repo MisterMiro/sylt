@@ -39,8 +39,7 @@ let impl = do
 
     let find val ls = do
         let index = -1
-        List.iter(fun i v ->
-            if v is val: index <- i ls)
+        List.iter(fun i v -> if v is val: index <- i ls)
         index
     end
 

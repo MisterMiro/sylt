@@ -59,12 +59,6 @@ let impl = do
 		result
 	end
 
-    let find val ls = do
-        let index = -1
-        List.iter(fun i v -> if v is val: index <- i ls)
-        index
-    end
-
 	let sum ls = List.fold(add 0 ls)
 	let average ls = if ls is []: 0 else List.sum(ls) / #ls
 	let mean ls = 
@@ -113,7 +107,6 @@ let impl = do
 	Dict.set("map" map lib)
 	Dict.set("filter" filter lib)
 	Dict.set("fold" fold lib)
-    Dict.set("find" find lib)
 	Dict.set("sum" sum lib)
 	Dict.set("average" average lib)
 	Dict.set("mean" mean lib)

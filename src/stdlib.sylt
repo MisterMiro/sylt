@@ -1,7 +1,7 @@
 ## note: most of the standard library is
 ## implemented in C
 
-ensure(OS.version is "Sylt Dev 0.1")
+ensure(OS.version is "sylt 0.1")
 
 ## Prelude   |
 ## ===========

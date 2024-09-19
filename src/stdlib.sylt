@@ -108,6 +108,7 @@ let impl = do
 	let lib = Dict.get("List" gdict)
 	Dict.set("iter" iter lib)
 	Dict.set("forEach" forEach lib)
+    Dict.set("find" find lib)
 	Dict.set("map" map lib)
 	Dict.set("filter" filter lib)
 	Dict.set("fold" fold lib)

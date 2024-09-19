@@ -1,4 +1,6 @@
 ## runs all sample files
 
 let samples = File.listDir("samples/")
+samples <- List.del(List.find("run_all.sylt") samples)
+
 List.forEach(fun s -> System.exec("./sylt samples/" + s) samples)

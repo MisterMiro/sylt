@@ -663,9 +663,9 @@ let stringLib _ = do
 	ensure(String.join([1 "2" 34 "5"]) is "12345")
 		
 	## split
-	ensure(String.split("lol" [""]) is ["lol"])
-	ensure(String.split("lol" [" "]) is ["lol"])
-	ensure(String.split("abc rst xyz" [" "]) is ["abc" "rst" "xyz"])
+	ensure(String.split([""] "lol") is ["lol"])
+	ensure(String.split([" "] "lol") is ["lol"])
+	ensure(String.split([" "] "abc rst xyz") is ["abc" "rst" "xyz"])
 		
 	## lowercase + uppercase + swapCase
 	let str = "MiXeD!"

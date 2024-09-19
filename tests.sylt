@@ -546,6 +546,10 @@ let listLib _ = do
 	let list = ["a" "B" "c"]
 	ensure(List.contains("B" list))
 	ensure(not List.contains("b" list))
+
+    ## find
+    let list = [1 2 3]
+    ensure(List.find(2 list) is 1)
 	
 	## rev
 	let normal = [1 2 3]

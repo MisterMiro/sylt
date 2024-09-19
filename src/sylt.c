@@ -1931,7 +1931,7 @@ void dbg_print_instruction(const vm_t* vm) {
 		return;
 	
 	size_t addr = vm_address(vm->fp);
-	sylt_dprintf("  %05ld", addr);
+	sylt_dprintf("  %05zu", addr);
 	
 	/* line number */
 	const uint32_t* lines =

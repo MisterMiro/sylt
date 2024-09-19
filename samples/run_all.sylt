@@ -3,6 +3,7 @@ let ls = [1 2 3]
 printLn(List.find(2 ls))
 
 let samples = File.listDir("samples/")
+printLn(List.find("run_all.sylt" samples))
 samples <- List.del(List.find("run_all.sylt" samples) samples)
 
 List.forEach(fun s -> System.exec("./sylt samples/" + s) samples)

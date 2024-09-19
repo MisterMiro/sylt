@@ -87,8 +87,7 @@ let impl = do
 			if swapped not 0: bubbleSort(ls n - 1)
 		end
 
-		let n = #ls
-		if n > 1: bubbleSort(ls n)
+		if #ls > 1: bubbleSort(ls #ls)
 	end
 
 	let sort ls = sortBy(fun a b -> a > b ls)

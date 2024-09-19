@@ -360,7 +360,7 @@ end
 let functions _ = do
 	## empty body returns nil
 	let empty _ = do end
-	ensure(empty() is nil)
+	ensure(empty(nil) is nil)
 	
 	## argument passing
 	let add a b = a + b

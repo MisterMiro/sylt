@@ -8,8 +8,8 @@ let isZero num = num is 0
 let isOne num = num is 1
 let isPositive num = Math.signum(num) is Math.Sign.Positive
 let isNegative num = Math.signum(num) is Math.Sign.Negative
-let isEven num = num % 2 is 0
-let isOdd num = num % 2 is 1
+let isEven num = isZero(num % 2)
+let isOdd num = isOne(num % 2)
 
 let add a b = a + b
 let sub a b = a - b

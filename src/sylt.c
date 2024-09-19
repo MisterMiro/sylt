@@ -2880,7 +2880,7 @@ value_t stdlist_find(sylt_t* ctx) {
     argcheck(ctx, 1, TYPE_LIST, __func__);
 	list_t* ls = listarg(1);
 	for (size_t i = 0; i < ls->len; i++)
-        if (val_eq(arg(0), ls->items[i])
+        if (val_eq(arg(0), ls->items[i]))
 			return wrapnum(i);
 	return wrapnum(-1);
 }

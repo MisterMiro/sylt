@@ -885,7 +885,7 @@ List.forEach(fun test ->
 		let name = String.rightPad(toString(test) 20 ".")
 		print("  " + name)
 		
-		test(())
+		test(nil)
 		printLn("OK")
 	end
 	tests)

@@ -1,4 +1,4 @@
 ## runs all sample files
 
 let samples = File.listDir("samples/")
-List.forEach(fun s -> System.exec(s) samples)
+List.forEach(fun s -> System.exec("samples/" + s) samples)

@@ -1,7 +1,5 @@
 
-## note: most of the standard library is
-## implemented in C
-
+## note: most of the standard library is implemented in C
 ensure(System.version is "sylt 0.1")
 
 ## Prelude

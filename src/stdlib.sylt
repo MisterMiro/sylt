@@ -4,12 +4,12 @@ ensure(System.version is "sylt 0.1")
 
 ## Prelude
 
-let isZero(num) = Math.signum(num) is Math.Sign.Zero
-let isOne(num) = num is 1
-let isPositive(num) = Math.signum(num) is Math.Sign.Positive
-let isNegative(num) = Math.signum(num) is Math.Sign.Negative
-let isEven(num) = num % 2 is 0
-let isOdd(num) = num % 2 is 1
+let isZero(n) = Math.signum(n) is Math.Sign.Zero
+let isOne(n) = n is 1
+let isPositive(n) = Math.signum(n) is Math.Sign.Positive
+let isNegative(n) = Math.signum(n) is Math.Sign.Negative
+let isEven(n) = n % 2 is 0
+let isOdd(n) = n % 2 is 1
 
 let add(a b) = a + b
 let sub(a b) = a - b

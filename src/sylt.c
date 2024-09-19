@@ -3678,7 +3678,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "last", stdlist_last, 1);
 	std_addf(ctx, "count", stdlist_count, 2);
 	std_addf(ctx, "contains", stdlist_contains, 2);
-	std_addf(ctx, "find", stdlist_find, 1);
+	std_addf(ctx, "find", stdlist_find, 2);
 	std_addf(ctx, "rev", stdlist_rev, 1);
 	std_addf(ctx, "range", stdlist_range, 1);
 	std_addlib(ctx);

@@ -2832,12 +2832,13 @@ value_t stdlist_rev(sylt_t* ctx) {
 }
 
 value_t stdlist_range(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_RANGE, __func__);
-	range_t* range = rangearg(0);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	sylt_num_t start = numarg(0);
+	sylt_num_t end= numarg(1);
 
 	list_t* ls = list_new(ctx);
-	int64_t max = (range->inc) ? range->max + 1 : range->max;
-	for (int64_t i = range->min; i < max; i++)
+	for (int64_t i = min; i < max; i++)
 		list_push(ls, wrapnum(i), ctx);
 	
 	return wraplist(ls);

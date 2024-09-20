@@ -288,9 +288,9 @@ end
 ## Rand
 
 let impl = do
-	let fiftyFifty _ = Rand.range(0..1) > 0.5
-	let oneIn n = Rand.range(0..n) < 1
-	let item ls = List.get(Rand.range(0..#ls) ls)
+	let fiftyFifty _ = Rand.range(0 1) > 0.5
+	let oneIn n = Rand.range(0 n) < 1
+	let item ls = List.get(Rand.range(0 #ls) ls)
 	let scramble ls = List.sortBy(fun _ _ -> fiftyFifty() ls)
 
 	let lib = Dict.get("Rand" gdict)

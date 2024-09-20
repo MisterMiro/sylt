@@ -930,7 +930,6 @@ obj_t* obj_new_impl(
 	obj_new_impl(size, tag, \
 		__func__, __LINE__, ctx);
 
-void range_free(range_t*, sylt_t*);
 void list_free(list_t*, sylt_t*);
 void dict_free(dict_t*, sylt_t*);
 void string_free(string_t*, sylt_t*);

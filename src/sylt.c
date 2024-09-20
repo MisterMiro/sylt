@@ -3497,13 +3497,13 @@ value_t stdmath_atanh(sylt_t* ctx) {
 /* == rand library == */
 
 value_t stdrand_range(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUN, __func__);
+	argcheck(ctx, 0, TYPE_NUMBER, __func__);
+	argcheck(ctx, 1, TYPE_NUMBER, __func__);
 	sylt_num_t start = numarg(0);
 	sylt_num_t end = numarg(0);
 	
 	float r = (sylt_num_t)rand() / RAND_MAX;
-    return wrapnum(start + r * end);
+    return wrapnum(start + r / (end - start + 1) + 1);
 }
 
 value_t stdrand_seed(sylt_t* ctx) {

@@ -504,8 +504,6 @@ typedef enum {
 	OP_PUSH_NIL,
 	OP_PUSH_TRUE,
 	OP_PUSH_FALSE,
-	OP_PUSH_RANGE,
-	OP_PUSH_RANGE_INC,
 	OP_PUSH_LIST,
 	OP_PUSH_DICT,
 	OP_PUSH_FUNC,
@@ -568,8 +566,6 @@ static opinfo_t OPINFO[] = {
 	[OP_PUSH_NIL] = {"pushNil", 0, +1},
 	[OP_PUSH_TRUE] = {"pushTrue", 0, +1},
 	[OP_PUSH_FALSE] = {"pushFalse", 0, +1},
-	[OP_PUSH_RANGE] = {"pushRange", 0, +1},
-	[OP_PUSH_RANGE_INC] = {"pushRangeInc", 0, +1},
 	[OP_PUSH_LIST] = {"pushList", 1, +1},
 	[OP_PUSH_DICT] = {"pushDict", 1, +1},
 	[OP_PUSH_FUNC] = {"pushFunc", 1, +1},
@@ -614,7 +610,6 @@ typedef enum {
 	TYPE_NIL,
 	TYPE_BOOL,
 	TYPE_NUM,
-	TYPE_RANGE,
 	TYPE_LIST,
 	TYPE_DICT,
 	TYPE_STRING,
@@ -627,7 +622,6 @@ static const char* TYPE_NAMES[] = {
 	"Nil",
 	"Bool",
 	"Number",
-	"Range",
 	"List",
 	"Dict",
 	"String",
@@ -648,8 +642,7 @@ static const char* user_type_name(
 }
 
 #define isheaptype(t) \
-	((t) == TYPE_RANGE \
-		|| (t) == TYPE_LIST \
+	((t) == TYPE_LIST \
 		|| (t) == TYPE_DICT \
 		|| (t) == TYPE_STRING \
 		|| (t) == TYPE_FUNCTION \
@@ -679,14 +672,6 @@ typedef struct value_s {
 		obj_t* obj;
 	} data;
 } value_t;
-
-/* numeric range */
-typedef struct {
-	obj_t obj;
-	sylt_num_t min;
-	sylt_num_t max;
-	bool inc;
-} range_t;
 
 /* list object */
 typedef struct {
@@ -838,7 +823,6 @@ typedef struct vm_s {
 #define nil() (value_t){TYPE_NIL, {.num = 0}}
 #define wrapbool(v) (value_t){TYPE_BOOL, {.num = (v)}}
 #define wrapnum(v) (value_t){TYPE_NUM, {.num = (v)}}
-#define wraprange(v) (value_t){TYPE_RANGE, {.obj = (obj_t*)(v)}}
 #define wraplist(v) (value_t){TYPE_LIST, {.obj = (obj_t*)(v)}}
 #define wrapdict(v) (value_t){TYPE_DICT, {.obj = (obj_t*)(v)}}
 #define wrapstring(v) (value_t){TYPE_STRING, {.obj = (obj_t*)(v)}}
@@ -853,7 +837,6 @@ typedef struct vm_s {
 #define getbool(v) (v).data.num
 #define getnum(v) (v).data.num
 #define getobj(v) (v).data.obj
-#define getrange(v) ((range_t*)getobj(v))
 #define getlist(v) ((list_t*)getobj(v))
 #define getdict(v) ((dict_t*)getobj(v))
 #define getstring(v) ((string_t*)getobj(v))
@@ -968,10 +951,6 @@ void obj_free(obj_t* obj, sylt_t* ctx) {
 	#endif
 	
 	switch (obj->tag) {
-	case TYPE_RANGE: {
-		range_free((range_t*)obj, ctx);
-		break;
-	}
 	case TYPE_LIST: {
 		list_free((list_t*)obj, ctx);
 		break;
@@ -1032,7 +1011,6 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	assert(obj->marked);
 	
 	switch (obj->tag) {
-	case TYPE_RANGE: break;
 	case TYPE_LIST: {
 		list_t* ls = (list_t*)obj;
 		for (size_t i = 0; i < ls->len; i++)
@@ -1077,26 +1055,6 @@ void obj_deep_mark(obj_t* obj, sylt_t* ctx) {
 	}
 	default: unreachable();
 	}
-}
-
-/* == range == */
-
-range_t* range_new(sylt_t* ctx, sylt_num_t min, sylt_num_t max, bool inc) {
-	range_t* range = (range_t*)obj_new(sizeof(range_t), TYPE_RANGE, ctx);
-	range->min = min;
-	range->max = max;
-	range->inc = inc;
-	return range;
-}
-
-void range_free(range_t* range, sylt_t* ctx) {
-	ptr_free(range, range_t, ctx);
-}
-
-bool range_eq(const range_t* a, const range_t* b) {
-	if (!a || !b) return false;
-	if (a == b) return true;
-	return a->min == b->min && a->max == b->max;
 }
 
 /* == list == */
@@ -1676,7 +1634,6 @@ bool val_eq(value_t a, value_t b) {
 	case TYPE_NIL: return true;
 	case TYPE_BOOL: return getbool(a) == getbool(b);
 	case TYPE_NUM: return getnum(a) == getnum(b);
-	case TYPE_RANGE: return range_eq(getrange(a), getrange(b));
 	case TYPE_LIST: return list_eq(getlist(a), getlist(b));
 	case TYPE_DICT: return dict_eq(getdict(a), getdict(b));
 	case TYPE_STRING: return string_eq(getstring(a), getstring(b));
@@ -1711,18 +1668,6 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 	}
 	case TYPE_NUM: {
 		str = string_fmt(ctx, "%.8g", getnum(val));
-		break;
-	}
-	case TYPE_RANGE: {
-		const range_t* range = getrange(val);
-		sylt_pushstring(ctx, val_tostring(wrapnum(range->min), ctx));
-		sylt_pushstring(ctx, string_lit("..", ctx));
-		sylt_concat(ctx);
-
-		sylt_pushstring(ctx, val_tostring(wrapnum(range->max), ctx));
-		sylt_concat(ctx);
-		
-		str = sylt_popstring(ctx);
 		break;
 	}
 	case TYPE_LIST: {
@@ -2197,18 +2142,6 @@ void vm_exec(vm_t* vm) {
 			push(wrapbool(false));
 			break;
 		}
-		case OP_PUSH_RANGE: {
-			sylt_num_t max = getnum(pop());
-			sylt_num_t min = getnum(pop());
-			push(wraprange(range_new(vm->ctx, min, max, false)));
-			break;
-		}
-		case OP_PUSH_RANGE_INC: {
-			sylt_num_t max = getnum(pop());
-			sylt_num_t min = getnum(pop());
-			push(wraprange(range_new(vm->ctx, min, max, true)));
-			break;
-		}
 		case OP_PUSH_LIST: {
 			uint8_t len = read8();
 			list_t* ls = list_new(vm->ctx);
@@ -2623,7 +2556,6 @@ void sylt_call(sylt_t* ctx, int argc) {
 
 #define boolarg(n) getbool(arg(n))
 #define numarg(n) getnum(arg(n))
-#define rangearg(n) getrange(arg(n))
 #define listarg(n) getlist(arg(n))
 #define dictarg(n) getdict(arg(n))
 #define stringarg(n) getstring(arg(n))
@@ -3565,12 +3497,13 @@ value_t stdmath_atanh(sylt_t* ctx) {
 /* == rand library == */
 
 value_t stdrand_range(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_RANGE, __func__);
-	const range_t* range = rangearg(0);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUN, __func__);
+	const sylt_num_t start = numarg(0);
+	const sylt_num_t end = numarg(0);
 	
 	float r = (sylt_num_t)rand() / RAND_MAX;
-	int64_t max = (range->inc) ? range->max + 1 : range->max;
-    return wrapnum(range->min + r * (max - range->min));
+    return wrapnum(start + r * (max - end));
 }
 
 value_t stdrand_seed(sylt_t* ctx) {
@@ -3839,8 +3772,6 @@ typedef enum {
 	T_COMMA,
 	T_COLON,
 	T_DOT,
-	T_DOT_DOT,
-	T_DOT_DOT_EQ,
 	T_HASH,
 	T_EOF,
 } token_type_t;
@@ -3875,8 +3806,6 @@ typedef enum {
 	PREC_FACTOR,
 	/* unary prefix: - not # */
 	PREC_UNARY_PREFIX,
-	/* .. ..= */
-	PREC_RANGE,
 	/* unary postfix: . */
 	PREC_DOT,
 	/* function application: () */
@@ -4364,12 +4293,7 @@ token_t scan(comp_t* cmp) {
 	case ']': return token(T_RSQUARE);
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
-	case '.':
-		if (match('.')) {
-			if (match('=')) return token(T_DOT_DOT_EQ);
-			return token(T_DOT_DOT);
-		}
-		return token(T_DOT);
+	case '.': return token(T_DOT);
 	case '#': return token(T_HASH);
 	case '\0': break;
 	default: halt(cmp->ctx, E_UNEXPECTED_CHAR(cmp->pos[-1]));
@@ -4498,8 +4422,6 @@ static parserule_t RULES[] = {
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
 	[T_COLON] = {NULL, NULL, PREC_NONE},
 	[T_DOT] = {NULL, binary, PREC_DOT},
-	[T_DOT_DOT] = {NULL, binary, PREC_RANGE},
-	[T_DOT_DOT_EQ] = {NULL, binary, PREC_RANGE},
 	[T_HASH] = {unary, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
 };
@@ -4826,16 +4748,6 @@ void binary(comp_t* cmp) {
 		}
 
 		emit_nullary(cmp, OP_LOAD_KEY);
-		return;
-	}
-	case T_DOT_DOT: {
-		expr(cmp, ANY_PREC, "right-hand side of exclusive range");
-		emit_nullary(cmp, OP_PUSH_RANGE);
-		return;
-	}
-	case T_DOT_DOT_EQ: {
-		expr(cmp, ANY_PREC, "right-hand side of inclusive range");
-		emit_nullary(cmp, OP_PUSH_RANGE_INC);
 		return;
 	}
 	default: unreachable();

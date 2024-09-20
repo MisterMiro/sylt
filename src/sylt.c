@@ -2837,7 +2837,7 @@ value_t stdlist_range(sylt_t* ctx) {
 	sylt_num_t end = numarg(1);
 
 	list_t* ls = list_new(ctx);
-	for (int64_t i = start; i <= end; i++)
+	for (int64_t i = start; i < end; i++)
 		list_push(ls, wrapnum(i), ctx);
 	
 	return wraplist(ls);
@@ -3502,7 +3502,7 @@ value_t stdrand_range(sylt_t* ctx) {
 	sylt_num_t start = numarg(0);
 	sylt_num_t end = numarg(1);
 	
-    return wrapnum(start + rand() / (RAND_MAX / (end - start + 1) + 1));
+    return wrapnum(start + rand() / (RAND_MAX / (end - start)));
 }
 
 value_t stdrand_seed(sylt_t* ctx) {

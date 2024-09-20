@@ -3614,7 +3614,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "contains", stdlist_contains, 2);
 	std_addf(ctx, "find", stdlist_find, 2);
 	std_addf(ctx, "rev", stdlist_rev, 1);
-	std_addf(ctx, "range", stdlist_range, 1);
+	std_addf(ctx, "range", stdlist_range, 2);
 	std_addlib(ctx);
 	
 	/* dict */
@@ -3703,7 +3703,7 @@ void std_init(sylt_t* ctx) {
 
 	/* rand */
 	std_setlib(ctx, "Rand");
-	std_addf(ctx, "range", stdrand_range, 1);
+	std_addf(ctx, "range", stdrand_range, 2);
 	std_addf(ctx, "seed", stdrand_seed, 1);
 	std_addlib(ctx);
 

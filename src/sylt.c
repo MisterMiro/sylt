@@ -3502,8 +3502,7 @@ value_t stdrand_range(sylt_t* ctx) {
 	sylt_num_t start = numarg(0);
 	sylt_num_t end = numarg(1);
 	
-	float r = (sylt_num_t)rand() / RAND_MAX;
-    return wrapnum(start + r / (end - start + 1) + 1);
+    return wrapnum(start + rand() / (RAND_MAX / (end - start + 1) + 1));
 }
 
 value_t stdrand_seed(sylt_t* ctx) {

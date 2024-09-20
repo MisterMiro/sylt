@@ -2834,10 +2834,10 @@ value_t stdlist_range(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM, __func__);
 	argcheck(ctx, 1, TYPE_NUM, __func__);
 	sylt_num_t start = numarg(0);
-	sylt_num_t end= numarg(1);
+	sylt_num_t end = numarg(1);
 
 	list_t* ls = list_new(ctx);
-	for (int64_t i = min; i < max; i++)
+	for (int64_t i = start; i < end; i++)
 		list_push(ls, wrapnum(i), ctx);
 	
 	return wraplist(ls);

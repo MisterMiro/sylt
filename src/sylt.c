@@ -3499,11 +3499,11 @@ value_t stdmath_atanh(sylt_t* ctx) {
 value_t stdrand_range(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM, __func__);
 	argcheck(ctx, 1, TYPE_NUN, __func__);
-	const sylt_num_t start = numarg(0);
-	const sylt_num_t end = numarg(0);
+	sylt_num_t start = numarg(0);
+	sylt_num_t end = numarg(0);
 	
 	float r = (sylt_num_t)rand() / RAND_MAX;
-    return wrapnum(start + r * (max - end));
+    return wrapnum(start + r * end);
 }
 
 value_t stdrand_seed(sylt_t* ctx) {

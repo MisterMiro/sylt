@@ -2837,7 +2837,7 @@ value_t stdlist_range(sylt_t* ctx) {
 	sylt_num_t end = numarg(1);
 
 	list_t* ls = list_new(ctx);
-	for (int64_t i = start; i < end; i++)
+	for (int64_t i = start; i <= end; i++)
 		list_push(ls, wrapnum(i), ctx);
 	
 	return wraplist(ls);

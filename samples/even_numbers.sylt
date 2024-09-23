@@ -1,5 +1,5 @@
 ## prints all even numbers in the given range
 
-let numbers = List.range(1..=20)
+let numbers = List.range(1 20)
 numbers <- List.filter(isEven numbers)
 printLn(numbers)

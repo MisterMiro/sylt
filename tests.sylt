@@ -429,7 +429,7 @@ let whileLoop _ = do
 		list <- list + n
 		n <- n + 1
 	end
-	ensure(res is nil)
+	ensure(res is ())
 	ensure(list is [1 2 3])
 end
 

@@ -442,7 +442,7 @@ let preludeLib _ = do
 	ensure(toString(printLn) is "printLn")
 	
 	## toNum
-	ensure(toNum(nil) is 0)
+	ensure(toNum(()) is 0)
 	ensure(toNum(true) is 1)
 	ensure(toNum(false) is 0)
 	ensure(toNum(112) is 112)

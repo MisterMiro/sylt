@@ -265,7 +265,7 @@ let variables _ = do
 	let func _ = do
 		y <- 333
 	end
-	func(nil)
+	func(())
 	ensure(y is 333)
 	
 	## assigning closed upvalue

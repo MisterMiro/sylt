@@ -1605,7 +1605,7 @@ void closure_free(closure_t* cls, sylt_t* ctx) {
 upvalue_t* upvalue_new(sylt_t* ctx, size_t index) {
 	upvalue_t* upval = (upvalue_t*)obj_new(sizeof(upvalue_t), TYPE_UPVALUE, ctx);
 	upval->index = index;
-	upval->closed = nil();
+	upval->closed = unit();
 	upval->next = NULL;
 	return upval;
 }
@@ -2252,7 +2252,7 @@ void vm_exec(vm_t* vm) {
 			value_t* val = dict_get(dc, key);
 			
 			if (!val) {
-				push(nil());
+				push(unit());
 				halt(vm->ctx, E_KEY_NOT_FOUND(key));
 				unreachable();
 			}	
@@ -3508,7 +3508,7 @@ value_t stdrand_range(sylt_t* ctx) {
 value_t stdrand_seed(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM, __func__);
 	srand(numarg(0));
-	return nil();
+	return unit();
 }
 
 static string_t* lib_name = NULL;
@@ -3716,7 +3716,7 @@ void std_sandbox(sylt_t* ctx) {
 	sylt_dprintf("Running in sandbox mode; File API and OS.exec() are disabled\n");
 
 	/* disable entire File API */
-	dict_set(ctx->vm->gdict, string_lit("File", ctx), nil(), ctx);
+	dict_set(ctx->vm->gdict, string_lit("File", ctx), unit(), ctx);
 
 	/* disable OS.exec */
 	dict_t* system = getdict(*dict_get(ctx->vm->gdict, string_lit("OS", ctx)));

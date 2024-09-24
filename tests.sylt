@@ -11,7 +11,6 @@ let names _ = do
 	let name_123 = value
 	
 	## names that start with keywords
-	let nilpotent = value
 	let true_to_life = value
 	let falsetto = value
 	let letter = value

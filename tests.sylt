@@ -275,7 +275,7 @@ let variables _ = do
 			z <- 900
 		in
 	end
-	let z = out(nil)(nil)
+	let z = out(())(())
 	ensure(z is 900)
 	
 	## chaining assignments

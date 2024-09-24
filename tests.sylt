@@ -435,7 +435,7 @@ end
 
 let preludeLib _ = do
 	## toString
-	ensure(toString(nil) is "nil")
+	ensure(toString(()) is "()")
 	ensure(toString(true) is "true" and toString(false) is "false")
 	ensure(toString(707) is "707")
 	ensure(toString(["bananas" 18 true]) is "[\"bananas\" 18 true]")

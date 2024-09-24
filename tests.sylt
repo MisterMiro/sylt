@@ -315,7 +315,7 @@ let blocks _ = do
 	## assigning shadowed variable
 	let x = true
 	do
-		let x = nil
+		let x = true
 		x <- false
 		ensure(x is false)
 	end

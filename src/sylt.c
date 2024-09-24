@@ -1255,7 +1255,7 @@ void dict_set_cap(dict_t* dc, size_t cap, sylt_t* ctx) {
 	item_t* items = arr_alloc(items, item_t, cap, ctx);
 	for (size_t i = 0; i < cap; i++) {
 		items[i].key = NULL;
-		items[i].val = nil();
+		items[i].val = unit();
 	}
 	
 	/* copy old entries to new array */
@@ -1411,7 +1411,7 @@ static string_t* val_tostring(value_t, sylt_t*);
 void sylt_concat(sylt_t* ctx) {
 	value_t b = sylt_peek(ctx, 0);
 	value_t a = sylt_peek(ctx, 1);
-	value_t result = nil();
+	value_t result = unit();
 	
 	if (a.tag == TYPE_LIST || b.tag == TYPE_LIST) {
 		if (a.tag == TYPE_LIST && b.tag == TYPE_LIST) {
@@ -1630,7 +1630,7 @@ bool val_eq(value_t a, value_t b) {
 		return false;
 	
 	switch (a.tag) {
-	case TYPE_NIL: return true;
+	case TYPE_UNIT: return true;
 	case TYPE_BOOL: return getbool(a) == getbool(b);
 	case TYPE_NUM: return getnum(a) == getnum(b);
 	case TYPE_LIST: return list_eq(getlist(a), getlist(b));
@@ -1654,8 +1654,8 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 	
 	string_t* str = NULL;
 	switch (val.tag) {
-	case TYPE_NIL: {
-		str = string_lit("nil", ctx);
+	case TYPE_UNIT: {
+		str = string_lit("()", ctx);
 		break;
 	}
 	case TYPE_BOOL: {
@@ -1780,7 +1780,7 @@ void vm_init(vm_t* vm, sylt_t* ctx) {
 	vm->fp = NULL;
 	vm->gdict = dict_new(ctx);
 	vm->openups = NULL;
-	vm->hidden = nil();
+	vm->hidden = unit();
 	for (size_t i = 0; i < MAX_FILES; i++)
 		vm->files[i] = NULL;
 	vm->ctx = ctx;
@@ -2129,8 +2129,8 @@ void vm_exec(vm_t* vm) {
 			push(readval());
 			break;
 		}
-		case OP_PUSH_NIL: {
-			push(nil());
+		case OP_PUSH_UNIT: {
+			push(unit());
 			break;
 		}
 		case OP_PUSH_TRUE: {
@@ -2569,7 +2569,7 @@ void sylt_call(sylt_t* ctx, int argc) {
 value_t std_print(sylt_t* ctx) {
 	val_print(arg(0), false, ctx);
 	fflush(stdout);
-	return nil();
+	return unit();
 }
 
 value_t std_print_ln(sylt_t* ctx) {

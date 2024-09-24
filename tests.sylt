@@ -279,9 +279,9 @@ let variables _ = do
 	ensure(z is 900)
 	
 	## chaining assignments
-	let a = nil
-	let b = nil
-	let c = nil
+	let a = ()
+	let b = ()
+	let c = ()
 	a <- b <- c <- 32
 	ensure(a is 32 and b is 32 and c is 32)
 end

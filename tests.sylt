@@ -556,7 +556,7 @@ let listLib _ = do
 	ensure(List.rev([1]) is [1])
 	
 	## range
-	let ls = List.range(0..3)
+	let ls = List.range(0 3)
 	ensure(ls is [0 1 2])
 	
 	## iter

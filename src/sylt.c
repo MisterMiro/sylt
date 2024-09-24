@@ -501,7 +501,7 @@ void* ptr_resize(
 typedef enum {
 	/* stack */
 	OP_PUSH,
-	OP_PUSH_NIL,
+	OP_PUSH_UNIT,
 	OP_PUSH_TRUE,
 	OP_PUSH_FALSE,
 	OP_PUSH_LIST,
@@ -563,7 +563,7 @@ typedef struct {
 /* can be indexed by an opcode byte */
 static opinfo_t OPINFO[] = {
 	[OP_PUSH] = {"push", 1, +1},
-	[OP_PUSH_NIL] = {"pushNil", 0, +1},
+	[OP_PUSH_UNIT] = {"pushUnit", 0, +1},
 	[OP_PUSH_TRUE] = {"pushTrue", 0, +1},
 	[OP_PUSH_FALSE] = {"pushFalse", 0, +1},
 	[OP_PUSH_LIST] = {"pushList", 1, +1},
@@ -607,7 +607,7 @@ static opinfo_t OPINFO[] = {
 
 /* value types */
 typedef enum {
-	TYPE_NIL,
+	TYPE_UNIT,
 	TYPE_BOOL,
 	TYPE_NUM,
 	TYPE_LIST,
@@ -619,7 +619,7 @@ typedef enum {
 } type_t;
 
 static const char* TYPE_NAMES[] = {
-	"Nil",
+	"Unit",
 	"Bool",
 	"Number",
 	"List",
@@ -820,7 +820,7 @@ typedef struct vm_s {
 
 /* macros for creating a value_t
  * struct from a raw value */
-#define nil() (value_t){TYPE_NIL, {.num = 0}}
+#define unit() (value_t){TYPE_UNIT, {.num = 0}}
 #define wrapbool(v) (value_t){TYPE_BOOL, {.num = (v)}}
 #define wrapnum(v) (value_t){TYPE_NUM, {.num = (v)}}
 #define wraplist(v) (value_t){TYPE_LIST, {.obj = (obj_t*)(v)}}
@@ -864,7 +864,7 @@ static inline void vm_shrink(struct vm_s*, int);
 
 /* for pushing values on the stack */
 #define sylt_push(ctx, v) vm_push(ctx->vm, v)
-#define sylt_pushnil(ctx) sylt_push(ctx, nil())
+#define sylt_pushunit(ctx) sylt_push(ctx, unit())
 #define sylt_pushbool(ctx, v) sylt_push(ctx, wrapbool(v))
 #define sylt_pushnum(ctx, v) sylt_push(ctx, wrapnum(v))
 #define sylt_pushlist(ctx, v) sylt_push(ctx, wraplist(v))
@@ -2575,7 +2575,7 @@ value_t std_print(sylt_t* ctx) {
 value_t std_print_ln(sylt_t* ctx) {
 	val_print(arg(0), false, ctx);
 	sylt_printf("\n");
-	return nil();
+	return unit();
 }
 
 value_t std_read_in(sylt_t* ctx) {
@@ -2639,12 +2639,12 @@ value_t std_ensure(sylt_t* ctx) {
 
 value_t std_todo(sylt_t* ctx) {
 	halt(ctx, E_TODO_REACHED);
-	return nil();
+	return unit();
 }
 
 value_t std_unreachable(sylt_t* ctx) {
 	halt(ctx, E_UNREACHABLE_REACHED);
-	return nil();
+	return unit();
 }
 
 /* == system lib == */
@@ -2687,13 +2687,13 @@ value_t stdsys_src(sylt_t* ctx) {
 value_t stdsys_exec(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	system((char*)stringarg(0)->bytes);
-	return nil();
+	return unit();
 }
 
 value_t stdsys_halt(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	halt(ctx, (const char*)stringarg(0)->bytes);
-	return nil();
+	return unit();
 }
 
 value_t stdsys_time_format(sylt_t* ctx) {
@@ -2745,7 +2745,7 @@ value_t stdlist_set(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM, __func__);
 	argcheck(ctx, 2, TYPE_LIST, __func__);
 	list_set(listarg(2), numarg(0), arg(1), ctx);
-	return nil();
+	return unit();
 }
 
 value_t stdlist_swap(sylt_t* ctx) {
@@ -2759,20 +2759,20 @@ value_t stdlist_swap(sylt_t* ctx) {
 	value_t tmp = list_get(ls, b, ctx);
 	list_set(ls, b, list_get(ls, a, ctx), ctx);
 	list_set(ls, a, tmp, ctx);
-	return nil();
+	return unit();
 }
 
 value_t stdlist_add(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM, __func__);
 	argcheck(ctx, 2, TYPE_LIST, __func__);
 	list_insert(listarg(2), numarg(0), arg(1), ctx);
-	return nil();
+	return unit();
 }
 
 value_t stdlist_push(sylt_t* ctx) {
 	argcheck(ctx, 1, TYPE_LIST, __func__);
 	list_push(listarg(1), arg(0), ctx);
-	return nil();
+	return unit();
 }
 
 value_t stdlist_del(sylt_t* ctx) {
@@ -2862,7 +2862,7 @@ value_t stddict_set(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	argcheck(ctx, 2, TYPE_DICT, __func__);
 	dict_set(dictarg(2), stringarg(0), arg(1), ctx);
-	return nil();
+	return unit();
 }
 
 value_t stddict_has_key(sylt_t* ctx) {
@@ -3151,7 +3151,7 @@ value_t stdstring_find(sylt_t* ctx) {
 			return wrapnum(i);
 	}
 
-	return nil();
+	return unit();
 }
 
 value_t stdstring_replace(sylt_t* ctx) {
@@ -3235,7 +3235,7 @@ value_t stdfile_close(sylt_t* ctx) {
 	ctx->vm->files[handle] = NULL;
 		
 	fclose(fp);
-	return nil();
+	return unit();
 }
 
 value_t stdfile_read(sylt_t* ctx) {
@@ -3269,7 +3269,7 @@ value_t stdfile_write(sylt_t* ctx) {
 	for (size_t i = 0; i < str->len; i++)
 		putc(str->bytes[i], fp);
 	
-	return nil();
+	return unit();
 }
 
 value_t stdfile_size(sylt_t* ctx) {
@@ -3311,7 +3311,7 @@ value_t stdfile_del(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* path = stringarg(0);
 	remove((char*)path->bytes);
-	return nil();
+	return unit();
 }
 
 /* == math lib == */

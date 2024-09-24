@@ -3976,7 +3976,7 @@ void emit_value(
 	
 	switch (val.tag) {
 	case TYPE_UNIT: {
-		emit_nullary(cmp, OP_PUSH_UNARY);
+		emit_nullary(cmp, OP_PUSH_UNIT);
 		sylt_pop(cmp->ctx); /* GC */
 		return;
 	}
@@ -4840,7 +4840,7 @@ void let(comp_t* cmp) {
 	}
 	
 	/* expression yields a 'nil' */
-	emit_value(cmp, nil());
+	emit_value(cmp, unit());
 }
 
 /* parses an anonymous function */
@@ -4954,7 +4954,7 @@ void while_loop(comp_t* cmp) {
 	patch_jump(cmp, jmp);
 	emit_nullary(cmp, OP_POP);
 	
-	emit_value(cmp, nil());
+	emit_value(cmp, unit());
 }
 
 /* parses a block expression.

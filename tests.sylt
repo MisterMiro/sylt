@@ -453,7 +453,7 @@ let preludeLib _ = do
 	ensure(toNum(fun _ -> do end) is 0)
 	
 	## typeOf
-	ensure(typeOf(nil) is "Nil")
+	ensure(typeOf(()) is "Unit")
 	ensure(typeOf(true) is "Bool")
 	ensure(typeOf(1) is "Number")
 	ensure(typeOf([]) is "List")

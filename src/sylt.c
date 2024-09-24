@@ -3720,7 +3720,7 @@ void std_sandbox(sylt_t* ctx) {
 
 	/* disable OS.exec */
 	dict_t* system = getdict(*dict_get(ctx->vm->gdict, string_lit("OS", ctx)));
-	dict_set(system, string_lit("exec", ctx), nil(), ctx);
+	dict_set(system, string_lit("exec", ctx), unit(), ctx);
 }
 
 /* == compiler == */
@@ -3975,8 +3975,8 @@ void emit_value(
 	sylt_push(cmp->ctx, val); /* GC */
 	
 	switch (val.tag) {
-	case TYPE_NIL: {
-		emit_nullary(cmp, OP_PUSH_NIL);
+	case TYPE_UNIT: {
+		emit_nullary(cmp, OP_PUSH_UNARY);
 		sylt_pop(cmp->ctx); /* GC */
 		return;
 	}
@@ -4452,7 +4452,7 @@ void expr(comp_t* cmp, prec_t prec, const char* name) {
 /* parses a keyword literal */
 void literal(comp_t* cmp) {
 	switch (cmp->prev.tag) {
-	case T_NIL: emit_value(cmp, nil()); break;
+	case T_UNIT: emit_value(cmp, unit()); break;
 	case T_TRUE: emit_value(cmp, wrapbool(true)); break;
 	case T_FALSE: emit_value(cmp, wrapbool(false)); break;
 	default: unreachable();

@@ -16,4 +16,4 @@ let findTheGap _ = do
     check(0)
 end
 
-printLn(findTheGap(nil))
+printLn(findTheGap(()))

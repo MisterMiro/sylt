@@ -287,9 +287,9 @@ let variables _ = do
 end
 
 let blocks _ = do
-	## empty block returns nil
+	## empty block returns unit
 	let result = do end
-	ensure(result is nil)
+	ensure(result is ())
 	
 	## last expression is returned...
 	let result = do 123 end

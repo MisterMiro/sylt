@@ -4932,7 +4932,7 @@ void if_else(comp_t* cmp) {
 	if (match(cmp, T_ELSE))
 		expr(cmp, ANY_PREC, "'else' branch expression");
 	else
-		emit_value(cmp, nil());
+		emit_value(cmp, unit());
 	
 	/* skipped past else */
 	patch_jump(cmp, else_addr);
@@ -4966,7 +4966,7 @@ void block(comp_t* cmp) {
 	
 	/* empty block yields nil */
 	if (match(cmp, T_END)) {
-		emit_value(cmp, nil());
+		emit_value(cmp, unit());
 		comp_close_scope(cmp);
 		return;
 	}

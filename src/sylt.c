@@ -3727,7 +3727,7 @@ void std_sandbox(sylt_t* ctx) {
 
 typedef enum {
 	T_NAME,
-	T_NIL,
+	T_UNIT,
 	T_TRUE,
 	T_FALSE,
 	T_LET,
@@ -4200,8 +4200,8 @@ token_t scan(comp_t* cmp) {
 		
 		size_t len = cmp->pos - start;
 		#define keyword(lit) (len == strlen(lit) && !strncmp(start, (lit), strlen(lit)))
-		
-		if (keyword("nil")) return token(T_NIL);
+
+		if (keyword("()")) return token(T_UNIT);
 		if (keyword("true")) return token(T_TRUE);
 		if (keyword("false")) return token(T_FALSE);
 		if (keyword("let")) return token(T_LET);
@@ -4377,7 +4377,7 @@ typedef struct {
 /* maps tokens to parsers */
 static parserule_t RULES[] = {
 	[T_NAME] = {name, NULL, PREC_NONE},
-	[T_NIL] = {literal, NULL, PREC_NONE},
+	[T_UNIT] = {literal, NULL, PREC_NONE},
 	[T_TRUE] = {literal, NULL, PREC_NONE},
 	[T_FALSE] = {literal, NULL, PREC_NONE},
 	[T_LET] = {let, NULL, PREC_NONE},

@@ -875,7 +875,7 @@ static inline void vm_shrink(struct vm_s*, int);
 
 /* for popping values off the stack */
 #define sylt_pop(ctx) vm_pop(ctx->vm)
-#define sylt_popnil(ctx) sylt_pop(ctx)
+#define sylt_popunit(ctx) sylt_pop(ctx)
 #define sylt_popbool(ctx) getbool(sylt_pop(ctx))
 #define sylt_popnum(ctx) getnum(sylt_pop(ctx))
 #define sylt_poplist(ctx) getlist(sylt_pop(ctx))
@@ -4840,7 +4840,7 @@ void let(comp_t* cmp) {
 		}
 	}
 	
-	/* expression yields a 'nil' */
+	/* expression yields '()' */
 	emit_value(cmp, unit());
 }
 
@@ -4965,7 +4965,7 @@ void while_loop(comp_t* cmp) {
 void block(comp_t* cmp) {
 	comp_open_scope(cmp);
 	
-	/* empty block yields nil */
+	/* empty block yields '()' */
 	if (match(cmp, T_END)) {
 		emit_value(cmp, unit());
 		comp_close_scope(cmp);

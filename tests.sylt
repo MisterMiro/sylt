@@ -376,7 +376,7 @@ let functions _ = do
 	## a functions stack window
 	let outside = "outside"
 	let f _ = outside
-	ensure(f(nil) is outside)
+	ensure(f(()) is outside)
 	
 	## moving surrounding context to
 	## the heap if necessary
@@ -385,7 +385,7 @@ let functions _ = do
 		let f2 _ = keep
 		f2
 	end
-	ensure(f(nil)(nil) is "jewel")
+	ensure(f(())(()) is "jewel")
 	
 	## anonymous functions using 'fun'
 	let anon = fun r s t -> r * s * t
@@ -404,7 +404,7 @@ end
 
 let ifElse _ = do
 	## implicit nil
-	ensure((if false: do end) is nil)
+	ensure((if false: do end) is ())
 	
 	## if branch
 	let result = if true: "A" else "B"
@@ -456,7 +456,6 @@ let preludeLib _ = do
 	ensure(typeOf(nil) is "Nil")
 	ensure(typeOf(true) is "Bool")
 	ensure(typeOf(1) is "Number")
-	ensure(typeOf(0..1) is "Range")
 	ensure(typeOf([]) is "List")
 	ensure(typeOf("") is "String")
 	ensure(typeOf(fun -> do end) is "Function")

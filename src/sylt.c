@@ -4201,7 +4201,6 @@ token_t scan(comp_t* cmp) {
 		size_t len = cmp->pos - start;
 		#define keyword(lit) (len == strlen(lit) && !strncmp(start, (lit), strlen(lit)))
 
-		if (keyword("()")) return token(T_UNIT);
 		if (keyword("true")) return token(T_TRUE);
 		if (keyword("false")) return token(T_FALSE);
 		if (keyword("let")) return token(T_LET);
@@ -4284,7 +4283,9 @@ token_t scan(comp_t* cmp) {
 		if (match('=')) return token(T_GT_EQ);
 		return token(T_GT);
 	case '=': return token(T_EQ);
-	case '(': return token(T_LPAREN);
+	case '(': 
+		if (match(')')) return token(T_UNIT);
+		return token(T_LPAREN);
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
 	case '}': return token(T_RCURLY);

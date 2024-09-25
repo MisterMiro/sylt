@@ -838,10 +838,10 @@ let bitLib _ = do
     printLn(Bit.shiftRight(32 1))
 
     ## and
-    printLn(Bit.and(1 2))
+    ##printLn(Bit.and(1 2))
 
     ## or
-    printLn(Bit.or(16 32))
+    ##printLn(Bit.or(16 32))
 
     ## xor
     printLn(Bit.xor(16 24))

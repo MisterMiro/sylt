@@ -464,6 +464,24 @@ let preludeLib _ = do
 	let nums = []
 	rep(fun i -> nums <- nums + i 3)
 	ensure(nums is [0 1 2])
+
+    ## bitShiftLeft
+    ensure(bitShiftLeft(32 1) is 64)
+
+    ## bitShiftRight
+    ensure(bitShiftRight(32 1) is 16)
+
+    ## bitAnd
+    printLn(bitAnd(1 2))
+
+    ## bitOr
+    printLn(bitOr(16 32))
+
+    ## bitXor
+    ensure(bitXor(16 24) is 8)
+
+    ## bitNot
+    printLn(bitNot(40))
 end
 
 let fileLib _ = do
@@ -830,26 +848,6 @@ let mathLib _ = do
 	ensure(floatEq(Math.atanh(0.8) 1.0986 0.001))
 end
 
-let bitLib _ = do
-    ## shiftLeft
-    ensure(Bit.shiftLeft(32 1) is 64)
-
-    ## shiftRight
-    ensure(Bit.shiftRight(32 1) is 16)
-
-    ## and
-    ##printLn(Bit.and(1 2))
-
-    ## or
-    ##printLn(Bit.or(16 32))
-
-    ## xor
-    ensure(Bit.xor(16 24) is 8)
-
-    ## not
-    ##printLn(Bit.not(40))
-end
-
 ## tests to run
 
 let tests = List.flatten([
@@ -894,7 +892,6 @@ let tests = List.flatten([
 		stringLib
         fileLib
 		mathLib
-        bitLib
 	]
 ])
 

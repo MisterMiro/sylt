@@ -216,6 +216,8 @@ end
 let boolNot _ = do
 	ensure(true is not false)
 	ensure(false is not true)
+    ensure(not true is false)
+    ensure(not false is true)
 	ensure(not not true is true)
 end
 

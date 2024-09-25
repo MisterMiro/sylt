@@ -3494,6 +3494,43 @@ value_t stdmath_atanh(sylt_t* ctx) {
 	return wrapnum(num_func(atanhf, atanh)(numarg(0)));
 }
 
+/* == bit library == */
+
+value_t stdbit_shift_left(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)getnum(0) << (int64_t)getnum(1));
+}
+
+value_t stdbit_shift_right(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)getnum(0) >> (int64_t)getnum(1));
+}
+
+value_t stdbit_and(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)getnum(0) & (int64_t)getnum(1));
+}
+
+value_t stdbit_or(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)getnum(0) | (int64_t)getnum(1));
+}
+
+value_t stdbit_xor(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)getnum(0) ^ (int64_t)getnum(1));
+}
+
+value_t stdbit_not(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	return wrapnum(~(int64_t)getnum(0));
+}
+
 /* == rand library == */
 
 value_t stdrand_range(sylt_t* ctx) {
@@ -3693,6 +3730,16 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "asinh", stdmath_asinh, 1);
 	std_addf(ctx, "acosh", stdmath_acosh, 1);
 	std_addf(ctx, "atanh", stdmath_atanh, 1);
+	std_addlib(ctx);
+
+	/* bit */
+	std_setlib(ctx, "Bit");
+	std_addf(ctx, "shiftLeft", stdbit_shift_left, 1);
+	std_addf(ctx, "shiftRight", stdmath_shift_right, 1);
+        std_addf(ctx, "and", stdmath_and, 1);
+	std_addf(ctx, "or", stdmath_or, 1);
+	std_addf(ctx, "xor", stdmath_xor, 1);
+	std_addf(ctx, "not", stdmath_not, 1);
 	std_addlib(ctx);
 
 	/* vec3 */

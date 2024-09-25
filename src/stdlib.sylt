@@ -61,8 +61,7 @@ let impl = do
 
 	let sum ls = List.fold(add 0 ls)
 	let average ls = if ls is []: 0 else List.sum(ls) / #ls
-	let mean ls = 
-		if isOdd(#ls): List.get(#ls / 2 ls)
+	let mean ls = if isOdd(#ls): List.get(#ls / 2 ls)
 		else List.average([
 			List.get(#ls / 2 - 1 ls)
 			List.get(#ls / 2 ls)])

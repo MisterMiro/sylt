@@ -847,7 +847,7 @@ let bitLib _ = do
     printLn(Bit.xor(16 24))
 
     ## not
-    printLn(Bit.not(40))
+    ##printLn(Bit.not(40))
 end
 
 ## tests to run

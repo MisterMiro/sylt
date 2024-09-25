@@ -830,6 +830,26 @@ let mathLib _ = do
 	ensure(floatEq(Math.atanh(0.8) 1.0986 0.001))
 end
 
+let bitLib _ = do
+    ## shiftLeft
+    printLn(Bit.shiftLeft(32 1))
+
+    ## shiftRight
+    printLn(Bit.shiftRight(32 1))
+
+    ## and
+    printLn(Bit.and(1 2))
+
+    ## or
+    printLn(Bit.or(16 32))
+
+    ## xor
+    printLn(Bit.xor(16 24))
+
+    ## not
+    printLn(Bit.not(40))
+end
+
 ## tests to run
 
 let tests = List.flatten([
@@ -874,6 +894,7 @@ let tests = List.flatten([
 		stringLib
         fileLib
 		mathLib
+        bitLib,
 	]
 ])
 

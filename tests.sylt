@@ -427,8 +427,8 @@ let whileLoop _ = do
 	let list = []
 	let n = 1
 	let res = while n <= 3: do
-		list <- list + n
-		n <- n + 1
+		list += n
+		n += 1
 	end
 	ensure(res is ())
 	ensure(list is [1 2 3])

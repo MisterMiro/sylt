@@ -2647,6 +2647,41 @@ value_t std_unreachable(sylt_t* ctx) {
 	return unit();
 }
 
+value_t std_bit_shift_left(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)numarg(0) << (int64_t)numarg(1));
+}
+
+value_t std_bit_shift_right(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)numarg(0) >> (int64_t)numarg(1));
+}
+
+value_t std_bit_and(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)numarg(0) & (int64_t)numarg(1));
+}
+
+value_t std_bit_or(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)numarg(0) | (int64_t)numarg(1));
+}
+
+value_t std_bit_xor(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_NUM, __func__);
+	return wrapnum((int64_t)numarg(0) ^ (int64_t)numarg(1));
+}
+
+value_t std_bit_not(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	return wrapnum(~(int64_t)numarg(0));
+}
+
 /* == system lib == */
 
 value_t stdsys_mem_info(sylt_t* ctx) {
@@ -3494,43 +3529,6 @@ value_t stdmath_atanh(sylt_t* ctx) {
 	return wrapnum(num_func(atanhf, atanh)(numarg(0)));
 }
 
-/* == bit library == */
-
-value_t stdbit_shift_left(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	return wrapnum((int64_t)numarg(0) << (int64_t)numarg(1));
-}
-
-value_t stdbit_shift_right(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	return wrapnum((int64_t)numarg(0) >> (int64_t)numarg(1));
-}
-
-value_t stdbit_and(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	return wrapnum((int64_t)numarg(0) & (int64_t)numarg(1));
-}
-
-value_t stdbit_or(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	return wrapnum((int64_t)numarg(0) | (int64_t)numarg(1));
-}
-
-value_t stdbit_xor(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	return wrapnum((int64_t)numarg(0) ^ (int64_t)numarg(1));
-}
-
-value_t stdbit_not(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	return wrapnum(~(int64_t)numarg(0));
-}
-
 /* == rand library == */
 
 value_t stdrand_range(sylt_t* ctx) {
@@ -3617,6 +3615,13 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
 	std_addf(ctx, "unreachable", std_unreachable, 0);
+	std_addf(ctx, "bitShiftLeft", std_bit_shift_left, 2);
+	std_addf(ctx, "bitShiftRight", std_bit_shift_right, 2);
+        std_addf(ctx, "bitAnd", std_bit_and, 2);
+	std_addf(ctx, "bitOr", std_bit_or, 2);
+	std_addf(ctx, "bitXor", std_bit_xor, 2);
+	std_addf(ctx, "bitNot", std_bit_not, 1);
+	std_addlib(ctx);
 	std_addlib(ctx);
 
 	/* system */
@@ -3730,16 +3735,6 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "asinh", stdmath_asinh, 1);
 	std_addf(ctx, "acosh", stdmath_acosh, 1);
 	std_addf(ctx, "atanh", stdmath_atanh, 1);
-	std_addlib(ctx);
-
-	/* bit */
-	std_setlib(ctx, "Bit");
-	std_addf(ctx, "shiftLeft", stdbit_shift_left, 2);
-	std_addf(ctx, "shiftRight", stdbit_shift_right, 2);
-        std_addf(ctx, "and", stdbit_and, 2);
-	std_addf(ctx, "or", stdbit_or, 2);
-	std_addf(ctx, "xor", stdbit_xor, 2);
-	std_addf(ctx, "not", stdbit_not, 1);
 	std_addlib(ctx);
 
 	/* vec3 */

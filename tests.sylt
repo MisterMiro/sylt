@@ -472,7 +472,7 @@ let preludeLib _ = do
     ensure(bitShiftRight(32 1) is 16)
 
     ## bitAnd
-    printLn(bitAnd(4 32))
+    ensure(bitAnd(4 32) is 0)
 
     ## bitOr
     printLn(bitOr(16 32) is 48)
@@ -481,7 +481,7 @@ let preludeLib _ = do
     ensure(bitXor(16 24) is 8)
 
     ## bitNot
-    printLn(bitNot(40))
+    ensure(bitNot(40) is 0 - 41)
 end
 
 let fileLib _ = do

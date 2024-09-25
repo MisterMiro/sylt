@@ -3735,11 +3735,11 @@ void std_init(sylt_t* ctx) {
 	/* bit */
 	std_setlib(ctx, "Bit");
 	std_addf(ctx, "shiftLeft", stdbit_shift_left, 1);
-	std_addf(ctx, "shiftRight", stdmath_shift_right, 1);
-        std_addf(ctx, "and", stdmath_and, 1);
-	std_addf(ctx, "or", stdmath_or, 1);
-	std_addf(ctx, "xor", stdmath_xor, 1);
-	std_addf(ctx, "not", stdmath_not, 1);
+	std_addf(ctx, "shiftRight", stdbit_shift_right, 1);
+        std_addf(ctx, "and", stdbit_and, 1);
+	std_addf(ctx, "or", stdbit_or, 1);
+	std_addf(ctx, "xor", stdbit_xor, 1);
+	std_addf(ctx, "not", stdbit_not, 1);
 	std_addlib(ctx);
 
 	/* vec3 */

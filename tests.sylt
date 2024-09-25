@@ -472,10 +472,10 @@ let preludeLib _ = do
     ensure(bitShiftRight(32 1) is 16)
 
     ## bitAnd
-    printLn(bitAnd(1 2))
+    printLn(bitAnd(4 32))
 
     ## bitOr
-    printLn(bitOr(16 32))
+    printLn(bitOr(16 32) is 48)
 
     ## bitXor
     ensure(bitXor(16 24) is 8)

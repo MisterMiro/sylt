@@ -894,7 +894,7 @@ let tests = List.flatten([
 		stringLib
         fileLib
 		mathLib
-        bitLib,
+        bitLib
 	]
 ])
 

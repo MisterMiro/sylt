@@ -196,7 +196,8 @@ let equality _ = do
 		
 		## not equal to a value of any other
 		## type
-		List.iter(fun index other -> if index not skip: ensure(value not other) values)
+		List.iter(fun index other ->
+            if index not skip: ensure(value not other) values)
 	end values)
 	
 	## perform more type-specific tests

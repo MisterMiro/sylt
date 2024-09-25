@@ -584,7 +584,7 @@ let listLib _ = do
 
 	List.iter(fun index value -> do
 		ensure(index is List.get(index indices))
-		copy <- copy + value
+		copy += value
 	end
 	indices)
 

@@ -475,7 +475,7 @@ let preludeLib _ = do
     ensure(bitAnd(4 32) is 0)
 
     ## bitOr
-    printLn(bitOr(16 32) is 48)
+    ensure(bitOr(16 32) is 48)
 
     ## bitXor
     ensure(bitXor(16 24) is 8)

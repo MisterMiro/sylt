@@ -359,8 +359,8 @@ end
 
 let functions _ = do
 	## empty body returns unit
-	let empty = do end
-	ensure(empty is ())
+	let empty _ = do end
+	ensure(empty(()) is ())
 	
 	## argument passing
 	let add a b = a + b

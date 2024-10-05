@@ -2711,6 +2711,7 @@ value_t stdsys_mem_sizes(sylt_t* ctx) {
 }
 
 value_t stdsys_src(sylt_t* ctx) {
+	argcheck(ctx, 0, TYPE_UNIT, __func__);
 	dict_t* dc = dict_new(ctx);
 	dict_set(dc,string_lit("text", ctx), wrapstring(ctx->vm->fp->func->src), ctx);
 	dict_set(dc, string_lit("name", ctx), wrapstring(ctx->vm->fp->func->name), ctx);
@@ -3630,7 +3631,7 @@ void std_init(sylt_t* ctx) {
 	std_add(ctx, "platform", wrapstring(string_lit(get_platform(), ctx)));
 	std_addf(ctx, "memInfo", stdsys_mem_info, 0);
 	std_addf(ctx, "memSizes", stdsys_mem_sizes, 0);
-	std_addf(ctx, "src", stdsys_src, 0);
+	std_addf(ctx, "src", stdsys_src, 1);
 	std_addf(ctx, "exec", stdsys_exec, 1);
 	std_addf(ctx, "halt", stdsys_halt, 1);
 	std_addf(ctx, "timeFormat", stdsys_time_format, 1);

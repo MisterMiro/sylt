@@ -1655,7 +1655,7 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 	string_t* str = NULL;
 	switch (val.tag) {
 	case TYPE_UNIT: {
-		str = string_lit("()", ctx);
+		str = string_lit("null", ctx);
 		break;
 	}
 	case TYPE_BOOL: {

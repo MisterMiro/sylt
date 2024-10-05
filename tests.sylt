@@ -183,8 +183,8 @@ end
 let equality _ = do
 	## contains a value of each type
 	let values = [
-		()              ## Unit
-		true            ## Bool
+		null        ## Null
+		true        ## Bool
 		235	        ## Num
 		[123]	  	## List
 		"'_'"	  	## String

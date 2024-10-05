@@ -479,7 +479,7 @@ let preludeLib _ = do
 	
 	## rep
 	let nums = []
-	rep(fun i -> nums <- nums + i 3)
+	rep(fun i -> nums += i 3)
 	ensure(nums is [0 1 2])
 
     ## bitShiftLeft

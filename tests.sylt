@@ -292,7 +292,7 @@ let variables _ = do
 			z <- 900
 		in
 	end
-	let z = out(())(())
+	let z = out(null)(null)
 	ensure(z is 900)
 	
 	## chaining assignments
@@ -304,9 +304,9 @@ let variables _ = do
 end
 
 let blocks _ = do
-	## empty block returns unit
+	## empty block returns null
 	let result = do end
-	ensure(result is ())
+	ensure(result is null)
 	
 	## last expression is returned...
 	let result = do 123 end
@@ -376,7 +376,7 @@ end
 let functions _ = do
 	## empty body returns unit
 	let empty _ = do end
-	ensure(empty(()) is ())
+	ensure(empty(null) is null)
 	
 	## argument passing
 	let add a b = a + b
@@ -393,7 +393,7 @@ let functions _ = do
 	## a functions stack window
 	let outside = "outside"
 	let f _ = outside
-	ensure(f(()) is outside)
+	ensure(f(null) is outside)
 	
 	## moving surrounding context to
 	## the heap if necessary
@@ -402,7 +402,7 @@ let functions _ = do
 		let f2 _ = keep
 		f2
 	end
-	ensure(f(())(()) is "jewel")
+	ensure(f(null)(null) is "jewel")
 	
 	## anonymous functions using 'fun'
 	let anon = fun r s t -> r * s * t
@@ -459,7 +459,7 @@ let preludeLib _ = do
 	ensure(toString(printLn) is "printLn")
 	
 	## toNum
-	ensure(toNum(()) is 0)
+	ensure(toNum(null) is 0)
 	ensure(toNum(true) is 1)
 	ensure(toNum(false) is 0)
 	ensure(toNum(112) is 112)
@@ -470,7 +470,7 @@ let preludeLib _ = do
 	ensure(toNum(fun _ -> do end) is 0)
 	
 	## typeOf
-	ensure(typeOf(()) is "Unit")
+	ensure(typeOf(null) is "Null")
 	ensure(typeOf(true) is "Bool")
 	ensure(typeOf(1) is "Number")
 	ensure(typeOf([]) is "List")
@@ -920,7 +920,7 @@ List.forEach(fun test ->
 		let name = String.rightPad(toString(test) 20 ".")
 		print("  " + name)
 		
-		test(())
+		test(null)
 		printLn("OK")
 	end
 	tests)

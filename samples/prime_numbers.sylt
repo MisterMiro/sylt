@@ -8,6 +8,6 @@ let isPrime n = do
     check(2)
 end
 
-let numbers = List.range(0..100)
+let numbers = List.range(0 101)
 numbers <- List.filter(isPrime numbers)
 printLn(numbers)

@@ -37,7 +37,7 @@ let strings _ = do
 	let tab = "\t"
 	let newline = "\n"
 	let carriageReturn = "\r"
-	let null = "\0"
+	let nullEscape = "\0"
 	
 	## ...translate properly
 	ensure(hex is "A")
@@ -46,7 +46,7 @@ let strings _ = do
 	ensure(tab is "\x09")
 	ensure(newline is "\x0a")
 	ensure(carriageReturn is "\x0d")
-	ensure(null is "\x00")
+	ensure(nullEscape is "\x00")
 end
 
 let numbers _ = do

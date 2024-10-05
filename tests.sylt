@@ -282,7 +282,7 @@ let variables _ = do
 	let func _ = do
 		y <- 333
 	end
-	func(())
+	func(null)
 	ensure(y is 333)
 	
 	## assigning closed upvalue
@@ -296,9 +296,9 @@ let variables _ = do
 	ensure(z is 900)
 	
 	## chaining assignments
-	let a = ()
-	let b = ()
-	let c = ()
+	let a = null
+	let b = null
+	let c = null
 	a <- b <- c <- 32
 	ensure(a is 32 and b is 32 and c is 32)
 end
@@ -421,7 +421,7 @@ end
 
 let ifElse _ = do
 	## implicit nil
-	ensure((if false: do end) is ())
+	ensure((if false: do end) is null)
 	
 	## if branch
 	let result = if true: "A" else "B"

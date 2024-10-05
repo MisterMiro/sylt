@@ -619,7 +619,7 @@ typedef enum {
 } type_t;
 
 static const char* TYPE_NAMES[] = {
-	"Unit",
+	"Null",
 	"Bool",
 	"Number",
 	"List",
@@ -3617,7 +3617,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "unreachable", std_unreachable, 0);
 	std_addf(ctx, "bitShiftLeft", std_bit_shift_left, 2);
 	std_addf(ctx, "bitShiftRight", std_bit_shift_right, 2);
-        std_addf(ctx, "bitAnd", std_bit_and, 2);
+    std_addf(ctx, "bitAnd", std_bit_and, 2);
 	std_addf(ctx, "bitOr", std_bit_or, 2);
 	std_addf(ctx, "bitXor", std_bit_xor, 2);
 	std_addf(ctx, "bitNot", std_bit_not, 1);
@@ -3769,7 +3769,7 @@ void std_sandbox(sylt_t* ctx) {
 
 typedef enum {
 	T_NAME,
-	T_UNIT,
+	T_NULL,
 	T_TRUE,
 	T_FALSE,
 	T_LET,
@@ -4243,6 +4243,7 @@ token_t scan(comp_t* cmp) {
 		size_t len = cmp->pos - start;
 		#define keyword(lit) (len == strlen(lit) && !strncmp(start, (lit), strlen(lit)))
 
+		if (keyword("null")) return token(T_NULL);
 		if (keyword("true")) return token(T_TRUE);
 		if (keyword("false")) return token(T_FALSE);
 		if (keyword("let")) return token(T_LET);
@@ -4325,9 +4326,7 @@ token_t scan(comp_t* cmp) {
 		if (match('=')) return token(T_GT_EQ);
 		return token(T_GT);
 	case '=': return token(T_EQ);
-	case '(': 
-		if (match(')')) return token(T_UNIT);
-		return token(T_LPAREN);
+	case '(': return token(T_LPAREN);
 	case ')': return token(T_RPAREN);
 	case '{': return token(T_LCURLY);
 	case '}': return token(T_RCURLY);
@@ -4420,7 +4419,7 @@ typedef struct {
 /* maps tokens to parsers */
 static parserule_t RULES[] = {
 	[T_NAME] = {name, NULL, PREC_NONE},
-	[T_UNIT] = {literal, NULL, PREC_NONE},
+	[T_NULL] = {literal, NULL, PREC_NONE},
 	[T_TRUE] = {literal, NULL, PREC_NONE},
 	[T_FALSE] = {literal, NULL, PREC_NONE},
 	[T_LET] = {let, NULL, PREC_NONE},
@@ -4495,7 +4494,7 @@ void expr(comp_t* cmp, prec_t prec, const char* name) {
 /* parses a keyword literal */
 void literal(comp_t* cmp) {
 	switch (cmp->prev.tag) {
-	case T_UNIT: emit_value(cmp, unit()); break;
+	case T_NULL: emit_value(cmp, unit()); break;
 	case T_TRUE: emit_value(cmp, wrapbool(true)); break;
 	case T_FALSE: emit_value(cmp, wrapbool(false)); break;
 	default: unreachable();

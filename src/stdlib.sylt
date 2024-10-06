@@ -66,8 +66,8 @@ let impl = do
 
 	let mean list = if isOdd(#list): List.get(#list / 2 list)
 		else List.average([
-			List.get(#list / 2 - 1 ls)
-			List.get(#list / 2 ls)])
+			List.get(#list / 2 - 1 list)
+			List.get(#list / 2 list)])
 
 	let sortBy f list = do
 		let bubbleSort list n = do
@@ -102,6 +102,7 @@ let impl = do
 	end
 
 	let any f list = List.fold(fun any value -> any or f(value) false list)
+
 	let all f list = List.fold(fun all value -> all and f(value) true list)
 
 	let lib = Dict.get("List" gdict)

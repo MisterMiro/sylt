@@ -38,34 +38,34 @@ let makeEnum list = do
 end
 
 module List is
-	let iter f list = rep(
-        fun index -> f(index List.get(i list))
+	let iter fn list = rep(
+        fun index -> fn(index List.get(i list))
         #list)
 
-	let forEach f list = rep(
-        fun index -> f(List.get(index list))
+	let forEach fn list = rep(
+        fun index -> fn(List.get(index list))
         #list)
 
-	let map f list = do
+	let map fn list = do
 		let new = []
 		List.forEach(
-            fun item -> new += f(item)
+            fun item -> new += fn(item)
             list)
 		new
 	end
 
-	let filter f list = do
+	let filter fn list = do
 		let new = []
 		List.forEach(
-            fun item -> if f(item): new += item
+            fun item -> if fn(item): new += item
             list)
 		new
 	end
 
-	let fold f init list = do
+	let fold fn init list = do
 		let result = init
 		List.forEach(
-            fun item -> result <- f(result item)
+            fun item -> result <- fn(result item)
             list)
 		result
 	end
@@ -82,12 +82,12 @@ module List is
 			List.get(#list / 2 - 1 list)
 			List.get(#list / 2 list)])
 
-	let sortBy f list = do
+	let sortBy fn list = do
 		let bubbleSort list n = do
 			let swapped = 0
 
 			rep(fun i -> do
-				if f(List.get(i list) List.get(i + 1 list)): do
+				if fn(List.get(i list) List.get(i + 1 list)): do
 					List.swap(i i + 1 list)
 					swapped += 1
 				end
@@ -120,12 +120,12 @@ module List is
 		new
 	end
 
-	let any f list = List.fold(
-        fun any value -> any or f(value) false
+	let any fn list = List.fold(
+        fun any value -> any or fn(value) false
         list)
 
-	let all f list = List.fold(
-        fun all value -> all and f(value) true
+	let all fn list = List.fold(
+        fun all value -> all and fn(value) true
         list)
 
 	let lib = Dict.get("List" gdict)
@@ -150,8 +150,8 @@ module Dict is
         if Dict.hasKey(key doct): Dict.get(key dict)
         else default
 
-	let iter f dict = List.forEach(
-        fun key -> f(key Dict.get(key dict))
+	let iter fn dict = List.forEach(
+        fun key -> fn(key Dict.get(key dict))
         Dict.keys(dc))
 
 	let toList dict = do

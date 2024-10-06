@@ -39,11 +39,11 @@ end
 
 module List is
 	let iter f list = rep(
-        fun i -> f(i List.get(i list))
+        fun index -> f(index List.get(i list))
         #list)
 
 	let forEach f list = rep(
-        fun i -> f(List.get(i list))
+        fun index -> f(List.get(index list))
         #list)
 
 	let map f list = do

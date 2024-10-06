@@ -405,7 +405,7 @@ let functions _ = do
 	
 	## arguments + local variables
 	let add a b = do
-		let stack_mate = 18
+		let stackMate = 18
 		a + b
 	end
 	ensure(add(3 4) is 7)

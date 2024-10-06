@@ -1,8 +1,8 @@
 ## demonstrates looping by calling a function from inside itself
 
-let loop n = if n <= 3: do
-        printLn(n)
-        loop(n + 1)
+let loop index = if index <= 3: do
+        printLn(index)
+        loop(index + 1)
     end
 
 loop(1)

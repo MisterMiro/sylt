@@ -1,5 +1,5 @@
 
-let names _ = do
+let names = fun -> do
 	let value = "whatever"
 	
 	let name = value
@@ -26,7 +26,7 @@ let names _ = do
 	let enderman = value
 end
 
-let strings _ = do
+let strings = fun -> do
 	let empty = ""
 	let alpha = "abcDEFGHijklMNOPqrstUVWxyz"
 	
@@ -49,12 +49,12 @@ let strings _ = do
 	ensure(nullEscape is "\x00")
 end
 
-let numbers _ = do
+let numbers = fun -> do
 	let integer = 123456789
 	let fractional = 3.141592
 end
 
-let precedence _ = do
+let precedence = fun -> do
 	## multiplication > addition
 	ensure(5 * 2 + 8 is 18)
 	ensure(5 / 2 + 8 is 10.5)
@@ -77,7 +77,7 @@ let precedence _ = do
 	ensure(true not 1 >= 2)
 end
 
-let addition _ = do
+let addition = fun -> do
 	let x = 8
 	let y = 12
 	
@@ -90,7 +90,7 @@ let addition _ = do
 	ensure(x + y is y + x)
 end
 
-let subtraction _ = do
+let subtraction = fun -> do
 	let x = 20
 	let y = 12
 	
@@ -103,7 +103,7 @@ let subtraction _ = do
 	ensure(x - y not y - x)
 end
 
-let multiplication _ = do
+let multiplication = fun -> do
 	let x = 5
 	let y = 16
 	
@@ -116,7 +116,7 @@ let multiplication _ = do
 	ensure(x * y is y * x)
 end
 
-let division _ = do
+let division = fun -> do
 	let x = 33
 	let y = 3
 	
@@ -129,7 +129,7 @@ let division _ = do
 	ensure(x / y not y / x)
 end
 
-let remainder _ = do
+let remainder = fun -> do
 	let x = 17
 	let y = 12
 	
@@ -148,7 +148,7 @@ let remainder _ = do
 	ensure(-7 % -3 is 2)
 end
 
-let unaryMinus _ = do
+let unaryMinus = fun -> do
 	let x = 25
 	ensure(-x is 0 - x)
 	
@@ -159,13 +159,13 @@ let unaryMinus _ = do
 	ensure(----x is x)
 end
 
-let arithmetic _ = do
+let arithmetic = fun -> do
 	let a = 1
 	let b = a + 2
 	ensure(a + b is a - (-b))
 end
 
-let comparison _ = do
+let comparison = fun -> do
 	let hi = 100
 	let lo = -100
 	
@@ -180,7 +180,7 @@ let comparison _ = do
 	ensure(same >= same)
 end
 
-let equality _ = do
+let equality = fun -> do
 	## contains a value of each type
 	let values = [
 		null        ## Null
@@ -214,7 +214,7 @@ let equality _ = do
 	ensure(Math.pow not Math.sqrt)
 end
 
-let boolNot _ = do
+let boolNot = fun -> do
 	ensure(true is not false)
 	ensure(false is not true)
     ensure(not true is false)
@@ -222,7 +222,7 @@ let boolNot _ = do
 	ensure(not not true is true)
 end
 
-let boolAnd _ = do
+let boolAnd = fun -> do
 	ensure((false and false) is false)
 	ensure((false and true) is false)
 	ensure((true and false) is false)
@@ -233,7 +233,7 @@ let boolAnd _ = do
 	false and wouldCrash(null)
 end
 
-let boolOr _ = do
+let boolOr = fun -> do
 	ensure((false or false) is false)
 	ensure((false or true) is true)
 	ensure((true or false) is true)
@@ -244,7 +244,7 @@ let boolOr _ = do
 	true or wouldCrash(null)
 end
 
-let concat _ = do
+let concat = fun -> do
     ## combining strings with other strings, or values of other types
     ensure("str" + "str" is "strstr")
     ensure(3 + "str" is "3str")
@@ -262,7 +262,7 @@ let concat _ = do
     ensure([1 2 3] + [[4 5 6]] is [1 2 3 [4 5 6]])
 end
 
-let variables _ = do
+let variables = fun -> do
 	## declaring
 	let x = 70
 	
@@ -279,20 +279,20 @@ let variables _ = do
 	
 	## assigning open upvalue
 	let y = 888
-	let func _ = do
+	let func = fun -> do
 		y <- 333
 	end
-	func(null)
+	func()
 	ensure(y is 333)
 	
 	## assigning closed upvalue
-	let out _ = do
+	let out = fun -> do
 		let z = 4
-		let in _ =
+		let in = fun ->
 			z <- 900
 		in
 	end
-	let z = out(null)(null)
+	let z = out()()
 	ensure(z is 900)
 	
 	## chaining assignments
@@ -303,7 +303,7 @@ let variables _ = do
 	ensure(a is 32 and b is 32 and c is 32)
 end
 
-let blocks _ = do
+let blocks = fun -> do
 	## empty block returns null
 	let result = do end
 	ensure(result is null)
@@ -339,7 +339,7 @@ let blocks _ = do
 	ensure(x is true)
 end
 
-let lists _ = do
+let lists = fun -> do
 	## literal
 	let list = [1 2 3]
 
@@ -363,7 +363,7 @@ let lists _ = do
 	ensure(x is [] and #x is 0)
 end
 
-let dicts _ = do
+let dicts = fun -> do
 	let dict = {"a": 1 "b": 2 "c": 3}
 	
 	## count operator
@@ -373,7 +373,7 @@ let dicts _ = do
 	ensure(Dict.get("a" dict) is dict.a)
 end
 
-let functions _ = do
+let functions = fun -> do
 	## empty body returns unit
 	let empty _ = do end
 	ensure(empty(null) is null)
@@ -392,17 +392,17 @@ let functions _ = do
 	## accessing variable outside of
 	## a functions stack window
 	let outside = "outside"
-	let f _ = outside
-	ensure(f(null) is outside)
+	let f = fun -> outside
+	ensure(f() is outside)
 	
 	## moving surrounding context to
 	## the heap if necessary
-	let f _ = do
+	let f = fun -> do
 		let keep = "jewel"
-		let f2 _ = keep
+		let f2 = fun -> keep
 		f2
 	end
-	ensure(f(null)(null) is "jewel")
+	ensure(f()() is "jewel")
 	
 	## anonymous functions using 'fun'
 	let anon = fun r s t -> r * s * t
@@ -419,7 +419,7 @@ let functions _ = do
 	ensure(nums is [])
 end
 
-let ifElse _ = do
+let ifElse = fun -> do
 	## implicit nil
 	ensure((if false: do end) is null)
 	
@@ -439,7 +439,7 @@ let ifElse _ = do
 	ensure(result is "B")
 end
 
-let whileLoop _ = do
+let whileLoop = fun -> do
 	let list = []
 	let n = 1
 	let result = while n <= 3: do
@@ -450,7 +450,7 @@ let whileLoop _ = do
 	ensure(list is [1 2 3])
 end
 
-let preludeLib _ = do
+let preludeLib = fun -> do
 	## toString
 	ensure(toString(null) is "null")
 	ensure(toString(true) is "true" and toString(false) is "false")
@@ -501,7 +501,7 @@ let preludeLib _ = do
     ensure(bitNot(40) is -41)
 end
 
-let fileLib _ = do
+let fileLib = fun -> do
 	let path = "sylt_test_file.txt"
 	let str = "Hey\n"
 	
@@ -526,7 +526,7 @@ let fileLib _ = do
 	File.del(path)
 end
 
-let listLib _ = do
+let listLib = fun -> do
 	## get + set
 	let ls = [1 2 3]
 	ensure(List.get(0 ls) is 1)
@@ -664,7 +664,7 @@ let listLib _ = do
 	ensure(not List.all(fun n -> not (n < 5) set))
 end
 
-let dictLib _ = do
+let dictLib = fun -> do
 	let dict = {
 		"door": "window"
 		"car": "helicopter"
@@ -678,7 +678,7 @@ let dictLib _ = do
 	ensure(Dict.values(dict) is ["window" "helicopter" "pyramid"])
 end
 
-let stringLib _ = do
+let stringLib = fun -> do
 	## alpha
 	let str = "abcdefghijklmnopqrstuvwxyz"
 	ensure(String.letters is str)
@@ -759,7 +759,7 @@ let stringLib _ = do
 	ensure(String.centerPad("test" 10 "|") is "|||test|||")
 end
 
-let mathLib _ = do
+let mathLib = fun -> do
 	## pi
 	ensure(floatEq(Math.pi 3.141592 0.00001))
 	
@@ -920,7 +920,7 @@ List.forEach(fun test ->
 		let name = String.rightPad(toString(test) 20 ".")
 		print("  " + name)
 		
-		test(null)
+		test()
 		printLn("OK")
 	end
 	tests)

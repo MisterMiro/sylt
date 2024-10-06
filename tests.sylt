@@ -847,8 +847,8 @@ let mathLib _ = do
 	
 	## sin + cos + tan
 	ensure(floatEq(Math.sin(90) 0.8939 0.001))
-	ensure(floatEq(Math.cos(90) 0 - 0.4480 0.001))
-	ensure(floatEq(Math.tan(90) 0 - 1.9952 0.001))
+	ensure(floatEq(Math.cos(90) (-0.4480) 0.001))
+	ensure(floatEq(Math.tan(90) (-1.9952) 0.001))
 			
 	## asin + acos + atan
 	ensure(floatEq(Math.asin(1) 1.5708 0.001))

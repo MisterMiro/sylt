@@ -23,7 +23,9 @@ let rem a b = a % b
 
 let makeEnum list = do
 	let enum = {}
-	List.iter(fun index name -> Dict.set(name index enum) list)
+	List.iter(
+        fun index name -> Dict.set(name index enum)
+        list)
 	enum
 end
 
@@ -38,33 +40,46 @@ end
 ## List
 
 let impl = do
-	let iter f list = rep(fun i -> f(i List.get(i list)) #list)
+	let iter f list = rep(
+        fun i -> f(i List.get(i list))
+        #list)
 
-	let forEach f list = rep(fun i -> f(List.get(i list)) #list)
+	let forEach f list = rep(
+        fun i -> f(List.get(i list))
+        #list)
 
 	let map f list = do
 		let new = []
-		List.forEach(fun item -> new += f(item) list)
+		List.forEach(
+            fun item -> new += f(item)
+            list)
 		new
 	end
 
 	let filter f list = do
 		let new = []
-		List.forEach(fun item -> if f(item): new += item list)
+		List.forEach(
+            fun item -> if f(item): new += item
+            list)
 		new
 	end
 
 	let fold f init list = do
 		let result = init
-		List.forEach(fun item -> result <- f(result item) list)
+		List.forEach(
+            fun item -> result <- f(result item)
+            list)
 		result
 	end
 
 	let sum list = List.fold(add 0 list)
 
-	let average list = if list is []: 0 else List.sum(list) / #list
+	let average list =
+        if list is []: 0
+        else List.sum(list) / #list
 
-	let mean list = if isOdd(#list): List.get(#list / 2 list)
+	let mean list =
+        if isOdd(#list): List.get(#list / 2 list)
 		else List.average([
 			List.get(#list / 2 - 1 list)
 			List.get(#list / 2 list)])
@@ -90,20 +105,30 @@ let impl = do
 
 	let flatten list = do
 		let new = []
-		List.forEach(fun item -> new += if typeOf(item) is "List":
-            List.flatten(item) else item list)
+		List.forEach(
+            fun item -> new +=
+                if typeOf(item) is "List": List.flatten(item)
+                else item
+            list)
 		new
 	end
 
 	let dedup list = do
 		let new = []
-		List.forEach(fun item -> if not List.contains(item new): new += item list)
+		List.forEach(
+            fun item -> if not List.contains(item new):
+                new += item
+            list)
 		new
 	end
 
-	let any f list = List.fold(fun any value -> any or f(value) false list)
+	let any f list = List.fold(
+        fun any value -> any or f(value) false
+        list)
 
-	let all f list = List.fold(fun all value -> all and f(value) true list)
+	let all f list = List.fold(
+        fun all value -> all and f(value) true
+        list)
 
 	let lib = Dict.get("List" gdict)
 	Dict.set("iter" iter lib)
@@ -125,10 +150,13 @@ end
 ## Dict
 
 let impl = do
-	let getOrDefault key default dc = if Dict.hasKey(key dc): Dict.get(key dc)
-		else default
+	let getOrDefault key default dc =
+        if Dict.hasKey(key dc): Dict.get(key dc)
+        else default
 
-	let iter f dc = List.forEach(fun key -> f(key Dict.get(key dc)) Dict.keys(dc))
+	let iter f dc = List.forEach(
+        fun key -> f(key Dict.get(key dc))
+        Dict.keys(dc))
 
 	let toList dc = do
 		let ls = []

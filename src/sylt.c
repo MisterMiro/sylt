@@ -3747,7 +3747,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "seed", stdrand_seed, 1);
 	std_addlib(ctx);
 
-	/* parts of the stdlib are implemented 
+	/* part of the stdlib is implemented 
 	 * in sylt */
 	sylt_xfile(ctx, SYLT_STDLIB_PATH);
 	
@@ -3785,6 +3785,7 @@ typedef enum {
 	T_RETURN,
 	T_DO,
 	T_END,
+    T_MODULE,
 	T_STRING,
 	T_NUMBER,
 	T_PLUS,
@@ -4259,6 +4260,7 @@ token_t scan(comp_t* cmp) {
 		if (keyword("return")) return token(T_RETURN);
 		if (keyword("do")) return token(T_DO);
 		if (keyword("end")) return token(T_END);
+		if (keyword("module")) return token(T_MODULE);
 			
 		#undef keyword
 		
@@ -4406,6 +4408,7 @@ void fun(comp_t*);
 void if_else(comp_t*);
 void while_loop(comp_t*);
 void block(comp_t*);
+void module(comp_t*);
 
 typedef void (*parsefn_t)(comp_t*);
 
@@ -4435,6 +4438,7 @@ static parserule_t RULES[] = {
 	[T_RETURN] = {ret, NULL, PREC_NONE},
 	[T_DO] = {block, NULL, PREC_NONE},
 	[T_END] = {NULL, NULL, PREC_NONE},
+    [T_MODULE] = {module, NULL, PREC_NONE},
 	[T_STRING] = {string, NULL, PREC_NONE},
 	[T_NUMBER] = {number, NULL, PREC_NONE},
 	[T_PLUS] = {NULL, binary, PREC_TERM},
@@ -5025,6 +5029,28 @@ void block(comp_t* cmp) {
 	}
 	
 	eat(cmp, T_END, "expected 'end'");
+	comp_close_scope(cmp);
+}
+
+/* parses a module */
+void module(comp_t* cmp) {
+    eat(cmp, T_NAME, "expected module name");
+	string_t* name = cmp->prev.lex;
+	eat(cmp, T_IS, "expected 'is' after module name");
+
+	comp_open_scope(cmp);
+    while (!check(cmp, T_END) && !check(cmp, T_EOF)) {
+		expr(cmp, ANY_PREC, "expression");
+		
+		/* pop the result of every expression
+		 * in a block except for the last one,
+		 * which becomes the return value
+		 * of the entire block */
+		if (!check(cmp, T_END))
+			emit_nullary(cmp, OP_POP);
+	}
+	
+	eat(cmp, T_END, "expected 'end' to close module");
 	comp_close_scope(cmp);
 }
 

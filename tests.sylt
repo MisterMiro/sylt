@@ -191,14 +191,14 @@ let equality _ = do
 		fun x -> x	## Func
 	]
 	
-	List.iter(fun skip value -> do
+	List.iter(fun skipIndex value -> do
 		## equal to itself
 		ensure(value is value)
 		
 		## not equal to a value of any other
 		## type
 		List.iter(fun index other ->
-            if index not skip: ensure(value not other) values)
+            if index not skipIndex: ensure(value not other) values)
 	end values)
 	
 	## perform more type-specific tests

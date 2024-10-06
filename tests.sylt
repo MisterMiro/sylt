@@ -204,7 +204,7 @@ let equality _ = do
 	let values = [
 		null        ## Null
 		true        ## Bool
-		235	        ## Num
+		235	        ## Number
 		[123]	  	## List
         {"a": "b"}  ## Dict
 		"'_'"	  	## String

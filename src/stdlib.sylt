@@ -37,9 +37,7 @@ let rep f n = do
 	end
 end
 
-## List
-
-let impl = do
+module List is
 	let iter f list = rep(
         fun i -> f(i List.get(i list))
         #list)
@@ -147,9 +145,7 @@ let impl = do
 	Dict.set("all" all lib)
 end
 
-## Dict
-
-let impl = do
+module Dict is
 	let getOrDefault key default dc =
         if Dict.hasKey(key dc): Dict.get(key dc)
         else default
@@ -170,9 +166,7 @@ let impl = do
 	Dict.set("toList" toList lib)
 end
 
-## String
-
-let impl = do
+module String is
 	let leftPad str w pattern = do
 		let text = ""
 		let n = (w - #str) / #pattern
@@ -205,9 +199,7 @@ let impl = do
 	Dict.set("centerPad" centerPad lib)
 end
 
-## File
-
-let impl = do
+module File is
 	let Mode = makeEnum([
 		"Read"
 		"ReadBinary"
@@ -221,9 +213,7 @@ let impl = do
 	Dict.set("Mode" Mode lib)
 end
 
-## Math
-
-let impl = do
+module Math is
 	let Sign = makeEnum(["Negative" "Zero" "Positive"])
 
 	let signum n = if n < 0: Sign.Negative
@@ -235,9 +225,7 @@ let impl = do
 	Dict.set("signum" signum lib)
 end
 
-## Vec3
-
-let impl = do
+module Vec3 is
 	let new x y z = {
 		"x": x
 		"y": y
@@ -317,9 +305,7 @@ let impl = do
 	Dict.set("divScalar" divScalar lib)
 end
 
-## Rand
-
-let impl = do
+module Rand is
 	let fiftyFifty _ = Rand.range(0 1) > 0.5
 	let oneIn n = Rand.range(0 n) < 1
 	let item ls = List.get(Rand.range(0 #ls) ls)

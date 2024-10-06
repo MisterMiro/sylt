@@ -630,7 +630,7 @@ let listLib _ = do
 	## forEach
 	let items = [1 2 3]
 	let copy = []
-	List.forEach(fun index -> copy <- copy + index items)
+	List.forEach(fun index -> copy += index items)
 	ensure(items is copy)
 	
 	## map

@@ -230,7 +230,7 @@ let boolAnd _ = do
 	
 	## short-circuit evaluation
 	let wouldCrash _ = ensure(false)
-	false and wouldCrash()
+	false and wouldCrash(null)
 end
 
 let boolOr _ = do
@@ -241,7 +241,7 @@ let boolOr _ = do
 	
 	## short-circuit evaluation
 	let wouldCrash _ = ensure(false)
-	true or wouldCrash()
+	true or wouldCrash(null)
 end
 
 let concat _ = do

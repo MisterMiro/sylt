@@ -395,9 +395,9 @@ let dicts _ = do
 end
 
 let functions _ = do
-	## empty body returns unit
-	let empty _ = do end
-	ensure(empty(null) is null)
+	## empty body returns null
+	let empty = fun -> do end
+	ensure(empty() is null)
 	
 	## argument passing
 	let add a b = a + b

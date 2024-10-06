@@ -21,20 +21,20 @@ let mul a b = a * b
 let div a b = a / b
 let rem a b = a % b
 
-let makeEnum list = do
-	let enum = {}
-	List.iter(
-        fun index name -> Dict.set(name index enum)
-        list)
-	enum
-end
-
 let rep f n = do
 	let i = 0
 	while i < n: do
 		f(i)
 		i += 1
 	end
+end
+
+let makeEnum list = do
+	let enum = {}
+	List.iter(
+        fun index name -> Dict.set(name index enum)
+        list)
+	enum
 end
 
 module List is

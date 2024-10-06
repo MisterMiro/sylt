@@ -206,6 +206,7 @@ let equality _ = do
 		true        ## Bool
 		235	        ## Num
 		[123]	  	## List
+        {"a": "b"}  ## Dict
 		"'_'"	  	## String
 		fun x -> x	## Func
 	]

@@ -93,7 +93,7 @@ module List is
 				end
 			end n - 1)
 
-			if swapped not 0: bubbleSort(list n - 1)
+			if not isZero(swapped): bubbleSort(list n - 1)
 		end
 
 		if #list > 1: bubbleSort(list #list)
@@ -146,17 +146,17 @@ module List is
 end
 
 module Dict is
-	let getOrDefault key default dc =
-        if Dict.hasKey(key dc): Dict.get(key dc)
+	let getOrDefault key default dict =
+        if Dict.hasKey(key doct): Dict.get(key dict)
         else default
 
-	let iter f dc = List.forEach(
-        fun key -> f(key Dict.get(key dc))
+	let iter f dict = List.forEach(
+        fun key -> f(key Dict.get(key dict))
         Dict.keys(dc))
 
-	let toList dc = do
+	let toList dict = do
 		let ls = []
-		Dict.iter(fun k v -> ls += [[k v]] dc)
+		Dict.iter(fun k v -> ls += [[k v]] dict)
 		ls
 	end
 

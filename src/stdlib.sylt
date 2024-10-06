@@ -21,9 +21,9 @@ let mul a b = a * b
 let div a b = a / b
 let rem a b = a % b
 
-let makeEnum ls = do
+let makeEnum list = do
 	let enum = {}
-	List.iter(fun index name -> Dict.set(name index enum) ls)
+	List.iter(fun index name -> Dict.set(name index enum) list)
 	enum
 end
 
@@ -38,67 +38,71 @@ end
 ## List
 
 let impl = do
-	let iter f ls = rep(fun i -> f(i List.get(i ls)) #ls)
-	let forEach f ls = rep(fun i -> f(List.get(i ls)) #ls)
+	let iter f list = rep(fun i -> f(i List.get(i list)) #list)
 
-	let map f ls = do
+	let forEach f list = rep(fun i -> f(List.get(i list)) #list)
+
+	let map f list = do
 		let new = []
-		List.forEach(fun item -> new += f(item) ls)
+		List.forEach(fun item -> new += f(item) list)
 		new
 	end
 
-	let filter f ls = do
+	let filter f list = do
 		let new = []
-		List.forEach(fun item -> if f(item): new += item ls)
+		List.forEach(fun item -> if f(item): new += item list)
 		new
 	end
 
-	let fold f init ls = do
+	let fold f init list = do
 		let result = init
-		List.forEach(fun item -> result <- f(result item) ls)
+		List.forEach(fun item -> result <- f(result item) list)
 		result
 	end
 
-	let sum ls = List.fold(add 0 ls)
-	let average ls = if ls is []: 0 else List.sum(ls) / #ls
-	let mean ls = if isOdd(#ls): List.get(#ls / 2 ls)
-		else List.average([
-			List.get(#ls / 2 - 1 ls)
-			List.get(#ls / 2 ls)])
+	let sum list = List.fold(add 0 list)
 
-	let sortBy f ls = do
-		let bubbleSort ls n = do
+	let average list = if list is []: 0 else List.sum(list) / #list
+
+	let mean list = if isOdd(#list): List.get(#list / 2 list)
+		else List.average([
+			List.get(#list / 2 - 1 ls)
+			List.get(#list / 2 ls)])
+
+	let sortBy f list = do
+		let bubbleSort list n = do
 			let swapped = 0
 
 			rep(fun i -> do
-				if f(List.get(i ls) List.get(i + 1 ls)): do
-					List.swap(i i + 1 ls)
+				if f(List.get(i list) List.get(i + 1 list)): do
+					List.swap(i i + 1 list)
 					swapped += 1
 				end
 			end n - 1)
 
-			if swapped not 0: bubbleSort(ls n - 1)
+			if swapped not 0: bubbleSort(list n - 1)
 		end
 
-		if #ls > 1: bubbleSort(ls #ls)
+		if #list > 1: bubbleSort(list #list)
 	end
 
-	let sort ls = sortBy(fun a b -> a > b ls)
+	let sort list = sortBy(fun a b -> a > b list)
 
-	let flatten ls = do
+	let flatten list = do
 		let new = []
-		List.forEach(fun item -> new += if typeOf(item) is "List": List.flatten(item) else item ls)
+		List.forEach(fun item -> new += if typeOf(item) is "List":
+            List.flatten(item) else item list)
 		new
 	end
 
-	let dedup ls = do
+	let dedup list = do
 		let new = []
-		List.forEach(fun item -> if not List.contains(item new): new += item ls)
+		List.forEach(fun item -> if not List.contains(item new): new += item list)
 		new
 	end
 
-	let any f ls = List.fold(fun any value -> any or f(value) false ls)
-	let all f ls = List.fold(fun all value -> all and f(value) true ls)
+	let any f list = List.fold(fun any value -> any or f(value) false list)
+	let all f list = List.fold(fun all value -> all and f(value) true list)
 
 	let lib = Dict.get("List" gdict)
 	Dict.set("iter" iter lib)

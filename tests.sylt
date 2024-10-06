@@ -229,8 +229,8 @@ let boolAnd _ = do
 	ensure((true and true) is true)
 	
 	## short-circuit evaluation
-	let wouldCrash _ = ensure(false)
-	false and wouldCrash(null)
+	let wouldCrash = fun -> ensure(false)
+	false and wouldCrash()
 end
 
 let boolOr _ = do
@@ -240,8 +240,8 @@ let boolOr _ = do
 	ensure((true or true) is true)
 	
 	## short-circuit evaluation
-	let wouldCrash _ = ensure(false)
-	true or wouldCrash(null)
+	let wouldCrash = fun -> ensure(false)
+	true or wouldCrash()
 end
 
 let concat _ = do
@@ -279,20 +279,20 @@ let variables _ = do
 	
 	## assigning open upvalue
 	let y = 888
-	let func _ = do
+	let func = fun -> do
 		y <- 333
 	end
-	func(null)
+	func()
 	ensure(y is 333)
 	
 	## assigning closed upvalue
-	let out _ = do
+	let out = fun -> do
 		let z = 4
-		let in _ =
+		let in = fun ->
 			z <- 900
 		in
 	end
-	let z = out(null)(null)
+	let z = out()()
 	ensure(z is 900)
 	
 	## chaining assignments
@@ -392,17 +392,17 @@ let functions _ = do
 	## accessing variable outside of
 	## a functions stack window
 	let outside = "outside"
-	let f _ = outside
-	ensure(f(null) is outside)
+	let f = fun -> outside
+	ensure(f() is outside)
 	
 	## moving surrounding context to
 	## the heap if necessary
-	let f _ = do
+	let f = fun -> do
 		let keep = "jewel"
-		let f2 _ = keep
+		let f2 = fun -> keep
 		f2
 	end
-	ensure(f(null)(null) is "jewel")
+	ensure(f()() is "jewel")
 	
 	## anonymous functions using 'fun'
 	let anon = fun r s t -> r * s * t

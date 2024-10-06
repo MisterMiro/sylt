@@ -121,12 +121,16 @@ module List is
 	end
 
 	let any fn list = List.fold(
-        fun any value -> any or fn(value) false
+        fun any value -> any or fn(value)
+        false
         list)
 
-	let all fn list = List.fold(
-        fun all value -> all and fn(value) true
-        list)
+	let all fn list =
+        if isZero(#list): false
+        else List.fold(
+            fun all value -> all and fn(value)
+            true
+            list)
 
 	let lib = Dict.get("List" gdict)
 	Dict.set("iter" iter lib)

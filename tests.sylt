@@ -148,6 +148,25 @@ let remainder _ = do
 	ensure(-7 % -3 is 2)
 end
 
+let compoundAssignment _ = do
+    let x = 1
+
+    x += 2
+    ensure(x is 3)
+
+    x -= 1
+    ensure(x is 2)
+
+    x *= 8
+    ensure(x is 16)
+
+    x /= 2
+    ensure(x is 8)
+
+    x %= 7
+    ensure(x is 1)
+end
+
 let unaryMinus _ = do
 	let x = 25
 	ensure(-x is 0 - x)
@@ -883,6 +902,7 @@ let tests = List.flatten([
 		multiplication
 		division
 		remainder
+        compoundAssignment
 		unaryMinus
 		arithmetic
 		comparison

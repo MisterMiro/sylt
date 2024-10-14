@@ -114,7 +114,7 @@ module List is
 	let dedup list = do
 		let deduped = []
 		List.forEach(
-            fun item -> if not List.contains(item new):
+            fun item -> if not List.contains(item deduped):
                 deduped += item
             list)
 		deduped

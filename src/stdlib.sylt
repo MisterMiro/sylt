@@ -47,19 +47,19 @@ module List is
         #list)
 
 	let map fn list = do
-		let new = []
+		let mapped = []
 		List.forEach(
-            fun item -> new += fn(item)
+            fun item -> mapped += fn(item)
             list)
-		new
+		mapped
 	end
 
 	let filter fn list = do
-		let new = []
+		let filtered = []
 		List.forEach(
-            fun item -> if fn(item): new += item
+            fun item -> if fn(item): filtered += item
             list)
-		new
+		filtered
 	end
 
 	let fold fn init list = do

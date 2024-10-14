@@ -229,9 +229,9 @@ end
 
 module Vec3 is
 	let new x y z = {
-		"x": x
-		"y": y
-		"z": z
+		"x" = x
+		"y" = y
+		"z" = z
 	}
 
 	let dot a b = a.x * b.x + a.y * b.y + a.z * b.z

@@ -21,7 +21,7 @@ let rem a b = a % b
 
 let rep fn n = do
 	let i = 0
-	while i < n: do
+	while i < n then do
 		fn(i)
 		i += 1
 	end
@@ -55,7 +55,7 @@ module List is
 	let filter fn list = do
 		let filtered = []
 		List.forEach(
-            fun item -> if fn(item): filtered += item
+            fun item -> if fn(item) then filtered += item
             list)
 		filtered
 	end
@@ -71,11 +71,11 @@ module List is
 	let sum list = List.fold(add 0 list)
 
 	let average list =
-        if list is []: 0
+        if list is [] then 0
         else List.sum(list) / #list
 
 	let mean list =
-        if isOdd(#list): List.get(#list / 2 list)
+        if isOdd(#list) then List.get(#list / 2 list)
 		else List.average([
 			List.get(#list / 2 - 1 list)
 			List.get(#list / 2 list)])
@@ -85,7 +85,7 @@ module List is
 			let swapped = 0
 
 			rep(fun i -> do
-				if fn(List.get(i list) List.get(i + 1 list)): do
+				if fn(List.get(i list) List.get(i + 1 list)) then do
 					List.swap(i i + 1 list)
 					swapped += 1
 				end
@@ -103,7 +103,7 @@ module List is
 		let flat = []
 		List.forEach(
             fun item -> flat +=
-                if typeOf(item) is "List": List.flatten(item)
+                if typeOf(item) is "List" then List.flatten(item)
                 else item
             list)
 		flat
@@ -112,7 +112,7 @@ module List is
 	let dedup list = do
 		let deduped = []
 		List.forEach(
-            fun item -> if not List.contains(item deduped):
+            fun item -> if not List.contains(item deduped) then
                 deduped += item
             list)
 		deduped
@@ -124,7 +124,7 @@ module List is
         list)
 
 	let all fn list =
-        if list is []: false
+        if list is [] then false
         else List.fold(
             fun all value -> all and fn(value)
             true
@@ -149,7 +149,7 @@ end
 
 module Dict is
 	let getOrDefault key default dict =
-        if Dict.hasKey(key dict): Dict.get(key dict)
+        if Dict.hasKey(key dict) then Dict.get(key dict)
         else default
 
 	let iter fn dict = List.forEach(
@@ -218,8 +218,8 @@ end
 module Math is
 	let Sign = makeEnum(["Negative" "Zero" "Positive"])
 
-	let signum n = if n < 0: Sign.Negative
-		else if n is 0: Sign.Zero
+	let signum n = if n < 0 then Sign.Negative
+		else if n is 0 then Sign.Zero
 		else Sign.Positive
 
 	let lib = Dict.get("Math" gdict)

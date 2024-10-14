@@ -862,7 +862,7 @@ let mathLib _ = do
 		ensure(Math.round(low) is n)
 		ensure(Math.round(high) is n + 1)
 	
-		ensure(Math.round(mid) is if n < 0: n else n + 1)
+		ensure(Math.round(mid) is if n < 0 then n else n + 1)
 	end
 	
 	List.forEach(checkRounding [-1 0 1])

@@ -94,7 +94,7 @@ module List is
 			if not isZero(swapped) then bubbleSort(list n - 1)
 		end
 
-		if #list > 1: bubbleSort(list #list)
+		if #list > 1 then bubbleSort(list #list)
 	end
 
 	let sort list = sortBy(fun a b -> a > b list)

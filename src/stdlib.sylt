@@ -151,7 +151,7 @@ end
 
 module Dict is
 	let getOrDefault key default dict =
-        if Dict.hasKey(key doct): Dict.get(key dict)
+        if Dict.hasKey(key dict): Dict.get(key dict)
         else default
 
 	let iter fn dict = List.forEach(

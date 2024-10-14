@@ -17,6 +17,7 @@ let names _ = do
 	let letter = value
 	let funambulism = value
 	let iffy = value
+    let thense = value
 	let elsewhere = value
     let whileOnAWheel = value
 	let andante = value
@@ -222,7 +223,8 @@ let equality _ = do
 		## not equal to a value of any other
 		## type
 		List.iter(fun index other ->
-            if index not skipIndex: ensure(value not other) values)
+            if index not skipIndex then ensure(value not other)
+            values)
 	end values)
 	
 	## perform more type-specific tests
@@ -434,9 +436,9 @@ let functions _ = do
 	ensure(anon(2 4 8) is 64)
 	
 	## recursion
-	let clear ls = if ls not []: do
-		ls -= 1
-		clear(ls)
+	let clear list = if list not [] then do
+		list -= 1
+		clear(list)
 	end
 		
 	let nums = [1 2 3]
@@ -446,20 +448,20 @@ end
 
 let ifElse _ = do
 	## implicit nil
-	ensure((if false: do end) is null)
+	ensure((if false then do end) is null)
 	
 	## if branch
-	let result = if true: "A" else "B"
+	let result = if true then "A" else "B"
 	ensure(result is "A")
 	
 	## else branch
-	let result = if false: "A" else "B"
+	let result = if false then "A" else "B"
 	ensure(result is "B")
 	
 	## else if / chaining
 	let i = 10
-	let result = if i < 0: "A"
-		else if i > 0: "B"
+	let result = if i < 0 then "A"
+		else if i > 0 then "B"
 		else "C"
 	ensure(result is "B")
 end
@@ -467,7 +469,7 @@ end
 let whileLoop _ = do
 	let list = []
 	let n = 1
-	let result = while n <= 3: do
+	let result = while n <= 3 then do
 		list += n
 		n += 1
 	end
@@ -940,7 +942,7 @@ let tests = List.flatten([
 
 ## let's go!
 List.forEach(fun test ->
-	if typeOf(test) is "String":
+	if typeOf(test) is "String" then
 		printLn(test + ":")
 	else do
 		let name = String.rightPad(toString(test) 20 ".")

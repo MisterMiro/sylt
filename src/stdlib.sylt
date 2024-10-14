@@ -126,7 +126,7 @@ module List is
         list)
 
 	let all fn list =
-        if isZero(#list): false
+        if list is []: false
         else List.fold(
             fun all value -> all and fn(value)
             true

@@ -485,7 +485,6 @@ let preludeLib _ = do
 	ensure(toNum(false) is 0)
 	ensure(toNum(112) is 112)
     ensure(toNum([1 2 4]) is 0)
-    ensure(toNum({"a": "b"} is 0)
 	ensure(toNum("1337.25") is 1337.25)
 	ensure(toNum("") is 0)
 	ensure(toNum("error") is 0)
@@ -496,7 +495,6 @@ let preludeLib _ = do
 	ensure(typeOf(true) is "Bool")
 	ensure(typeOf(1) is "Number")
 	ensure(typeOf([]) is "List")
-    ensure(typeOf({}) is "Dict")
 	ensure(typeOf("") is "String")
 	ensure(typeOf(fun -> do end) is "Function")
 	

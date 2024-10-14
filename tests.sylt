@@ -18,12 +18,16 @@ let names _ = do
 	let funambulism = value
 	let iffy = value
 	let elsewhere = value
+    let whileOnAWheel = value
 	let andante = value
 	let oracle = value
+    let issues = valur
 	let nothingness = value
 	let usingasong = value
+    let returned = value
 	let doable = value
 	let enderman = value
+    let modular = value
 end
 
 let strings _ = do

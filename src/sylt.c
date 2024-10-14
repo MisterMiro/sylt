@@ -501,7 +501,7 @@ void* ptr_resize(
 typedef enum {
 	/* stack */
 	OP_PUSH,
-	OP_PUSH_UNIT,
+	OP_PUSH_NULL,
 	OP_PUSH_TRUE,
 	OP_PUSH_FALSE,
 	OP_PUSH_LIST,
@@ -563,7 +563,7 @@ typedef struct {
 /* can be indexed by an opcode byte */
 static opinfo_t OPINFO[] = {
 	[OP_PUSH] = {"push", 1, +1},
-	[OP_PUSH_UNIT] = {"pushUnit", 0, +1},
+	[OP_PUSH_NULL] = {"pushNull", 0, +1},
 	[OP_PUSH_TRUE] = {"pushTrue", 0, +1},
 	[OP_PUSH_FALSE] = {"pushFalse", 0, +1},
 	[OP_PUSH_LIST] = {"pushList", 1, +1},
@@ -2129,7 +2129,7 @@ void vm_exec(vm_t* vm) {
 			push(readval());
 			break;
 		}
-		case OP_PUSH_UNIT: {
+		case OP_PUSH_NULL: {
 			push(unit());
 			break;
 		}
@@ -4019,7 +4019,7 @@ void emit_value(
 	
 	switch (val.tag) {
 	case TYPE_UNIT: {
-		emit_nullary(cmp, OP_PUSH_UNIT);
+		emit_nullary(cmp, OP_PUSH_NULL);
 		sylt_pop(cmp->ctx); /* GC */
 		return;
 	}

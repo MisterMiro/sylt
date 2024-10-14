@@ -3852,7 +3852,7 @@ typedef enum {
 	PREC_UNARY_PREFIX,
 	/* unary postfix: . */
 	PREC_DOT,
-	/* function application: () */
+	/* function application: : () */
 	PREC_FUNC_CALL,
 	/* unary minus: - */
 	PREC_UNARY_MINUS,
@@ -4605,7 +4605,7 @@ void dict(comp_t* cmp) {
 	int len = 0;
 	while (!check(cmp, T_RCURLY) && !check(cmp, T_EOF)) {
 		expr(cmp, PREC_OR, "a dictionary key or ']'"); /* key */
-		eat(cmp, T_COLON, "expected ':' after item key");
+		eat(cmp, T_EQ, "expected '=' after item key");
 		expr(cmp, PREC_OR, "key value"); /* value */
 		len++;
 	}

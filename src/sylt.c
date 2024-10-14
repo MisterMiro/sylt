@@ -3775,6 +3775,7 @@ typedef enum {
 	T_LET,
 	T_FUN,
 	T_IF,
+    T_THEN,
 	T_ELSE,
 	T_WHILE,
 	T_AND,
@@ -4250,6 +4251,7 @@ token_t scan(comp_t* cmp) {
 		if (keyword("let")) return token(T_LET);
 		if (keyword("fun")) return token(T_FUN);
 		if (keyword("if")) return token(T_IF);
+		if (keyword("then")) return token(T_THEN);
 		if (keyword("else")) return token(T_ELSE);
 		if (keyword("while")) return token(T_WHILE);
 		if (keyword("and")) return token(T_AND);
@@ -4428,6 +4430,7 @@ static parserule_t RULES[] = {
 	[T_LET] = {let, NULL, PREC_NONE},
 	[T_FUN] = {fun, NULL, PREC_NONE},
 	[T_IF] = {if_else, NULL, PREC_NONE},
+    [T_THEN] = {NULL, NULL, PREC_NONE},
 	[T_ELSE] = {NULL, NULL, PREC_NONE},
 	[T_WHILE] = {while_loop, NULL, PREC_NONE},
 	[T_AND] = {NULL, binary, PREC_AND},
@@ -4958,7 +4961,7 @@ void parse_func(
 /* parses an if/else expression */
 void if_else(comp_t* cmp) {
 	expr(cmp, ANY_PREC, "if condition"); /* condition */
-	eat(cmp, T_COLON, "expected ':' after if condition");
+	eat(cmp, T_THEN, "expected 'then' after if condition");
 	
 	/* jump to else branch if
 	 * the condition is false */
@@ -4988,7 +4991,7 @@ void while_loop(comp_t* cmp) {
 	int loop_start = cmp->func->ncode;
 	
 	expr(cmp, ANY_PREC, "'while' condition"); /* condition */
-	eat(cmp, T_COLON, "expected ':' after while condition");
+	eat(cmp, T_THEN, "expected 'then' after while condition");
 		
 	int jmp = emit_jump(cmp, OP_JMP_IF_NOT);
 	emit_nullary(cmp, OP_POP);

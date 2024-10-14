@@ -4470,7 +4470,7 @@ static parserule_t RULES[] = {
 	[T_LSQUARE] = {list, NULL, PREC_NONE},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
-	[T_COLON] = {NULL, binary, PREC_NONE},
+	[T_COLON] = {NULL, binary, PREC_FUNC_CALL},
     [T_SEMICOLON] = {NULL, NULL, PREC_NONE},
 	[T_DOT] = {NULL, binary, PREC_DOT},
 	[T_HASH] = {unary, NULL, PREC_NONE},
@@ -4801,7 +4801,7 @@ void binary(comp_t* cmp) {
 			argc++;
 		}
 		
-		eat(cmp, T_RPAREN, "expected ')' after call arguments");
+		eat(cmp, T_SEMICOLON, "expected ';' after call arguments");
 		emit_unary(cmp, OP_CALL, argc);
 		comp_simstack(cmp, -argc);
 		return;

@@ -1705,7 +1705,7 @@ static string_t* val_tostring(value_t val, sylt_t* ctx) {
 			sylt_pushstring(ctx, dc->items[i].key);
 			sylt_concat(ctx);
 			
-			sylt_pushstring(ctx, string_lit(": ", ctx));
+			sylt_pushstring(ctx, string_lit(" = ", ctx));
 			sylt_concat(ctx);
 			
 			/* value */

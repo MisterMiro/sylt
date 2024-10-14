@@ -3814,6 +3814,7 @@ typedef enum {
 	T_RSQUARE,
 	T_COMMA,
 	T_COLON,
+    T_SEMICOLON,
 	T_DOT,
 	T_HASH,
 	T_EOF,
@@ -4338,6 +4339,7 @@ token_t scan(comp_t* cmp) {
 	case ']': return token(T_RSQUARE);
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
+	case ';': return token(T_SEMICOLON);
 	case '.': return token(T_DOT);
 	case '#': return token(T_HASH);
 	case '\0': break;
@@ -4468,7 +4470,8 @@ static parserule_t RULES[] = {
 	[T_LSQUARE] = {list, NULL, PREC_NONE},
 	[T_RSQUARE] = {NULL, NULL, PREC_NONE},
 	[T_COMMA] = {NULL, NULL, PREC_NONE},
-	[T_COLON] = {NULL, NULL, PREC_NONE},
+	[T_COLON] = {NULL, binary, PREC_NONE},
+    [T_SEMICOLON] = {NULL, NULL, PREC_NONE},
 	[T_DOT] = {NULL, binary, PREC_DOT},
 	[T_HASH] = {unary, NULL, PREC_NONE},
 	[T_EOF] = {NULL, NULL, PREC_NONE},
@@ -4776,6 +4779,25 @@ void binary(comp_t* cmp) {
 			}
 				
 			expr(cmp, ANY_PREC, "argument or ')'");
+			argc++;
+		}
+		
+		eat(cmp, T_RPAREN, "expected ')' after call arguments");
+		emit_unary(cmp, OP_CALL, argc);
+		comp_simstack(cmp, -argc);
+		return;
+	}
+	case T_COLON: {
+        int argc = 0;
+	
+		/* parse argument list */
+		while (!check(cmp, T_SEMICOLON) && !check(cmp, T_EOF)) {
+			if (argc >= MAX_PARAMS) {
+				halt(cmp->ctx, E_TOO_MANY_ARGS);
+				unreachable();
+			}
+				
+			expr(cmp, ANY_PREC, "argument or ';'");
 			argc++;
 		}
 		

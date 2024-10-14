@@ -102,22 +102,22 @@ module List is
 	let sort list = sortBy(fun a b -> a > b list)
 
 	let flatten list = do
-		let new = []
+		let flat = []
 		List.forEach(
-            fun item -> new +=
+            fun item -> flat +=
                 if typeOf(item) is "List": List.flatten(item)
                 else item
             list)
-		new
+		flat
 	end
 
 	let dedup list = do
-		let new = []
+		let deduped = []
 		List.forEach(
             fun item -> if not List.contains(item new):
-                new += item
+                deduped += item
             list)
-		new
+		deduped
 	end
 
 	let any fn list = List.fold(

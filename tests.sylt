@@ -863,7 +863,7 @@ let mathLib _ = do
 		ensure(Math.round(mid) is if n < 0: n else n + 1)
 	end
 	
-	##List.forEach(checkRounding [-1 0 1])
+	List.forEach(checkRounding [-1 0 1])
 	
 	## rad + deg
 	ensure(floatEq(Math.rad(1) 0.0175 0.001))

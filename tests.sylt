@@ -45,13 +45,13 @@ let strings _ = do
 	let nullEscape = "\0"
 	
 	## ...translate properly
-	ensure: hex is "A";
-	ensure: backslash is "\x5c";
-	ensure: quote is "\x22";
-	ensure: tab is "\x09";
-	ensure: newline is "\x0a";
-	ensure: carriageReturn is "\x0d";
-	ensure: nullEscape is "\x00";
+	ensure(hex is "A")
+	ensure(backslash is "\x5c")
+	ensure(quote is "\x22")
+	ensure(tab is "\x09")
+	ensure(newline is "\x0a")
+	ensure(carriageReturn is "\x0d")
+	ensure(nullEscape is "\x00")
 end
 
 let numbers _ = do
@@ -61,25 +61,25 @@ end
 
 let precedence _ = do
 	## multiplication > addition
-	ensure: 5 * 2 + 8 is 18;
-	ensure: 5 / 2 + 8 is 10.5;
-	ensure: 5 % 2 + 8 is 9;
+	ensure(5 * 2 + 8 is 18)
+	ensure(5 / 2 + 8 is 10.5)
+	ensure(5 % 2 + 8 is 9)
 	
-	ensure: 10 * 2 - 8 is 12;
-	ensure: 10 / 2 - 8 is -3;
-	ensure: 10 % 2 - 8 is -8;
+	ensure(10 * 2 - 8 is 12)
+	ensure(10 / 2 - 8 is -3)
+	ensure(10 % 2 - 8 is -8)
 	
 	## addition > comparison
-	ensure: 1 < 1 + 1;
-	ensure: 1 <= 1 + 1;
-	ensure: 2 > 1 - 1;
-	ensure: 2 >= 1 - 1;
+	ensure(1 < 1 + 1)
+	ensure(1 <= 1 + 1)
+	ensure(2 > 1 - 1)
+	ensure(2 >= 1 - 1)
 	
 	## comparison > equality
-	ensure: true is 1 < 2;
-	ensure: true is 1 <= 2;
-	ensure: true not 1 > 2;
-	ensure: true not 1 >= 2;
+	ensure(true is 1 < 2)
+	ensure(true is 1 <= 2)
+	ensure(true not 1 > 2)
+	ensure(true not 1 >= 2)
 end
 
 let addition _ = do
@@ -88,11 +88,11 @@ let addition _ = do
 	
 	## correct result
 	let sum = 20
-	ensure: x + y is sum;
+	ensure(x + y is sum)
 	
 	## commutative
-	ensure: y + x is sum;
-	ensure: x + y is y + x;
+	ensure(y + x is sum)
+	ensure(x + y is y + x)
 end
 
 let subtraction _ = do
@@ -216,17 +216,16 @@ let equality _ = do
 		fun x -> x	## Func
 	]
 	
-	List.iter: fun skipIndex value -> do
+	List.iter(fun skipIndex value -> do
 		## equal to itself
-		ensure: value is value;
+		ensure(value is value)
 		
 		## not equal to a value of any other
 		## type
-		List.iter: fun index other ->
-            if index not skipIndex then ensure: value not other;
-            values;
-	end
-    values;
+		List.iter(fun index other ->
+            if index not skipIndex then ensure(value not other)
+            values)
+	end values)
 	
 	## perform more type-specific tests
 	ensure(true not false)

@@ -211,7 +211,7 @@ let equality _ = do
 		true        ## Bool
 		235	        ## Number
 		[123]	  	## List
-        {"a": "b"}  ## Dict
+        {"a" = "b"}  ## Dict
 		"'_'"	  	## String
 		fun x -> x	## Func
 	]
@@ -391,7 +391,7 @@ let lists _ = do
 end
 
 let dicts _ = do
-	let dict = {"a": 1 "b": 2 "c": 3}
+	let dict = {"a" = 1 "b" = 2 "c" = 3}
 	
 	## count operator
 	ensure(#dict is 3)
@@ -693,9 +693,9 @@ end
 
 let dictLib _ = do
 	let dict = {
-		"door": "window"
-		"car": "helicopter"
-		"box": "pyramid"
+		"door" = "window"
+		"car" = "helicopter"
+		"box" = "pyramid"
 	}
 		
 	## keys

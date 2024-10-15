@@ -17,14 +17,14 @@ let exec program = do
     let ip = 0
     let stack = []
 
-    let read _ = do
+    let read = fun -> do
         let code = List.get(ip program)
         ip += 1
         code
     end
 
     let push value = List.push(value stack)
-    let pop _ = List.pop(stack)
+    let pop = fun -> List.pop(stack)
 
     let run = true
     while run: do

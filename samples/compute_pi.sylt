@@ -5,7 +5,7 @@ let binary_split a b = do
     let qab = 0
     let rab = 0
 
-    if b is a + 1: do
+    if b is a + 1 then do
         pab <- -(6 * a - 5) * (2 * a - 1) * (6 * a - 1)
         qab <- 10939058860032000 * Math.pow(a 3)
         rab <- pab * (545140134 * a + 13591409)

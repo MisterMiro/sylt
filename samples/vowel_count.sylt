@@ -3,8 +3,11 @@
 let vowels = String.chars("aeiouy")
 
 let str = "Hello World!"
-let chars = String.chars(str)
 let count = 0
 
-List.forEach(fun ch -> if List.contains(ch vowels): count += 1 chars)
+List.forEach(fun char ->
+    if List.contains(char vowels) then
+        count += 1
+    String.chars(str))
+
 printLn("'" + str + "' contains " + count + " vowels")

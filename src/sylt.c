@@ -2820,16 +2820,6 @@ value_t stdlist_pop(sylt_t* ctx) {
 	return list_pop(listarg(0), ctx);
 }
 
-value_t stdlist_first(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_LIST, __func__);
-	return list_get(listarg(0), 0, ctx);
-}
-
-value_t stdlist_last(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_LIST, __func__);
-	return list_get(listarg(0), -1, ctx);
-}
-
 value_t stdlist_count(sylt_t* ctx) {
 	argcheck(ctx, 1, TYPE_LIST, __func__);
 	size_t result = list_count(listarg(1), arg(0));
@@ -3648,8 +3638,6 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "push", stdlist_push, 2);
 	std_addf(ctx, "del", stdlist_del, 2);
 	std_addf(ctx, "pop", stdlist_pop, 1);
-	std_addf(ctx, "first", stdlist_first, 1);
-	std_addf(ctx, "last", stdlist_last, 1);
 	std_addf(ctx, "count", stdlist_count, 2);
 	std_addf(ctx, "contains", stdlist_contains, 2);
 	std_addf(ctx, "find", stdlist_find, 2);

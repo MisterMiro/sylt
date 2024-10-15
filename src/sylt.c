@@ -5011,9 +5011,7 @@ void if_else(comp_t* cmp) {
 
 void while_loop(comp_t* cmp) {
 	int loop_start = cmp->func->ncode;
-	
 	expr(cmp, ANY_PREC, "'while' condition"); /* condition */
-	eat(cmp, T_THEN, "expected 'then' after while condition");
 		
 	int jmp = emit_jump(cmp, OP_JMP_IF_NOT);
 	emit_nullary(cmp, OP_POP);

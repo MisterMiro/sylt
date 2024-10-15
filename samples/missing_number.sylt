@@ -9,7 +9,7 @@ let findTheGap _ = do
         let num = List.get(index numbers)
         let next = List.get(index + 1 numbers)
 
-        if next > num + 1: num + 1
+        if next > num + 1 then num + 1
         else check(index + 1)
     end
 

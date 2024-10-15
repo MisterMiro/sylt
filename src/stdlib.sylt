@@ -228,9 +228,24 @@ module Math is
 		else if n is 0 then Sign.Zero
 		else Sign.Positive
 
+    let min a b = if a > b then b else a
+
+    let max a b = if a > b then a else b
+
+    let clamp x lo hi = 
+        if x < lo then lo
+        else if x > hi then hi
+        else x
+
+    let lerp a b t = a * (1 - t) + b * t
+
 	let lib = Dict.get("Math" gdict)
 	Dict.set("Sign" Sign lib)
 	Dict.set("signum" signum lib)
+    Dict.set("min" min lib)
+    Dict.set("max" max lib)
+    Dict.set("clamp" clamp lib)
+    Dict.set("lerp" lerp lib)
 end
 
 module Vec3 is

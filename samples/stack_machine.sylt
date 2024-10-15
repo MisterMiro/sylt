@@ -29,7 +29,8 @@ let exec program = do
     let run = true
     while run: do
         let code = read()
-        if code is OpCode.Push: stack += read()
+        if code is OpCode.Push then
+            stack += read()
         else if code is OpCode.Add then do
             let b = pop()
             let a = pop()
@@ -56,8 +57,10 @@ let exec program = do
             let a = pop()
             push(a is b)
         end
-        else if code is OpCode.Print then printLn(List.last(stack))
-        else if code is OpCode.Ret then run <- false
+        else if code is OpCode.Print then
+            printLn(List.last(stack))
+        else if code is OpCode.Ret then
+            run <- false
     end
 
     "success!"

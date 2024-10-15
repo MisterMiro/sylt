@@ -6,7 +6,7 @@ rep(fun num -> do
     
     let output = ""
     if num % 3 is 0 then output <- "Fizz"
-    if num % 5 is 0 then output <- output + "Buzz"
+    if num % 5 is 0 then output += "Buzz"
     if output is "" then output <- num
 
     printLn(output)

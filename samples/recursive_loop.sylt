@@ -1,6 +1,6 @@
 ## demonstrates looping by calling a function from inside itself
 
-let loop index = if index <= 3: do
+let loop index = if index <= 3 then do
         printLn(index)
         loop(index + 1)
     end

@@ -48,7 +48,7 @@ let exec program = do
         end
         else if code is OpCode.Div then do
             let b = pop()
-            if b is 0: return "tried to divide a number by zero"
+            if b is 0 then return "tried to divide a number by zero"
             let a = pop()
             push(a / b)
         end

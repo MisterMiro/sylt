@@ -27,7 +27,7 @@ let exec program = do
     let pop = fun -> List.pop(stack)
 
     let run = true
-    while run: do
+    while run then do
         let code = read()
         if code is OpCode.Push then
             stack += read()

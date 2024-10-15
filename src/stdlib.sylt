@@ -21,7 +21,7 @@ let rem a b = a % b
 
 let rep fn n = do
 	let i = 0
-	while i < n then do
+	while i < n do
 		fn(i)
 		i += 1
 	end

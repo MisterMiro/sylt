@@ -30,34 +30,34 @@ let exec program = do
     while run: do
         let code = read()
         if code is OpCode.Push: stack += read()
-        else if code is OpCode.Add: do
+        else if code is OpCode.Add then do
             let b = pop()
             let a = pop()
             push(a + b)
         end
-        else if code is OpCode.Sub: do
+        else if code is OpCode.Sub then do
             let b = pop()
             let a = pop()
             push(a - b)
         end
-        else if code is OpCode.Mul: do
+        else if code is OpCode.Mul then do
             let b = pop()
             let a = pop()
             push(a * b)
         end
-        else if code is OpCode.Div: do
+        else if code is OpCode.Div then do
             let b = pop()
             if b is 0: return "tried to divide a number by zero"
             let a = pop()
             push(a / b)
         end
-        else if code is OpCode.Eq: do
+        else if code is OpCode.Eq then do
             let b = pop()
             let a = pop()
             push(a is b)
         end
-        else if code is OpCode.Print: printLn(List.last(stack))
-        else if code is OpCode.Ret: run <- false
+        else if code is OpCode.Print then printLn(List.last(stack))
+        else if code is OpCode.Ret then run <- false
     end
 
     "success!"

@@ -3399,41 +3399,6 @@ value_t stdmath_sqrt(sylt_t* ctx) {
 	return wrapnum(result);
 }
 
-value_t stdmath_min(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	return wrapnum((numarg(0) < numarg(1)) ? numarg(0) : numarg(1));
-}
-
-value_t stdmath_max(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	return wrapnum((numarg(0) > numarg(1)) ? numarg(0) : numarg(1));
-}
-
-value_t stdmath_clamp(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	argcheck(ctx, 2, TYPE_NUM, __func__);
-	sylt_num_t x = numarg(0);
-	sylt_num_t lo = numarg(1);
-	sylt_num_t hi = numarg(2);
-	if (x < lo) return wrapnum(lo);
-	if (x > hi) return wrapnum(hi);
-	return wrapnum(x);
-}
-
-value_t stdmath_lerp(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	argcheck(ctx, 2, TYPE_NUM, __func__);
-	sylt_num_t a = numarg(0);
-	sylt_num_t b = numarg(1);
-	sylt_num_t t = numarg(2);
-	sylt_num_t res = a * (1.0f - t) + b * t;
-	return wrapnum(res);
-}
-
 value_t stdmath_floor(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return wrapnum(num_func(floorf, floor)(numarg(0)));
@@ -3702,10 +3667,6 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "log", stdmath_log, 2);
 	std_addf(ctx, "pow", stdmath_pow, 2);
 	std_addf(ctx, "sqrt", stdmath_sqrt, 1);
-	std_addf(ctx, "min", stdmath_min, 2);
-	std_addf(ctx, "max", stdmath_max, 2);
-	std_addf(ctx, "clamp", stdmath_clamp, 3);
-	std_addf(ctx, "lerp", stdmath_lerp, 3);
 	std_addf(ctx, "floor", stdmath_floor, 1);
 	std_addf(ctx, "ceil", stdmath_ceil, 1);
 	std_addf(ctx, "round", stdmath_round, 1);

@@ -74,8 +74,7 @@ module List is
 
 	let sum list = List.fold(add 0 list)
 
-	let average list =
-        if list is [] then 0
+	let average list = if list is [] then 0
         else List.sum(list) / #list
 
 	let mean list =

@@ -79,10 +79,10 @@ module List is
         else List.sum(list) / #list
 
 	let mean list =
-        if isOdd(#list) then List.get(#list / 2 list)
+        if isOdd(#list) then List.get(half(#list) list)
 		else List.average([
-			List.get(#list / 2 - 1 list)
-			List.get(#list / 2 list)])
+			List.get(half(#list) - 1 list)
+			List.get(half(#list) list)])
 
 	let sortBy fn list = do
 		let bubbleSort list n = do

@@ -175,25 +175,25 @@ module Dict is
 end
 
 module String is
-	let leftPad str w pattern = do
+	let leftPad str width pattern = do
 		let text = ""
-		let n = (w - #str) / #pattern
+		let n = (width - #str) / #pattern
 
 		rep(fun _ -> text += pattern n)
 		text + str
 	end
 
-	let rightPad str w pattern = do
+	let rightPad str width pattern = do
 		let text = str
-		let n = (w - #str) / #pattern
+		let n = (width - #str) / #pattern
 
 		rep(fun _ -> text += pattern n)
 		text
 	end
 
-	let centerPad str w pattern = do
+	let centerPad str width pattern = do
 		let text = ""
-		let n = (w - #str) / #pattern
+		let n = (width - #str) / #pattern
 
 		rep(fun _ -> text += pattern half(n))
 		text += str

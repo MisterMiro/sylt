@@ -2226,7 +2226,7 @@ void vm_exec(vm_t* vm) {
 			string_t* name = getstring(readval());
 			string_t* mod_name = getstring(readval());
 
-			dict_t* module = getdict(dict_get(vm->gdict, mod_name));
+			dict_t* module = getdict(*dict_get(vm->gdict, mod_name));
 			dict_set(module, name, pop(), vm->ctx);
 			break;
         }

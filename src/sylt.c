@@ -4870,15 +4870,16 @@ void let(comp_t* cmp) {
 	 	* of the expression */
 		expr(cmp, ANY_PREC, "right-hand side expression after '='");
 		
-		if (is_local) {
-			add_symbol(cmp, name);
-		} else if (cmp->module) {
+		if (cmp->module) {
             emit_binary(cmp,
 			    OP_ADD_MOD,
 			    func_write_data(cmp->func, wrapstring(name), cmp->ctx),
 			    func_write_data(cmp->func, wrapstring(cmp->module), cmp->ctx));
 			
-        } else {
+        } else if (is_local) {
+			add_symbol(cmp, name);
+			
+		} else {
 			int index = func_write_data(cmp->func, wrapstring(name), cmp->ctx);
 			emit_unary(cmp, OP_ADD_NAME, index);
 		}

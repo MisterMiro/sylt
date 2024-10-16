@@ -133,24 +133,6 @@ module List is
             fun all value -> all and fn(value)
             true
             list)
-
-	let lib = Dict.get("List" gdict)
-    Dict.set("first" first lib)
-    Dict.set("last" last lib)
-	Dict.set("iter" iter lib)
-	Dict.set("forEach" forEach lib)
-	Dict.set("map" map lib)
-	Dict.set("filter" filter lib)
-	Dict.set("fold" fold lib)
-	Dict.set("sum" sum lib)
-	Dict.set("average" average lib)
-	Dict.set("mean" mean lib)
-	Dict.set("sortBy" sortBy lib)
-	Dict.set("sort" sort lib)
-	Dict.set("flatten" flatten lib)
-	Dict.set("dedup" dedup lib)
-	Dict.set("any" any lib)
-	Dict.set("all" all lib)
 end
 
 module Dict is
@@ -167,11 +149,6 @@ module Dict is
 		Dict.iter(fun k v -> ls += [[k v]] dict)
 		ls
 	end
-
-	let lib = Dict.get("Dict" gdict)
-	Dict.set("getOrDefault" getOrDefault lib)
-	Dict.set("iter" iter lib)
-	Dict.set("toList" toList lib)
 end
 
 module String is
@@ -200,11 +177,6 @@ module String is
 		rep(fun _ -> text += pattern half(n))
 		text
 	end
-
-	let lib = Dict.get("String" gdict)
-	Dict.set("leftPad" leftPad lib)
-	Dict.set("rightPad" rightPad lib)
-	Dict.set("centerPad" centerPad lib)
 end
 
 module File is
@@ -217,8 +189,7 @@ module File is
 		"AppendBinary"
 	])
 
-	let lib = Dict.get("File" gdict)
-	Dict.set("Mode" Mode lib)
+	Dict.set("Mode" Mode Dict.get("File" gdict))
 end
 
 module Math is
@@ -238,13 +209,7 @@ module Math is
 
     let lerp a b t = a * (1 - t) + b * t
 
-	let lib = Dict.get("Math" gdict)
-	Dict.set("Sign" Sign lib)
-	Dict.set("signum" signum lib)
-    Dict.set("min" min lib)
-    Dict.set("max" max lib)
-    Dict.set("clamp" clamp lib)
-    Dict.set("lerp" lerp lib)
+	Dict.set("Sign" Sign Dict.get("Math" gdict))
 end
 
 module Vec3 is
@@ -309,33 +274,14 @@ module Vec3 is
 		v.x / s
 		v.y / s
 		v.z / s)
-
-	let lib = Dict.get("Vec3" gdict)
-	Dict.set("new" new lib)
-	Dict.set("dot" dot lib)
-	Dict.set("cross" cross lib)
-	Dict.set("sizeSquared" sizeSquared lib)
-	Dict.set("size" size lib)
-	Dict.set("norm" norm lib)
-	Dict.set("add" add lib)
-	Dict.set("sub" sub lib)
-	Dict.set("mul" mul lib)
-	Dict.set("div" mul lib)
-	Dict.set("addScalar" addScalar lib)
-	Dict.set("subScalar" subScalar lib)
-	Dict.set("mulScalar" mulScalar lib)
-	Dict.set("divScalar" divScalar lib)
 end
 
 module Rand is
 	let fiftyFifty _ = Rand.range(0 1) > 0.5
-	let oneIn n = Rand.range(0 n) < 1
-	let item list = List.get(Rand.range(0 #list) list)
-	let scramble list = List.sortBy(fun _ _ -> fiftyFifty() list)
 
-	let lib = Dict.get("Rand" gdict)
-	Dict.set("fiftyFifty" fiftyFifty lib)
-	Dict.set("oneIn" oneIn lib)
-	Dict.set("item" item lib)
-	Dict.set("scramble" scramble lib)
+	let oneIn n = Rand.range(0 n) < 1
+
+	let item list = List.get(Rand.range(0 #list) list)
+
+	let scramble list = List.sortBy(fun _ _ -> fiftyFifty() list)
 end

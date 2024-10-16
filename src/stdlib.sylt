@@ -133,6 +133,16 @@ module List is
             fun all value -> all and fn(value)
             true
             list)
+
+    let count value list = do
+        let count = 0
+        List.forEach(
+            fun item -> if item is value then count += 1
+            list)
+        count
+    end
+
+    let contains value list = List.count(value list) > 0
 end
 
 module Dict is

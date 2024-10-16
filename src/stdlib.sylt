@@ -188,8 +188,6 @@ module File is
 		"Append"
 		"AppendBinary"
 	])
-
-	Dict.set("Mode" Mode Dict.get("File" gdict))
 end
 
 module Math is
@@ -208,8 +206,6 @@ module Math is
         else x
 
     let lerp a b t = a * (1 - t) + b * t
-
-	Dict.set("Sign" Sign Dict.get("Math" gdict))
 end
 
 module Vec3 is

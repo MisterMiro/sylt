@@ -4871,6 +4871,7 @@ void let(comp_t* cmp) {
 		expr(cmp, ANY_PREC, "right-hand side expression after '='");
 		
 		if (cmp->module) {
+			add_symbol(cmp, name);
             emit_binary(cmp,
 			    OP_ADD_MOD,
 			    func_write_data(cmp->func, wrapstring(name), cmp->ctx),

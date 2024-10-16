@@ -4872,7 +4872,13 @@ void let(comp_t* cmp) {
 		
 		if (is_local) {
 			add_symbol(cmp, name);
-		} else {
+		} else if (cmp->module) {
+            emit_binary(cmp,
+			    OP_ADD_MOD,
+			    func_write_data(cmp->func, wrapstring(name), cmp->ctx),
+			    func_write_data(cmp->func, wrapstring(cmp->module), cmp->ctx));
+			
+        } else {
 			int index = func_write_data(cmp->func, wrapstring(name), cmp->ctx);
 			emit_unary(cmp, OP_ADD_NAME, index);
 		}

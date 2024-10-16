@@ -13,6 +13,12 @@ let half num = num / 2
 let twice num = num * 2
 let squared num = num * num
 
+let add a b = a + b
+let sub a b = a - b
+let mul a b = a * b
+let div a b = a / b
+let rem a b = a % b
+
 let rep fn n = do
 	let i = 0
 	while i < n do
@@ -200,16 +206,6 @@ module Math is
         else x
 
     let lerp a b t = a * (1 - t) + b * t
-
-    let add a b = a + b
-
-    let sub a b = a - b
-
-    let mul a b = a * b
-
-    let div a b = a / b
-
-    let rem a b = a % b
 end
 
 module Vec3 is

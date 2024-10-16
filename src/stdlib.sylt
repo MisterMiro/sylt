@@ -273,9 +273,9 @@ module Vec3 is
 end
 
 module Rand is
-	let fiftyFifty _ = Rand.range(0 1) > 0.5
-
 	let oneIn n = Rand.range(0 n) < 1
+
+    let fiftyFifty _ = oneIn(2)
 
 	let item list = List.get(Rand.range(0 #list) list)
 

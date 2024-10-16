@@ -5027,7 +5027,7 @@ void block(comp_t* cmp) {
 void module(comp_t* cmp) {
     eat(cmp, T_NAME, "expected module name");
 	string_t* name = cmp->prev.lex;
-    dict_set(cmp->ctx->vm->gdict, name, dict_new(cmp->ctx), cmp->ctx);
+    dict_set(cmp->ctx->vm->gdict, name, wrapdict(dict_new(cmp->ctx)), cmp->ctx);
 	
 	eat(cmp, T_IS, "expected 'is' after module name");
 

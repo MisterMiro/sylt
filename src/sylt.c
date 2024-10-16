@@ -3860,6 +3860,8 @@ typedef struct comp_s {
 	cmp_upvalue_t upvals[MAX_UPVALUES];
 	/* files visited with 'using' */
 	list_t* included;
+	/* name of current module */
+	string_t* module;
 	/* reference to API */
 	sylt_t* ctx;
 } comp_t;
@@ -3876,6 +3878,7 @@ void comp_init(comp_t* cmp, comp_t* parent, comp_t* child, sylt_t* ctx) {
 	cmp->nsyms = 0;
 	cmp->depth = 0;
 	cmp->included = list_new(ctx);
+	cmp->module = NULL;
 	cmp->ctx = ctx;
 }
 
@@ -4806,11 +4809,9 @@ void using(comp_t* cmp) {
 	string_t* path = sylt_popstring(cmp->ctx);
 	
 	/* prevent infinite loops */
-	if (list_count(cmp->included,
-		wrapstring(path)) > 0)
+	if (list_count(cmp->included, wrapstring(path)) > 0)
 		return;
-	list_push(cmp->included,
-		wrapstring(path), cmp->ctx);
+	list_push(cmp->included, wrapstring(path), cmp->ctx);
 	
 	/* compile using a separate compiler */
 	comp_t import;
@@ -4818,7 +4819,9 @@ void using(comp_t* cmp) {
 	import.included = cmp->included;
 	
 	compile_and_run(cmp->ctx,
-		load_file((const char*)path->bytes, cmp->ctx), path, &import);
+		load_file((const char*)path->bytes, cmp->ctx),
+		path,
+		&import);
 }
 
 /* parses an early return */
@@ -4838,7 +4841,7 @@ void let(comp_t* cmp) {
 	if (check(cmp, T_NAME)) {
 		/* parse a function declaration
  		* in the form of
- 		* let name p1 p2 .. = body */
+ 		* let name param1 param2 .. = body */
  
 		/* add symbol first in order
 	 	* to support recursion */
@@ -4846,8 +4849,14 @@ void let(comp_t* cmp) {
 			add_symbol(cmp, name);
 		 
 		parse_func(cmp, name);
-		
-		if (!is_local) {
+
+		if (cmp->module) {
+            emit_binary(cmp,
+			    OP_ADD_MOD,
+			    func_write_data(cmp->func, wrapstring(name), cmp->ctx),
+			    func_write_data(cmp->func, wrapstring(cmp->module), cmp->ctx));
+			
+		} else if (!is_local) {
 			int index = func_write_data(cmp->func, wrapstring(name), cmp->ctx);
 			emit_unary(cmp, OP_ADD_NAME, index);
 		}
@@ -5020,7 +5029,9 @@ void module(comp_t* cmp) {
 	string_t* name = cmp->prev.lex;
 	eat(cmp, T_IS, "expected 'is' after module name");
 
+	cmp->module = name;
 	comp_open_scope(cmp);
+	
     while (!check(cmp, T_END) && !check(cmp, T_EOF)) {
 		expr(cmp, ANY_PREC, "expression");
 		
@@ -5034,6 +5045,7 @@ void module(comp_t* cmp) {
 	
 	eat(cmp, T_END, "expected 'end' to close module");
 	comp_close_scope(cmp);
+	cmp->module = NULL;
 }
 
 /* == GC == */

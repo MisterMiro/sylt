@@ -514,6 +514,7 @@ typedef enum {
 	OP_LOAD,
 	OP_STORE,
 	OP_ADD_NAME,
+    OP_ADD_MOD,
 	OP_LOAD_NAME,
 	OP_STORE_NAME,
 	OP_LOAD_KEY,
@@ -575,6 +576,7 @@ static opinfo_t OPINFO[] = {
 	[OP_LOAD] = {"load", 1, +1},
 	[OP_STORE] = {"store", 1, 0},
 	[OP_ADD_NAME] = {"addName", 1, -1},
+    [OP_ADD_MOD] = {"addMod", 2, -1},
 	[OP_LOAD_NAME] = {"loadName", 1, +1},
 	[OP_STORE_NAME] = {"storeName", 1, 0},
 	[OP_LOAD_KEY] = {"loadKey", 0, -1},
@@ -2220,6 +2222,14 @@ void vm_exec(vm_t* vm) {
 			dict_set(vm->gdict, name, pop(), vm->ctx);
 			break;
 		}
+		case OP_ADD_MOD: {
+			string_t* name = getstring(readval());
+			string_t* mod_name = getstring(readval());
+
+			dict_t* module = getdict(dict_get(vm->gdict, mod_name));
+			dict_set(module, name, pop(), vm->ctx);
+			break;
+        }
 		case OP_LOAD_NAME: {
 			string_t* name = getstring(readval());
 			value_t* val = dict_get(vm->gdict, name);

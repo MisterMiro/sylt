@@ -3,9 +3,9 @@
 let printDict dict indent = do
     if indent > 0 and dict is gdict then return null
 
-    rep(fun _ -> printLn("  ") indent)
-
     Dict.iter(fun key value -> do
+        rep(fun _ -> print("  ") indent)
+
         if typeOf(value) is "Dict" then
             printDict(value indent + 1)
         else printLn(key)

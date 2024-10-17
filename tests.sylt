@@ -907,6 +907,41 @@ let mathLib _ = do
 	ensure(floatEq(Math.atanh(0.8) 1.0986 0.001))
 end
 
+let numLib _ = do
+    ## half
+    ensure(Num.half(2) is 1)
+
+    ## twice
+    ensure(Num.twice(1) is 2)
+
+    ## squared
+    ensure(Num.squared(4) is 16)
+
+    ## isZero
+    ensure(Num.isZero(0))
+    ensure(not Num.isZero(1))
+
+    ## isOne
+    ensure(Num.isOne(1))
+    ensure(not Num.isOne(0))
+
+    ## isOdd
+    ensure(Num.isOdd(3))
+    ensure(not Num.isOdd(4))
+
+    ## isEven
+    ensure(Num.isEven(4))
+    ensure(not Num.isEven(3))
+
+    ## isPositive
+    ensure(Num.isPositive(10))
+    ensure(not Num.isPositive(-10))
+
+    ## isNegative
+    ensure(Num.isNegative(-10))
+    ensure(not Num.isNegative(10))
+end
+
 ## tests to run
 
 let tests = List.flatten([
@@ -952,6 +987,7 @@ let tests = List.flatten([
 		stringLib
         fileLib
 		mathLib
+        numLib
 	]
 ])
 

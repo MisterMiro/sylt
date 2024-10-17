@@ -19,13 +19,15 @@ let mul a b = a * b
 let div a b = a / b
 let rem a b = a % b
 
-let rep fn n = do
-	let i = 0
-	while i < n do
+let for fn start end = do
+    let i = start
+	while i < end do
 		fn(i)
 		i += 1
 	end
 end
+
+let rep fn n = for(fn 0 n)
 
 let makeEnum list = do
 	let enum = {}
@@ -57,6 +59,13 @@ module List is
     let init value n = do
         let list = []
         rep(fun _ -> List.push(value list) n)
+        list
+    end
+
+    let range from to = do
+        let list = []
+        let n = to - from + 1
+        for(fun num -> List.push(num list) n)
         list
     end
 

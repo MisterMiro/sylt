@@ -83,6 +83,7 @@ let compile input = do
             program)
         tokens)
 
+    List.push(OpCode.Ret program)
     program
 end
 

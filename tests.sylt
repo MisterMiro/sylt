@@ -911,7 +911,7 @@ let randLib _ = do
     ## oneIn
     let samples = []
     rep(fun _ -> List.push(Rand.oneIn(10) samples) 10000)
-    ensure(floatEq(List.mean(samples) 1 1)
+    ensure(floatEq(List.mean(samples) 1 1))
     printLn(List.mean(samples))
 end
 

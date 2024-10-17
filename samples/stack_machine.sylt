@@ -79,7 +79,7 @@ let compile input = do
     let tokens = String.split([" "] input)
 
     List.forEach(
-        fun token -> List.push(Dict.getOrDefault(token toNumber(token) ops))
+        fun token -> List.push(Dict.getOrDefault(token toNum(token) ops))
         tokens)
 
     program

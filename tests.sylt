@@ -570,6 +570,10 @@ let listLib _ = do
 	List.swap(0 1 ls)
 	ensure(ls is [33 55])
 
+    ## init
+    let list = List.init(false 3)
+    ensure(list is [false false false])
+
 	## add
 	let x = [1 3 4]
 	List.add(1 2 x)

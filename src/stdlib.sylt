@@ -138,6 +138,12 @@ module List is
 
 	let sort list = List.sortBy(fun a b -> a > b list)
 
+    let rev list = do
+        let new = List.copy(list)
+        rep(fun index -> List.swap(index #list - index - 1 new) #list)
+        new
+    end
+
 	let flatten list = do
 		let flat = []
 		List.forEach(

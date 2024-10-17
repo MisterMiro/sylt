@@ -1,10 +1,10 @@
 ## finds the gap in a series of (almost) consecutive numbers
 
-let numbers = List.range(1 6)
+let numbers = List.range(1 5)
 List.del(3 numbers)
 printLn(numbers)
 
-let findTheGap _ = do
+let findTheGap = fun -> do
     let check index = do
         let num = List.get(index numbers)
         let next = List.get(index + 1 numbers)
@@ -16,4 +16,4 @@ let findTheGap _ = do
     check(0)
 end
 
-printLn(findTheGap(()))
+printLn(findTheGap())

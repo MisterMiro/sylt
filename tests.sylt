@@ -507,7 +507,7 @@ let preludeLib _ = do
     ## for
     let nums = []
 	for(fun i -> nums += i 3 6)
-	ensure(nums is [3 4 5 6])
+	ensure(nums is [3 4 5])
 
 	## rep
 	let nums = []

@@ -64,8 +64,7 @@ module List is
 
     let range from to = do
         let list = []
-        let n = to - from + 1
-        for(fun num -> List.push(num list) n)
+        for(fun num -> List.push(num list) from to + 1)
         list
     end
 

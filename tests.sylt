@@ -610,6 +610,11 @@ let listLib _ = do
     ## find
     let list = [1 2 3]
     ensure(List.find(2 list) is 1)
+
+    ## sort
+    let list = [2 3 1]
+    ensure(List.sort(list) is [1 2 3])
+    ensure(list is [2 3 1])
 	
 	## rev
 	let normal = [1 2 3]

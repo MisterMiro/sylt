@@ -54,6 +54,12 @@ module List is
         fun index -> fn(List.get(index list))
         #list)
 
+    let copy original = do
+        let new = []
+        List.forEach(fun item -> new += item original)
+        new
+    end
+
 	let map fn list = do
 		let mapped = []
 		List.forEach(
@@ -89,6 +95,8 @@ module List is
 			List.get(half(#list) list)])
 
 	let sortBy fn list = do
+        list <- List.copy(list)
+
 		let bubbleSort list n = do
 			let swapped = 0
 
@@ -103,6 +111,7 @@ module List is
 		end
 
 		if #list > 1 then bubbleSort(list #list)
+        list
 	end
 
 	let sort list = sortBy(fun a b -> a > b list)

@@ -816,9 +816,9 @@ let mathLib _ = do
 	ensure(not floatEq(0 epsilon epsilon))
 	
 	## signum
-	##ensure(Math.signum(-80) is Math.Sign.Negative)
-	##ensure(Math.signum(0) is Math.Sign.Zero)
-	##ensure(Math.signum(80) is Math.Sign.Positive)
+	ensure(Math.signum(-80) is Math.Sign.Negative)
+	ensure(Math.signum(0) is Math.Sign.Zero)
+	ensure(Math.signum(80) is Math.Sign.Positive)
 	
 	## abs
 	ensure(Math.abs(-8) is 8 and Math.abs(8) is 8)

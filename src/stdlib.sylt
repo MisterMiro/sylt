@@ -208,6 +208,11 @@ module Dict is
 end
 
 module String is
+    let letters = "abcdefghijklmnopqrstuvwxyz"
+    let digits = "0123456789"
+    let punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+    let whitespace = " \n\r\t"
+
 	let leftPad str width pattern = do
 		let text = ""
 		let n = (width - #str) / #pattern

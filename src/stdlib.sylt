@@ -189,14 +189,6 @@ module List is
 
         index
     end
-
-    let findAll value list = do
-        let indices = []
-        List.iter(
-            fun index item -> if item is value then List.push(index indices)
-            list)
-        indices
-    end
 end
 
 module Dict is

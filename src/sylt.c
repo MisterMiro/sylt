@@ -2066,10 +2066,8 @@ upvalue_t* vm_cap_upval(vm_t* vm, int index) {
 	
 	/* insert it into linked list */
 	fresh->next = cur;
-	if (!prev)
-		vm->openups = fresh;
-	else
-		prev->next = fresh;
+	if (!prev) vm->openups = fresh;
+	else prev->next = fresh;
 	
 	return fresh;
 }
@@ -2793,20 +2791,6 @@ value_t stdlist_set(sylt_t* ctx) {
 	return unit();
 }
 
-value_t stdlist_swap(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	argcheck(ctx, 2, TYPE_LIST, __func__);
-	sylt_num_t a = numarg(0);
-	sylt_num_t b = numarg(1);
-	list_t* ls = listarg(2);
-
-	value_t tmp = list_get(ls, b, ctx);
-	list_set(ls, b, list_get(ls, a, ctx), ctx);
-	list_set(ls, a, tmp, ctx);
-	return unit();
-}
-
 value_t stdlist_add(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM, __func__);
 	argcheck(ctx, 2, TYPE_LIST, __func__);
@@ -2814,41 +2798,10 @@ value_t stdlist_add(sylt_t* ctx) {
 	return unit();
 }
 
-value_t stdlist_push(sylt_t* ctx) {
-	argcheck(ctx, 1, TYPE_LIST, __func__);
-	list_push(listarg(1), arg(0), ctx);
-	return unit();
-}
-
 value_t stdlist_del(sylt_t* ctx) {
 	argcheck(ctx, 1, TYPE_LIST, __func__);
 	argcheck(ctx, 0, TYPE_NUM, __func__);
 	return list_delete(listarg(1), numarg(0), ctx);
-}
-
-value_t stdlist_pop(sylt_t* ctx) {
-	return list_pop(listarg(0), ctx);
-}
-
-value_t stdlist_count(sylt_t* ctx) {
-	argcheck(ctx, 1, TYPE_LIST, __func__);
-	size_t result = list_count(listarg(1), arg(0));
-	return wrapnum(result);
-}
-
-value_t stdlist_contains(sylt_t* ctx) {
-	argcheck(ctx, 1, TYPE_LIST, __func__);
-	bool result = list_count(listarg(1), arg(0)) > 0;
-	return wrapbool(result);
-}
-
-value_t stdlist_find(sylt_t* ctx) {
-    argcheck(ctx, 1, TYPE_LIST, __func__);
-	list_t* ls = listarg(1);
-	for (size_t i = 0; i < ls->len; i++)
-        if (val_eq(arg(0), ls->items[i]))
-			return wrapnum(i);
-	return wrapnum(-1);
 }
 
 value_t stdlist_rev(sylt_t* ctx) {
@@ -2863,19 +2816,6 @@ value_t stdlist_rev(sylt_t* ctx) {
 		list_push(new_ls, old_ls->items[old_ls->len - i - 1], ctx);
 	
 	return wraplist(new_ls);
-}
-
-value_t stdlist_range(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	sylt_num_t start = numarg(0);
-	sylt_num_t end = numarg(1);
-
-	list_t* ls = list_new(ctx);
-	for (int64_t i = start; i < end; i++)
-		list_push(ls, wrapnum(i), ctx);
-	
-	return wraplist(ls);
 }
 
 /* == dict lib == */
@@ -3608,16 +3548,9 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "init", stdlist_init, 2);
 	std_addf(ctx, "get", stdlist_get, 2);
 	std_addf(ctx, "set", stdlist_set, 3);
-	std_addf(ctx, "swap", stdlist_swap, 3);
 	std_addf(ctx, "add", stdlist_add, 3);
-	std_addf(ctx, "push", stdlist_push, 2);
 	std_addf(ctx, "del", stdlist_del, 2);
-	std_addf(ctx, "pop", stdlist_pop, 1);
-	std_addf(ctx, "count", stdlist_count, 2);
-	std_addf(ctx, "contains", stdlist_contains, 2);
-	std_addf(ctx, "find", stdlist_find, 2);
 	std_addf(ctx, "rev", stdlist_rev, 1);
-	std_addf(ctx, "range", stdlist_range, 2);
 	std_addlib(ctx);
 	
 	/* dict */

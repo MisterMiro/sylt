@@ -19,15 +19,15 @@ let mul a b = a * b
 let div a b = a / b
 let rem a b = a % b
 
-let loop fn from to = do
-    let i = start
-	while i < end do
+let for fn from to = do
+    let i = from
+	while i < to do
 		fn(i)
 		i += 1
 	end
 end
 
-let rep fn n = loop(fn 0 n)
+let rep fn n = for(fn 0 n)
 
 let makeEnum list = do
 	let enum = {}

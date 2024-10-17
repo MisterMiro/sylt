@@ -1,5 +1,10 @@
 ## prints all global variables
 
-let printDict dict = List.forEach(printLn Dict.values(dict))
+let printDict dict = do
+    List.forEach(fun item -> do
+        if typeOf(item) is "Dict" then printDict(item)
+        else printLn(item)
+    end Dict.values(dict))
+end
 
 printDict(gdict)

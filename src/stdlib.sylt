@@ -249,9 +249,9 @@ end
 module Math is
 	let Sign = makeEnum(["Negative" "Zero" "Positive"])
 
-	let signum n = if n < 0 then Sign.Negative
-		else if n is 0 then Sign.Zero
-		else Sign.Positive
+	let signum n = if n < 0 then Math.Sign.Negative
+		else if n is 0 then Math.Sign.Zero
+		else Math.Sign.Positive
 
     let min a b = if a < b then a else b
 

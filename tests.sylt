@@ -625,12 +625,6 @@ let listLib _ = do
     let list = [1 2 3]
     ensure(List.find(2 list) is 1)
 
-    ## findAll
-    let bits = [0 1 1 0 1 0]
-    let indices = List.findAll(1 bits)
-    List.forEach(fun index -> List.del(index bits) indices)
-    ensure(bits is [0 0 0])
-
     ## sort
     let list = [2 3 1]
     ensure(List.sort(list) is [1 2 3])

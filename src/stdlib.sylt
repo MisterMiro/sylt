@@ -112,7 +112,7 @@ module List is
 				end
 			end n - 1)
 
-			if not isZero(swapped) then bubbleSort(list n - 1)
+			if not Num.isZero(swapped) then bubbleSort(list n - 1)
 		end
 
 		if #list > 1 then bubbleSort(list #list)

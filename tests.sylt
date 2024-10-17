@@ -660,7 +660,7 @@ let listLib _ = do
 	
 	## filter
 	let list = [1 0 0 1 1 0]
-	list <- List.filter(isOne list)
+	list <- List.filter(Num.isOne list)
 	ensure(list is [1 1 1])
 	
 	## fold

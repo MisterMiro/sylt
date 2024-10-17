@@ -3,11 +3,13 @@
 let printDict dict indent = do
     if indent > 0 and dict is gdict then return null
 
+    rep(fun _ -> printLn("  ") indent)
+
     List.forEach(fun item -> do
         if typeOf(item) is "Dict" then
             printDict(item indent + 1)
         else printLn(item)
-    end Dict.values(dict))
+    end Dict.keys(dict))
 end
 
 printDict(gdict 0)

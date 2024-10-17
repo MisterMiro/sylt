@@ -665,7 +665,7 @@ let listLib _ = do
 	
 	## fold
 	let list = [2 4 6]
-	ensure(List.fold(mul 1 list) is 48)
+	ensure(List.fold(Math.mul 1 list) is 48)
 	
 	## sum
 	let list = [1 2 3]

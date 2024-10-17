@@ -1,0 +1,5 @@
+## prints all global variables
+
+let printDict dict = List.forEach(printLn Dict.values(dict))
+
+printDict(gdict)

@@ -3564,14 +3564,6 @@ void std_init(sylt_t* ctx) {
 	
 	/* string */
 	std_setlib(ctx, "String");
-	std_add(ctx, "letters", wrapstring(string_lit(
-		"abcdefghijklmnopqrstuvwxyz",  ctx)));
-	std_add(ctx, "digits", wrapstring(string_lit(
-		"0123456789", ctx)));
-	std_add(ctx, "punctuation", wrapstring(string_lit(
-		"!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", ctx)));
-	std_add(ctx, "whitespace", wrapstring(string_lit(
-		" \n\r\t", ctx)));
 	std_addf(ctx, "chars", stdstring_chars, 1);
 	std_addf(ctx, "ascii", stdstring_ascii, 1);
 	std_addf(ctx, "join", stdstring_join, 1);

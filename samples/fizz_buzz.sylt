@@ -1,9 +1,7 @@
 ## if a number is divisible by 3: print "Fizz", if divisible by 5: print "Buzz", if divisible
 ## by both 3 and 5: print "FizzBuzz", otherwise print the number
 
-rep(fun num -> do
-    num += 1
-    
+for(fun num -> do
     let output = ""
     if num % 3 is 0 then output <- "Fizz"
     if num % 5 is 0 then output += "Buzz"
@@ -11,4 +9,4 @@ rep(fun num -> do
 
     printLn(output)
 end
-100)
+1 100)

@@ -163,6 +163,18 @@ module List is
     end
 
     let contains value list = List.count(value list) > 0
+
+    let find value list = do
+        let index = 0
+        let found = false
+
+        while not found do
+            if List.get(index list) is value then found <- true
+            else index += 1
+        end
+
+        index
+    end
 end
 
 module Dict is

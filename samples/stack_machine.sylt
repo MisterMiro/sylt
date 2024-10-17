@@ -7,7 +7,6 @@ let OpCode = makeEnum([
     "Mul"
     "Div"
     "Eq"
-    "Print"
     "Ret"
 ])
 
@@ -57,13 +56,11 @@ let exec program = do
             let a = pop()
             push(a is b)
         end
-        else if code is OpCode.Print then
-            printLn(List.last(stack))
         else if code is OpCode.Ret then
             run <- false
     end
 
-    "success!"
+    printLn(List.last(stack))
 end
 
 let compile input = do
@@ -87,8 +84,9 @@ let compile input = do
     program
 end
 
+printLn(program)
+
 let input = "1 2 + 10 * 0.9375 / 16 - 8 - 8 ="
 let program = compile(input)
 
-let result = exec(program)
-printLn(result)
+exec(program)

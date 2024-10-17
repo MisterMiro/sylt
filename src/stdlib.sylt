@@ -40,6 +40,14 @@ module List is
 
     let last list = List.get(-1 list)
 
+    let push value list = list += value
+
+    let pop list = do
+        let value = List.last(list)
+        list -= 1
+        value
+    end
+
     let swap a b list = do
         let temp = List.get(a list)
         List.set(a List.get(b list) list)

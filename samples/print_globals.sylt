@@ -5,11 +5,11 @@ let printDict dict indent = do
 
     rep(fun _ -> printLn("  ") indent)
 
-    List.forEach(fun item -> do
-        if typeOf(item) is "Dict" then
-            printDict(item indent + 1)
-        else printLn(item)
-    end Dict.keys(dict))
+    Dict.iter(fun key value -> do
+        if typeOf(value) is "Dict" then
+            printDict(value indent + 1)
+        else printLn(key)
+    end dict)
 end
 
 printDict(gdict 0)

@@ -198,7 +198,7 @@ module Dict is
 
 	let iter fn dict = List.forEach(
         fun key -> fn(key Dict.get(key dict))
-        Dict.keys(dc))
+        Dict.keys(dict))
 
 	let toList dict = do
 		let ls = []

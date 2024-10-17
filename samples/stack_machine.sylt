@@ -84,9 +84,8 @@ let compile input = do
     program
 end
 
-printLn(program)
-
 let input = "1 2 + 10 * 0.9375 / 16 - 8 - 8 ="
 let program = compile(input)
+printLn(program)
 
 exec(program)

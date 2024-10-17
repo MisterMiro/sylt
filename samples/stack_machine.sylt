@@ -7,6 +7,7 @@ let OpCode = makeEnum([
     "Mul"
     "Div"
     "Eq"
+    "Print"
     "Ret"
 ])
 
@@ -56,36 +57,38 @@ let exec program = do
             let a = pop()
             push(a is b)
         end
+        else if code is OpCode.Print then
+            printLn(List.last(stack))
         else if code is OpCode.Ret then
             run <- false
     end
 
-    printLn(List.last(stack))
+    "success!"
 end
 
-let compile input = do
-    let program = []
+let program = [
+    OpCode.Push 1
+    OpCode.Push 2
+    OpCode.Add
 
-    let ops = {
-        "+" = OpCode.Add
-        "-" = OpCode.Sub
-        "*" = OpCode.Mul
-        "/" = OpCode.Div
-        "=" = OpCode.Eq
-    }
-    let tokens = String.split([" "] input)
+    OpCode.Push 10
+    OpCode.Mul
 
-    List.forEach(
-        fun token -> List.push(Dict.getOrDefault(token [OpCode.Push toNum(token)] ops)
-            program)
-        tokens)
+    OpCode.Push 0.9375
+    OpCode.Div
 
-    List.push(OpCode.Ret program)
-    program
-end
+    OpCode.Push 16
+    OpCode.Sub
 
-let input = "1 2 + 10 * 0.9375 / 16 - 8 - 8 ="
-let program = compile(input)
-printLn(program)
+    OpCode.Push 8
+    OpCode.Sub
 
-exec(program)
+    OpCode.Push 8
+    OpCode.Eq
+
+    OpCode.Print
+    OpCode.Ret
+]
+
+let result = exec(program)
+printLn(result)

@@ -114,7 +114,7 @@ module List is
         list
 	end
 
-	let sort list = sortBy(fun a b -> a > b list)
+	let sort list = List.sortBy(fun a b -> a > b list)
 
 	let flatten list = do
 		let flat = []

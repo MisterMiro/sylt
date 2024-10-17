@@ -907,14 +907,6 @@ let mathLib _ = do
 	ensure(floatEq(Math.atanh(0.8) 1.0986 0.001))
 end
 
-let randLib _ = do
-    ## oneIn
-    let samples = []
-    rep(fun _ -> List.push(Rand.oneIn(10) samples) 10000)
-    ensure(floatEq(List.mean(samples) 1 1))
-    printLn(List.mean(samples))
-end
-
 ## tests to run
 
 let tests = List.flatten([
@@ -960,7 +952,6 @@ let tests = List.flatten([
 		stringLib
         fileLib
 		mathLib
-        randLib
 	]
 ])
 

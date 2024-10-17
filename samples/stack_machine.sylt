@@ -66,29 +66,27 @@ let exec program = do
     "success!"
 end
 
-let program = [
-    OpCode.Push 1
-    OpCode.Push 2
-    OpCode.Add
+let compile input = do
+    let program = []
 
-    OpCode.Push 10
-    OpCode.Mul
+    let ops = {
+        "+" = OpCode.Add
+        "-" = OpCode.Sub
+        "*" = OpCode.Mul
+        "/" = OpCode.Div
+        "=" = OpCode.Eq
+    }
+    let tokens = String.split([" "] input)
 
-    OpCode.Push 0.9375
-    OpCode.Div
+    List.forEach(
+        fun token -> List.push(Dict.getOrDefault(token toNumber(token) ops))
+        tokens)
 
-    OpCode.Push 16
-    OpCode.Sub
+    program
+end
 
-    OpCode.Push 8
-    OpCode.Sub
-
-    OpCode.Push 8
-    OpCode.Eq
-
-    OpCode.Print
-    OpCode.Ret
-]
+let input = "1 2 + 10 * 0.9375 / 16 - 8 - 8 ="
+let program = compile(input)
 
 let result = exec(program)
 printLn(result)

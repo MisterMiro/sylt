@@ -949,7 +949,7 @@ let tests = List.flatten([
 		listLib
 		dictLib
 		stringLib
-        ##fileLib
+        fileLib
 		mathLib
 	]
 ])

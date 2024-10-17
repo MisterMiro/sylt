@@ -27,6 +27,14 @@ let for fn from to = do
 	end
 end
 
+let countdown fn from to = do
+    let i = from
+	while i < to do
+		fn(i)
+		i -= 1
+	end
+end
+
 let rep fn n = for(fn 0 n)
 
 let makeEnum list = do
@@ -75,6 +83,10 @@ module List is
 	let forEach fn list = rep(
         fun index -> fn(List.get(index list))
         #list)
+
+    let forEachRev fn list = countdown(
+        fun index -> fn(List.get(index list))
+        #list 0)
 
     let copy original = do
         let new = []
@@ -139,8 +151,8 @@ module List is
 	let sort list = List.sortBy(fun a b -> a > b list)
 
     let rev list = do
-        let new = List.copy(list)
-        rep(fun index -> List.swap(index #list - index - 1 new) #list)
+        let new = []
+        List.forEachRev(fun item -> List.push(item new) list)
         new
     end
 

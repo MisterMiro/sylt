@@ -54,6 +54,12 @@ module List is
         List.set(b temp list)
     end
 
+    let init value n = do
+        let list = []
+        rep(fun _ -> List.push(value list) n)
+        list
+    end
+
 	let iter fn list = rep(
         fun index -> fn(index List.get(index list))
         #list)

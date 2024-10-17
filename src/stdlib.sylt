@@ -2,23 +2,6 @@
 ## note: most of the standard library is implemented in C
 ensure(System.version is "sylt 0.1")
 
-let isZero num = num is 0
-let isOne num = num is 1
-let isEven num = isZero(num % 2)
-let isOdd num = isOne(num % 2)
-let isPositive num = Math.signum(num) is Math.Sign.Positive
-let isNegative num = Math.signum(num) is Math.Sign.Negative
-
-let half num = num / 2
-let twice num = num * 2
-let squared num = num * num
-
-let add a b = a + b
-let sub a b = a - b
-let mul a b = a * b
-let div a b = a / b
-let rem a b = a % b
-
 let for fn from to = do
     let i = from
 	while i < to do
@@ -106,15 +89,15 @@ module List is
 		result
 	end
 
-	let sum list = List.fold(add 0 list)
+	let sum list = List.fold(Math.add 0 list)
 
 	let average list = if list is [] then 0
         else List.sum(list) / #list
 
-	let mean list = if isOdd(#list) then List.get(half(#list) list)
+	let mean list = if Num.isOdd(#list) then List.get(Num.half(#list) list)
 		else List.average([
-			List.get(half(#list) - 1 list)
-			List.get(half(#list) list)])
+			List.get(Num.half(#list) - 1 list)
+			List.get(Num.half(#list) list)])
 
 	let sortBy fn list = do
         list <- List.copy(list)
@@ -233,9 +216,9 @@ module String is
 		let text = ""
 		let n = (width - #str) / #pattern
 
-		rep(fun _ -> text += pattern half(n))
+		rep(fun _ -> text += pattern Num.half(n))
 		text += str
-		rep(fun _ -> text += pattern half(n))
+		rep(fun _ -> text += pattern Num.half(n))
 		text
 	end
 end
@@ -267,6 +250,25 @@ module Math is
         else x
 
     let lerp a b t = a * (1 - t) + b * t
+
+    let add a b = a + b
+    let sub a b = a - b
+    let mul a b = a * b
+    let div a b = a / b
+    let rem a b = a % b
+end
+
+module Num is
+    let isZero num = num is 0
+    let isOne num = num is 1
+    let isEven num = isZero(num % 2)
+    let isOdd num = isOne(num % 2)
+    let isPositive num = Math.signum(num) is Math.Sign.Positive
+    let isNegative num = Math.signum(num) is Math.Sign.Negative
+
+    let half num = num / 2
+    let twice num = num * 2
+    let squared num = num * num
 end
 
 module Vec3 is

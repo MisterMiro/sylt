@@ -259,16 +259,16 @@ module Math is
 end
 
 module Num is
-    let isZero num = num is 0
-    let isOne num = num is 1
-    let isEven num = isZero(num % 2)
-    let isOdd num = isOne(num % 2)
-    let isPositive num = Math.signum(num) is Math.Sign.Positive
-    let isNegative num = Math.signum(num) is Math.Sign.Negative
-
     let half num = num / 2
     let twice num = num * 2
     let squared num = num * num
+
+    let isZero num = num is 0
+    let isOne num = num is 1
+    let isEven num = Num.isZero(num % 2)
+    let isOdd num = Num.isOne(num % 2)
+    let isPositive num = Math.signum(num) is Math.Sign.Positive
+    let isNegative num = Math.signum(num) is Math.Sign.Negative
 end
 
 module Vec3 is

@@ -964,6 +964,7 @@ let vec3Lib _ = do
     let vec = Vec3.new(-2 8 5)
     printLn(Vec3.add(vec Vec3.new(4 2 5)))
     printLn(Vec3.add(vec Vec3.new(4 2 5)) is Vec3.new(2 10 10))
+    printLn(Vec3.new(2 10 10) is Vec3.new(2 10 10))
 
 end
 

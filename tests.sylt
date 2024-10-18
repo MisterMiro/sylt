@@ -803,18 +803,10 @@ end
 
 let mathLib _ = do
 	## pi
-	ensure(floatEq(Math.pi 3.141592 0.00001))
+	ensure(Num.eq(Math.pi 3.141592 0.00001))
 	
 	## euler's number
-	ensure(floatEq(Math.e 2.718281 0.00001))
-	
-	## floatEq
-	let val = 0.005
-	let epsilon = 0.01
-	
-	ensure(floatEq(0 val epsilon))
-	ensure(floatEq(0 epsilon - 0.0000001 epsilon))
-	ensure(not floatEq(0 epsilon epsilon))
+	ensure(Num.eq(Math.e 2.718281 0.00001))
 	
 	## signum
 	ensure(Math.signum(-80) is Math.Sign.Negative)
@@ -836,8 +828,9 @@ let mathLib _ = do
 	List.forEach(fun base -> do
 		let power = Math.log(target base)
 		let result = Math.pow(base power)
-		ensure(floatEq(result target 0.0000001))
-	end bases)
+		ensure(Num.eq(result target 0.0000001))
+	end
+    bases)
 	
 	## sqrt
 	ensure(Math.sqrt(256) is 16)
@@ -883,31 +876,39 @@ let mathLib _ = do
 	List.forEach(checkRounding [-1 0 1])
 	
 	## rad + deg
-	ensure(floatEq(Math.rad(1) 0.0175 0.001))
-	ensure(floatEq(Math.deg(1) 57.296 0.001))
+	ensure(Num.eq(Math.rad(1) 0.0175 0.001))
+	ensure(Num.eq(Math.deg(1) 57.296 0.001))
 	
 	## sin + cos + tan
-	ensure(floatEq(Math.sin(90) 0.8939 0.001))
-	ensure(floatEq(Math.cos(90) 0 - 0.4480 0.001))
-	ensure(floatEq(Math.tan(90) 0 - 1.9952 0.001))
+	ensure(Num.eq(Math.sin(90) 0.8939 0.001))
+	ensure(Num.eq(Math.cos(90) 0 - 0.4480 0.001))
+	ensure(Num.eq(Math.tan(90) 0 - 1.9952 0.001))
 			
 	## asin + acos + atan
-	ensure(floatEq(Math.asin(1) 1.5708 0.001))
-	ensure(floatEq(Math.acos(1) 0 0.001))
-	ensure(floatEq(Math.atan(1) 0.785398 0.001))
+	ensure(Num.eq(Math.asin(1) 1.5708 0.001))
+	ensure(Num.eq(Math.acos(1) 0 0.001))
+	ensure(Num.eq(Math.atan(1) 0.785398 0.001))
 		
 	## sinh + cosh + tanh
-	ensure(floatEq(Math.sinh(1) 1.1752 0.001))
-	ensure(floatEq(Math.cosh(1) 1.5430 0.001))
-	ensure(floatEq(Math.tanh(1) 0.7615 0.001))
+	ensure(Num.eq(Math.sinh(1) 1.1752 0.001))
+	ensure(Num.eq(Math.cosh(1) 1.5430 0.001))
+	ensure(Num.eq(Math.tanh(1) 0.7615 0.001))
 	
 	## asinh + acosh + atanh
-	ensure(floatEq(Math.asinh(0.8) 0.7326 0.001))
-	ensure(floatEq(Math.acosh(1.2) 0.6223 0.001))
-	ensure(floatEq(Math.atanh(0.8) 1.0986 0.001))
+	ensure(Num.eq(Math.asinh(0.8) 0.7326 0.001))
+	ensure(Num.eq(Math.acosh(1.2) 0.6223 0.001))
+	ensure(Num.eq(Math.atanh(0.8) 1.0986 0.001))
 end
 
 let numLib _ = do
+    ## eq
+	let val = 0.005
+	let epsilon = 0.01
+	
+	ensure(Num.eq(0 val epsilon))
+	ensure(Num.eq(0 epsilon - 0.0000001 epsilon))
+	ensure(not Num.eq(0 epsilon epsilon))
+
     ## half
     ensure(Num.half(2) is 1)
 

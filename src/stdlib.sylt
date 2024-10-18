@@ -236,6 +236,8 @@ module File is
 end
 
 module Math is
+    let pi = 3.14159265358979323846264338327950288
+    let e = 2.71828182845904523536028747135266250
 	let Sign = makeEnum(["Negative" "Zero" "Positive"])
 
 	let signum n = if n < 0 then Math.Sign.Negative

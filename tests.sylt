@@ -960,13 +960,10 @@ let vec3Lib _ = do
     ensure(Num.eq(norm.y 0.4364 0.0001))
     ensure(Num.eq(norm.z 0.2182 0.0001))
 
-    ## add
+    ## add + sub + mul + div
+    let vec = Vec3.new(-2 8 5)
+    printLn(Vec3.add(vec Vec3.new(4 2 5))
 
-    ## sub
-
-    ## mul
-
-    ## div
 end
 
 ## tests to run

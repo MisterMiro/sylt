@@ -260,6 +260,9 @@ module Math is
 end
 
 module Num is
+    let eq a b epsilon = if a is b true
+        else Math.abs(a - b) < epsilon
+
     let half num = num / 2
     let twice num = num * 2
     let squared num = num * num

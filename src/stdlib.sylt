@@ -300,6 +300,8 @@ module Vec3 is
 		v.y / Vec3.size(v)
 		v.z / Vec3.size(v))
 
+    let dir from to = Vec3.norm(Vec3.sub(to from))
+
 	let add a b = Vec3.new(
 		a.x + b.x
 		a.y + b.y

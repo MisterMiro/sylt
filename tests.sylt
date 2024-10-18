@@ -948,6 +948,7 @@ let vec3Lib _ = do
     let b = Vec3.new(5 4 10)
     ensure(Vec3.dot(a b) is 57)
     ensure(Vec3.cross(a b) is Vec3.new(85 0 - 35 2))
+    printLn(Vec3.cross(a b))
 
     ## sizeSquared
     ensure(Vec3.sizeSquared(Vec3.new(10 0 0)) is 100)

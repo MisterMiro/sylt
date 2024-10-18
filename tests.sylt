@@ -966,6 +966,8 @@ let vec3Lib _ = do
     printLn(Vec3.add(vec Vec3.new(4 2 5)) is Vec3.new(2 10 10))
     printLn(Vec3.new(2 10 10) is Vec3.new(2 10 10))
 
+    printLn({"x" = 3} is {"x" = 3})
+
 end
 
 ## tests to run

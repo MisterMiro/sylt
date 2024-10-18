@@ -100,6 +100,7 @@ module List is
 			List.get(Num.half(#list) list)])
 
 	let sortBy fn list = do
+        if #list <= 1 then return list
         list <- List.copy(list)
 
 		let bubbleSort list n = do
@@ -115,7 +116,7 @@ module List is
 			if not Num.isZero(swapped) then bubbleSort(list n - 1)
 		end
 
-		if #list > 1 then bubbleSort(list #list)
+		bubbleSort(list #list)
         list
 	end
 

@@ -948,7 +948,7 @@ let vec3Lib _ = do
     let a = Vec3.new(8 3 7)
     let b = Vec3.new(5 4 10)
     ensure(Vec3.dot(a b) is 122)
-    ##ensure(Vec3.cross(a b) is Vec3.new(2 0 - 45 17))
+    ensure(Vec3.cross(a b) is Vec3.new(2 0 - 45 17))
 
     ## sizeSquared + size
     ensure(Vec3.sizeSquared(Vec3.new(10 0 0)) is 100)
@@ -961,13 +961,17 @@ let vec3Lib _ = do
     ensure(Num.eq(norm.z 0.2182 0.0001))
 
     ## add + sub + mul + div
-    let vec = Vec3.new(-2 8 5)
-    printLn(Vec3.add(vec Vec3.new(4 2 5)))
-    printLn(Vec3.add(vec Vec3.new(4 2 5)) is Vec3.new(2 10 10))
-    printLn(Vec3.new(2 10 10) is Vec3.new(2 10 10))
+    let vec = Vec3.add(Vec3.new(-2 8 5) Vec3.new(4 2 5))
+    ensure(vec is Vec3.new(2 10 10))
 
-    printLn({"x" = 3} is {"x" = 3})
+    vec <- Vec3.sub(vec, Vec3.new(1 4 8))
+    ensure(vec is Vec3.new(1 6 2))
 
+    vec <- Vec3.mul(vec, Vec3.new(2 3 4))
+    ensure(vec is Vec3.new(2 18 8))
+
+    vec <- Vec3.div(vec, Vec3.new(2 2 2))
+    ensure(vec is Vec3.new(2 9 4))
 end
 
 ## tests to run

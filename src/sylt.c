@@ -2615,22 +2615,6 @@ value_t std_to_num(sylt_t* ctx) {
 	return wrapnum(num);
 }
 
-value_t std_float_eq(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_NUM, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
-	argcheck(ctx, 2, TYPE_NUM, __func__);
-	
-	sylt_num_t a = numarg(0);
-	sylt_num_t b = numarg(1);
-	if (a == b)
-		return wrapbool(true);
-	
-	sylt_num_t epsilon = getnum(arg(2));
-	sylt_num_t diff = num_func(fabsf, fabs)(a - b);
-	
-	return wrapbool(diff < epsilon);
-}
-
 value_t std_type_of(sylt_t* ctx) {
 	return wrapstring(string_lit(user_type_name(arg(0).tag), ctx));
 }
@@ -3515,7 +3499,6 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "readIn", std_read_in, 0);
 	std_addf(ctx, "toString", std_to_string, 1);
 	std_addf(ctx, "toNum", std_to_num, 1);
-	std_addf(ctx, "floatEq", std_float_eq, 3);
 	std_addf(ctx, "typeOf", std_type_of, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);
@@ -3596,8 +3579,6 @@ void std_init(sylt_t* ctx) {
 	
 	/* math */
 	std_setlib(ctx, "Math");
-	std_add(ctx, "pi", wrapnum(M_PI));
-	std_add(ctx, "e", wrapnum(M_E));
 	std_addf(ctx, "abs", stdmath_abs, 1);
 	std_addf(ctx, "log", stdmath_log, 2);
 	std_addf(ctx, "pow", stdmath_pow, 2);

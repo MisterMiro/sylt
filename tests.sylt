@@ -946,8 +946,8 @@ let vec3Lib _ = do
     ## dot + cross
     let a = Vec3.new(8 3 7)
     let b = Vec3.new(5 4 10)
-    printLn(Vec3.dot(a b))
-    printLn(Vec3.cross(a b))
+    ensure(Vec3.dot(a b) is 122)
+    ensure(Vec3.cross(a b) is Vec3.new(-45 17 2))
 
     ## sizeSquared
     ensure(Vec3.sizeSquared(Vec3.new(10 0 0)) is 100)
@@ -956,7 +956,10 @@ let vec3Lib _ = do
     ensure(Vec3.size(Vec3.new(10 0 0)) is 10)
 
     ## norm
-    printLn(Vec3.norm(Vec3.new(10 5 2.5)))
+    let norm = Vec3.norm(Vec3.new(10 5 2.5))
+    ensure(floatEq(norm.x 0.4364 0.0001))
+    ensure(floatEq(norm.y 0.2182 0.0001))
+    ensure(floatEq(norm.z 0.8728 0.0001))
 
     ## add
 

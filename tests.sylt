@@ -942,6 +942,31 @@ let numLib _ = do
     ensure(not Num.isNegative(10))
 end
 
+let vec3Lib _ = do
+    ## dot + cross
+    let a = Vec3.new(-5 3 7)
+    let b = Vec3.new(5 4 10)
+    printLn(Vec3.dot(a b))
+    printLn(Vec3.cross(a b))
+
+    ## sizeSquared
+    printLn(Vec3.sizeSquared(Vec3.new(10 0 0))
+
+    ## size
+    ensure(Vec3.size(Vec3.new(10 0 0) is 10)
+
+    ## norm
+    printLn(Vec3.norm(Vec3.new(10 5 2.5))
+
+    ## add
+
+    ## sub
+
+    ## mul
+
+    ## div
+end
+
 ## tests to run
 
 let tests = List.flatten([
@@ -988,6 +1013,7 @@ let tests = List.flatten([
         fileLib
 		mathLib
         numLib
+        vec3Lib
 	]
 ])
 

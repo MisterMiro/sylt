@@ -2145,10 +2145,10 @@ void vm_exec(vm_t* vm) {
 			uint8_t len = read8();
 			list_t* ls = list_new(vm->ctx);
 			
-			push(wraplist(ls)); /* GC */
+			gc_pause(vm->ctx);
 			for (int i = len; i > 0; i--)
 				list_push(ls, peek(i), vm->ctx);
-			pop(); /* GC */
+			gc_resume(vm->ctx);
 			
 			shrink(len);
 			push(wraplist(ls));
@@ -2158,10 +2158,10 @@ void vm_exec(vm_t* vm) {
 			uint8_t len = read8();
 			dict_t* dc = dict_new(vm->ctx);
 			
-			push(wrapdict(dc)); /* GC */
+			gc_pause(vm->ctx);
 			for (int i = len; i > 0; i -= 2)
 				dict_set(dc, getstring(peek(i)), peek(i - 1), vm->ctx);
-			pop(); /* GC */
+			gc_resume(vm->ctx);
 			
 			shrink(len);
 			push(wrapdict(dc));

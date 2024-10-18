@@ -260,7 +260,7 @@ module Math is
 end
 
 module Num is
-    let eq a b epsilon = if a is b true
+    let eq a b epsilon = if a is b then true
         else Math.abs(a - b) < epsilon
 
     let half num = num / 2

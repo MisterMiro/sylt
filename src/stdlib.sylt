@@ -288,7 +288,7 @@ module Vec3 is
 
 	let sizeSquared v = Vec3.dot(v v)
 
-	let size v = Math.sqrt(sizeSquared(v))
+	let size v = Math.sqrt(Vec3.sizeSquared(v))
 
 	let norm v = Vec3.new(
 		v.x / Vec3.size(v)

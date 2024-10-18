@@ -284,6 +284,12 @@ module Vec3 is
 		"z" = z
 	}
 
+    let scalar s = Vec3.new(s s s)
+
+    let zero = Vec3.scalar(0)
+
+    let one = Vec3.scalar(1)
+
 	let dot a b = a.x * b.x + a.y * b.y + a.z * b.z
 
 	let cross a b = Vec3.new(
@@ -321,26 +327,6 @@ module Vec3 is
 		a.x / b.x
 		a.y / b.y
 		a.z / b.z)
-
-	let addScalar v s = Vec3.new(
-		v.x + s
-		v.y + s
-		v.z + s)
-
-	let subScalar v s = Vec3.new(
-		v.x - s
-		v.y - s
-		v.z - s)
-
-	let mulScalar v s = Vec3.new(
-		v.x * s
-		v.y * s
-		v.z * s)
-
-	let divScalar v s = Vec3.new(
-		v.x / s
-		v.y / s
-		v.z / s)
 end
 
 module Rand is

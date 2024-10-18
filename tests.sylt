@@ -953,7 +953,7 @@ let vec3Lib _ = do
     printLn(Vec3.sizeSquared(Vec3.new(10 0 0))
 
     ## size
-    ensure(Vec3.size(Vec3.new(10 0 0) is 10)
+    ensure(Vec3.size(Vec3.new(10 0 0)) is 10)
 
     ## norm
     printLn(Vec3.norm(Vec3.new(10 5 2.5))

@@ -956,9 +956,9 @@ let vec3Lib _ = do
 
     ## norm
     let norm = Vec3.norm(Vec3.new(10 5 2.5))
-    ensure(floatEq(norm.x 0.8728 0.0001))
-    ensure(floatEq(norm.y 0.4364 0.0001))
-    ensure(floatEq(norm.z 0.2182 0.0001))
+    ensure(Num.eq(norm.x 0.8728 0.0001))
+    ensure(Num.eq(norm.y 0.4364 0.0001))
+    ensure(Num.eq(norm.z 0.2182 0.0001))
 
     ## add
 

@@ -971,7 +971,7 @@ let vec3Lib _ = do
     ensure(vec is Vec3.new(2 18 8))
 
     vec <- Vec3.div(vec Vec3.new(2 2 2))
-    ensure(vec is Vec3.new(2 9 4))
+    ensure(vec is Vec3.new(1 9 4))
 end
 
 ## tests to run

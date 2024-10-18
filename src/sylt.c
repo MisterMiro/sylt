@@ -1213,6 +1213,9 @@ bool dict_eq(const dict_t* a, const dict_t* b) {
 	if (a->cap != b->cap) return false;
 	
 	for (size_t i = 0; i < a->cap; i++) {
+		if (!a->items[i].key || !b->items[i].key)
+			continue;
+		
 		if (!string_eq(a->items[i].key, b->items[i].key))
 			return false;
 		

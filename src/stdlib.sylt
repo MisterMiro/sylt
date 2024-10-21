@@ -284,12 +284,6 @@ module Vec3 is
 		"z" = z
 	}
 
-    let scalar s = Vec3.new(s s s)
-
-    let zero = Vec3.scalar(0)
-
-    let one = Vec3.scalar(1)
-
 	let dot a b = a.x * b.x + a.y * b.y + a.z * b.z
 
 	let cross a b = Vec3.new(

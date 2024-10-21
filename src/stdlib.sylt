@@ -197,7 +197,7 @@ module String is
     let punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
     let whitespace = " \n\r\t"
 
-	let leftPad str width pattern = do
+	let leftPad width pattern str = do
 		let text = ""
 		let n = (width - #str) / #pattern
 
@@ -205,7 +205,7 @@ module String is
 		text + str
 	end
 
-	let rightPad str width pattern = do
+	let rightPad width pattern str = do
 		let text = str
 		let n = (width - #str) / #pattern
 
@@ -213,7 +213,7 @@ module String is
 		text
 	end
 
-	let centerPad str width pattern = do
+	let centerPad width pattern str = do
 		let text = ""
 		let n = (width - #str) / #pattern
 

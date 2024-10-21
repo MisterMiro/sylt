@@ -1034,7 +1034,7 @@ List.forEach(fun test ->
 	if typeOf(test) is "String" then
 		printLn(test + ":")
 	else do
-		let name = String.rightPad(toString(test) 20 ".")
+		let name = String.rightPad(20 "." toString(test))
 		print("  " + name)
 		
 		test(null)

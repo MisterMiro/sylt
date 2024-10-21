@@ -792,13 +792,13 @@ let stringLib _ = do
 	ensure(str is "1337")
 	
 	## leftPad
-	ensure(String.leftPad("test" 10 "-=") is "-=-=-=test")
+	ensure(String.leftPad(10 "-=" "test") is "-=-=-=test")
 
 	## rightPad
-	ensure(String.rightPad("test" 10 "*") is "test******")
+	ensure(String.rightPad(10 "*" "test") is "test******")
 	
 	## centerPad
-	ensure(String.centerPad("test" 10 "|") is "|||test|||")
+	ensure(String.centerPad(10 "|" "test") is "|||test|||")
 end
 
 let mathLib _ = do

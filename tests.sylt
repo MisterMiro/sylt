@@ -426,8 +426,7 @@ let functions _ = do
 	## the heap if necessary
 	let f = fun -> do
 		let keep = "jewel"
-		let f2 = fun -> keep
-		f2
+		fun -> keep
 	end
 	ensure(f()() is "jewel")
 	

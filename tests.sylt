@@ -656,8 +656,8 @@ let listLib _ = do
 	ensure(items is copy)
 	
 	## map
-	##let list = List.map(fun n -> n * 2 [4 8 16])
-	##ensure(list is [8 16 32])
+	let list = List.map(fun n -> n * 2 [4 8 16])
+	ensure(list is [8 16 32])
 	
 	## filter
 	let list = [1 0 0 1 1 0]

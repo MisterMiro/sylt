@@ -796,13 +796,9 @@ let stringLib _ = do
 	str <- String.replace("t" "7" str)
 	ensure(str is "1337")
 	
-	## leftPad
+	## leftPad + rightPad + centerPad
 	ensure(String.leftPad(10 "-=" "test") is "-=-=-=test")
-
-	## rightPad
 	ensure(String.rightPad(10 "*" "test") is "test******")
-	
-	## centerPad
 	ensure(String.centerPad(10 "|" "test") is "|||test|||")
 end
 

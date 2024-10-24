@@ -306,9 +306,7 @@ let variables _ = do
 	
 	## assigning open upvalue
 	let y = 888
-	let func = fun -> do
-		y <- 333
-	end
+	let func = fun -> y <- 333
 	func()
 	ensure(y is 333)
 	

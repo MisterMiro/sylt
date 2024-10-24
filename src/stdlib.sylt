@@ -198,25 +198,25 @@ module String is
     let whitespace = " \n\r\t"
 
 	let leftPad width pattern str = do
-		let text = ""
 		let n = (width - #str) / #pattern
 
+        let text = ""
 		rep(fun _ -> text += pattern n)
 		text + str
 	end
 
 	let rightPad width pattern str = do
-		let text = str
 		let n = (width - #str) / #pattern
 
+        let text = str
 		rep(fun _ -> text += pattern n)
 		text
 	end
 
 	let centerPad width pattern str = do
-		let text = ""
 		let n = (width - #str) / #pattern
 
+        let text = ""
 		rep(fun _ -> text += pattern Num.half(n))
 		text += str
 		rep(fun _ -> text += pattern Num.half(n))

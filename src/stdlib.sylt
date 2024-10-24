@@ -214,9 +214,13 @@ module String is
 	end
 
 	let centerPad width pattern str = do
-		str <- String.leftPad(Num.half(width) pattern str)
-        str <- String.rightPad(Num.half(width) pattern str)
-        str
+		let n = (width - #str) / #pattern
+
+        let text = ""
+		rep(fun _ -> text += pattern Num.half(n))
+		text += str
+		rep(fun _ -> text += pattern Num.half(n))
+		text
 	end
 end
 

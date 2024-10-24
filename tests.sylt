@@ -722,7 +722,7 @@ let dictLib _ = do
 end
 
 let stringLib _ = do
-	## alpha
+	## letters
 	let str = "abcdefghijklmnopqrstuvwxyz"
 	ensure(String.letters is str)
 	
@@ -733,6 +733,10 @@ let stringLib _ = do
 	## punctuation
 	let str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
 	ensure(String.punctuation is str)
+
+    ## whitespace
+    let str = " \n\r\t"
+    ensure(String.whitespace is str)
 	
 	## length
 	ensure(#String.digits is 10)

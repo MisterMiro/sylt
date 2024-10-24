@@ -1005,7 +1005,7 @@ let tests = List.flatten([
 		comparison
 		equality
 		boolNot
-		##boolAnd
+		boolAnd
 		boolOr
 		concat
 	]

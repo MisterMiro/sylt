@@ -753,9 +753,9 @@ let stringLib _ = do
 	ensure(String.uppercase(str) is "MIXED!")
 	ensure(String.swapcase(str) is "mIxEd!")
 
-	## isLower + isUpper + isWhitespace
-	ensure(String.isLower("x") and not String.isLower("X"))
-	ensure(String.isUpper("X") and not String.isUpper("x"))
+	## isLowercase + isUppercase + isWhitespace
+	ensure(String.isLowercase("x") and not String.isLowercase("X"))
+	ensure(String.isUppercase("X") and not String.isUppercase("x"))
 	ensure(String.isWhitespace(" \t\n\r"))
 	
 	## startsWith

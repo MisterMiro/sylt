@@ -2984,7 +2984,7 @@ value_t stdstring_swapcase(sylt_t* ctx) {
 	return wrapstring(copy);
 }
 
-value_t stdstring_is_lower(sylt_t* ctx) {
+value_t stdstring_is_lowercase(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* str = stringarg(0);
 
@@ -2999,7 +2999,7 @@ value_t stdstring_is_lower(sylt_t* ctx) {
 	return wrapbool(is_lower);
 }
 
-value_t stdstring_is_upper(sylt_t* ctx) {
+value_t stdstring_is_uppercase(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_STRING, __func__);
 	string_t* str = stringarg(0);
 
@@ -3157,13 +3157,13 @@ value_t stdstring_replace(sylt_t* ctx) {
 /* == file lib == */
 
 value_t stdfile_open(sylt_t* ctx) {
-	argcheck(ctx, 0, TYPE_STRING, __func__);
-	argcheck(ctx, 1, TYPE_NUM, __func__);
+	argcheck(ctx, 0, TYPE_NUM, __func__);
+	argcheck(ctx, 1, TYPE_STRING, __func__);
 	
-	string_t* path = stringarg(0);
-	int64_t mode = (int64_t)numarg(1);
+	int64_t mode = (int64_t)numarg(0);
+	string_t* path = stringarg(1);
+	
 	const char* mode_str = NULL;
-
 	switch (mode) {
 	case 0: mode_str = "r"; break;
 	case 1: mode_str = "rb"; break; 
@@ -3557,8 +3557,8 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "lowercase", stdstring_lowercase, 1);
 	std_addf(ctx, "uppercase", stdstring_uppercase, 1);
 	std_addf(ctx, "swapcase", stdstring_swapcase, 1);
-	std_addf(ctx, "isLower", stdstring_is_lower, 1);
-	std_addf(ctx, "isUpper", stdstring_is_upper, 1);
+	std_addf(ctx, "isLowercase", stdstring_is_lowercase, 1);
+	std_addf(ctx, "isUppercase", stdstring_is_uppercase, 1);
 	std_addf(ctx, "isWhitespace", stdstring_is_whitespace, 1);
 	std_addf(ctx, "startsWith", stdstring_starts_with, 2);
 	std_addf(ctx, "endsWith", stdstring_ends_with, 2);

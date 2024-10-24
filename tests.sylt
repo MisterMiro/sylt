@@ -28,7 +28,7 @@ let names _ = do
     let returned = value
 	let doable = value
 	let enderman = value
-    let modular = value
+    let moduleAR = value
 end
 
 let strings _ = do

@@ -540,18 +540,18 @@ let fileLib _ = do
 	let str = "Hey\n"
 	
 	## open + write + close
-	let handle = File.open(path File.Mode.Write)
+	let handle = File.open(File.Mode.Write path)
 	File.write(str handle)
 	File.close(handle)
 	
 	## size
-	let handle = File.open(path File.Mode.Read)
+	let handle = File.open(File.Mode.Read path)
 	let size = File.size(handle)
 	ensure(size is #str)
 	File.close(handle)
 	
 	## read
-	let handle = File.open(path File.Mode.Read)
+	let handle = File.open(File.Mode.Read path)
 	let contents = File.read(handle)
 	ensure(contents is str)
 	File.close(handle)

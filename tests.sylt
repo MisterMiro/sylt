@@ -944,6 +944,10 @@ let numLib _ = do
 end
 
 let vec3Lib _ = do
+    ## zero + one
+    ensure(Vec3.zero() is Vec3.scalar(0))
+    ensure(Vec3.one() id Vec3.scalar(1))
+
     ## dot + cross
     let a = Vec3.new(8 3 7)
     let b = Vec3.new(5 4 10)

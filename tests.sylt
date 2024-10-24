@@ -920,27 +920,21 @@ let numLib _ = do
     ## squared
     ensure(Num.squared(4) is 16)
 
-    ## isZero
+    ## isZero + isOne
     ensure(Num.isZero(0))
     ensure(not Num.isZero(1))
-
-    ## isOne
     ensure(Num.isOne(1))
     ensure(not Num.isOne(0))
 
-    ## isOdd
+    ## isOdd + isEven
     ensure(Num.isOdd(3))
     ensure(not Num.isOdd(4))
-
-    ## isEven
     ensure(Num.isEven(4))
     ensure(not Num.isEven(3))
 
-    ## isPositive
+    ## isPositive + isNegative
     ensure(Num.isPositive(10))
     ensure(not Num.isPositive(-10))
-
-    ## isNegative
     ensure(Num.isNegative(-10))
     ensure(not Num.isNegative(10))
 end

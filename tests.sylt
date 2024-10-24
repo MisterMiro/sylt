@@ -800,6 +800,43 @@ let stringLib _ = do
 	ensure(String.centerPad(10 "|" "test") is "|||test|||")
 end
 
+let numLib _ = do
+    ## eq
+	let val = 0.005
+	let epsilon = 0.01
+	
+	ensure(Num.eq(0 val epsilon))
+	ensure(Num.eq(0 epsilon - 0.0000001 epsilon))
+	ensure(not Num.eq(0 epsilon epsilon))
+
+    ## half
+    ensure(Num.half(2) is 1)
+
+    ## twice
+    ensure(Num.twice(1) is 2)
+
+    ## squared
+    ensure(Num.squared(4) is 16)
+
+    ## isZero + isOne
+    ensure(Num.isZero(0))
+    ensure(not Num.isZero(1))
+    ensure(Num.isOne(1))
+    ensure(not Num.isOne(0))
+
+    ## isOdd + isEven
+    ensure(Num.isOdd(3))
+    ensure(not Num.isOdd(4))
+    ensure(Num.isEven(4))
+    ensure(not Num.isEven(3))
+
+    ## isPositive + isNegative
+    ensure(Num.isPositive(10))
+    ensure(not Num.isPositive(-10))
+    ensure(Num.isNegative(-10))
+    ensure(not Num.isNegative(10))
+end
+
 let mathLib _ = do
 	## pi
 	ensure(Num.eq(Math.pi 3.141592 0.00001))
@@ -899,43 +936,6 @@ let mathLib _ = do
 	ensure(Num.eq(Math.atanh(0.8) 1.0986 0.001))
 end
 
-let numLib _ = do
-    ## eq
-	let val = 0.005
-	let epsilon = 0.01
-	
-	ensure(Num.eq(0 val epsilon))
-	ensure(Num.eq(0 epsilon - 0.0000001 epsilon))
-	ensure(not Num.eq(0 epsilon epsilon))
-
-    ## half
-    ensure(Num.half(2) is 1)
-
-    ## twice
-    ensure(Num.twice(1) is 2)
-
-    ## squared
-    ensure(Num.squared(4) is 16)
-
-    ## isZero + isOne
-    ensure(Num.isZero(0))
-    ensure(not Num.isZero(1))
-    ensure(Num.isOne(1))
-    ensure(not Num.isOne(0))
-
-    ## isOdd + isEven
-    ensure(Num.isOdd(3))
-    ensure(not Num.isOdd(4))
-    ensure(Num.isEven(4))
-    ensure(not Num.isEven(3))
-
-    ## isPositive + isNegative
-    ensure(Num.isPositive(10))
-    ensure(not Num.isPositive(-10))
-    ensure(Num.isNegative(-10))
-    ensure(not Num.isNegative(10))
-end
-
 let vec3Lib _ = do
     ## zero + one
     ensure(Vec3.zero() is Vec3.scalar(0))
@@ -1020,8 +1020,8 @@ let tests = List.flatten([
 		dictLib
 		stringLib
         fileLib
-		mathLib
         numLib
+		mathLib
         vec3Lib
 	]
 ])

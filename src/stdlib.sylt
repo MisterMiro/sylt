@@ -41,13 +41,13 @@ module List is
 
     let init value n = do
         let list = []
-        rep(fun _ -> List.push(value list) n)
+        rep(fun _ -> list += value n)
         list
     end
 
     let range from to = do
         let list = []
-        for(fun num -> List.push(num list) from to + 1)
+        for(fun num -> list += num from to + 1)
         list
     end
 

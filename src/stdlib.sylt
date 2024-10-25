@@ -67,17 +67,13 @@ module List is
 
 	let filter fn list = do
 		let filtered = []
-		List.forEach(
-            fun item -> if fn(item) then filtered += item
-            list)
+		List.forEach(fun item -> if fn(item) then filtered += item list)
 		filtered
 	end
 
 	let fold fn init list = do
 		let result = init
-		List.forEach(
-            fun item -> result <- fn(result item)
-            list)
+		List.forEach(fun item -> result <- fn(result item) list)
 		result
 	end
 

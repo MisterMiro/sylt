@@ -30,7 +30,7 @@ let exec program = do
         let code = read()
 
         if code is OpCode.Push then
-            stack += read()
+            push(read())
         else if code is OpCode.Add then do
             let b = pop()
             let a = pop()

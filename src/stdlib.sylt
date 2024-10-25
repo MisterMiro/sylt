@@ -61,9 +61,7 @@ module List is
 
 	let map fn list = do
 		let mapped = []
-		List.forEach(
-            fun item -> mapped += fn(item)
-            list)
+		List.forEach(fun item -> mapped += fn(item) list)
 		mapped
 	end
 

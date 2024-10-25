@@ -688,7 +688,7 @@ let listLib _ = do
 	ensure(List.average([]) is 0)
 	
 	## mean
-	ensure(List.nean([0 3 0]) is 3)
+	ensure(List.mean([0 3 0]) is 3)
 	ensure(List.mean([0 5 10 0]) is 7.5)
 	
 	## flatten

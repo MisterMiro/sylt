@@ -570,10 +570,15 @@ let listLib _ = do
 	List.set(2 6 ls)
 	ensure(ls is [4 5 6])
 
+    ## pop
+    let list = [2]
+    let value = List.pop(list)
+    ensure(list is [] and value is 2)
+
 	## swap
-	let ls = [55 33]
-	List.swap(0 1 ls)
-	ensure(ls is [33 55])
+	let list = [55 33]
+	List.swap(0 1 list)
+	ensure(list is [33 55])
 
     ## init
     let list = List.init(false 3)

@@ -177,8 +177,7 @@ module Dict is
         else default
 
 	let iter fn dict = List.forEach(
-        fun key -> fn(key Dict.get(key dict))
-        Dict.keys(dict))
+        fun key -> fn(key Dict.get(key dict)) Dict.keys(dict))
 
     let copy original = do
         let new = {}

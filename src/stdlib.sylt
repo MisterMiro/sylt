@@ -182,9 +182,7 @@ module Dict is
 
     let copy original = do
         let new = {}
-        List.iter(fun key ->
-            Dict.set(key Dict.get(key original))
-            Dict.keys(original))
+        Dict.iter(fun k v -> Dict.set(k v new) original)
         new
     end
 

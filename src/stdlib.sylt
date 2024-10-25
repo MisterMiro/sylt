@@ -180,6 +180,14 @@ module Dict is
         fun key -> fn(key Dict.get(key dict))
         Dict.keys(dict))
 
+    let copy original = do
+        let new = {}
+        List.iter(fun key ->
+            Dict.set(key Dict.get(key original))
+            Dict.keys(original))
+        new
+    end
+
 	let toList dict = do
 		let ls = []
 		Dict.iter(fun k v -> ls += [[k v]] dict)

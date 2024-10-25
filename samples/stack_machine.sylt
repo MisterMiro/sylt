@@ -22,7 +22,7 @@ let exec program = do
         List.get(ip - 1 program)
     end
 
-    let push value = List.push(value stack)
+    let push value = stack += value
     let pop = fun -> List.pop(stack)
 
     let run = true

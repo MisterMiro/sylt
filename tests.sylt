@@ -417,7 +417,7 @@ let functions _ = do
 	## a functions stack window
 	let outside = "outside"
 	let f = fun -> outside
-	ensure: (f: !) is outside)
+	ensure: (f: !) is outside!
 	
 	## moving surrounding context to
 	## the heap if necessary

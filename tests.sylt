@@ -827,52 +827,52 @@ let numLib _ = do
 	let val = 0.005
 	let epsilon = 0.01
 	
-	ensure(Num.eq(0 val epsilon))
-	ensure(Num.eq(0 epsilon - 0.0000001 epsilon))
-	ensure(not Num.eq(0 epsilon epsilon))
+	ensure: (Num.eq: 0 val epsilon!)!
+	ensure: (Num.eq: 0 epsilon - 0.0000001 epsilon!)!
+	ensure: (not Num.eq: 0 epsilon epsilon!)!
 
     ## half
-    ensure(Num.half(2) is 1)
+    ensure: (Num.half: 2!) is 1!
 
     ## twice
-    ensure(Num.twice(1) is 2)
+    ensure: (Num.twice: 1!) is 2!
 
     ## squared
-    ensure(Num.squared(4) is 16)
+    ensure: (Num.squared: 4!) is 16!
 
     ## isZero + isOne
-    ensure(Num.isZero(0))
-    ensure(not Num.isZero(1))
-    ensure(Num.isOne(1))
-    ensure(not Num.isOne(0))
+    ensure: (Num.isZero: 0!)!
+    ensure: (not Num.isZero: 1!)!
+    ensure: (Num.isOne: 1!)!
+    ensure: (not Num.isOne: 0!)!
 
     ## isOdd + isEven
-    ensure(Num.isOdd(3))
-    ensure(not Num.isOdd(4))
-    ensure(Num.isEven(4))
-    ensure(not Num.isEven(3))
+    ensure: (Num.isOdd: 3!)!
+    ensure: (not Num.isOdd: 4!)!
+    ensure: (Num.isEven: 4!)!
+    ensure: (not Num.isEven: 3!)!
 
     ## isPositive + isNegative
-    ensure(Num.isPositive(10))
-    ensure(not Num.isPositive(-10))
-    ensure(Num.isNegative(-10))
-    ensure(not Num.isNegative(10))
+    ensure: (Num.isPositive: 10!)!
+    ensure: (not Num.isPositive: -10!)!
+    ensure: (Num.isNegative: -10!)!
+    ensure: (not Num.isNegative: 10!)!
 end
 
 let mathLib _ = do
 	## pi
-	ensure(Num.eq(Math.pi 3.141592 0.00001))
+	ensure: (Num.eq: Math.pi 3.141592 0.00001!)!
 	
 	## euler's number
-	ensure(Num.eq(Math.e 2.718281 0.00001))
+	ensure: (Num.eq: Math.e 2.718281 0.00001!)!
 	
 	## signum
-	ensure(Math.signum(-80) is Math.Sign.Negative)
-	ensure(Math.signum(0) is Math.Sign.Zero)
-	ensure(Math.signum(80) is Math.Sign.Positive)
+	ensure: (Math.signum: -80!) is Math.Sign.Negative!
+	ensure: (Math.signum: 0!) is Math.Sign.Zero!
+	ensure: (Math.signum: 80!) is Math.Sign.Positive!
 	
 	## abs
-	ensure(Math.abs(-8) is 8 and Math.abs(8) is 8)
+	ensure: (Math.abs: -8!) is 8 and (Math.abs: 8!) is 8!
 	
 	## log + pow
 	let target = 8
@@ -883,37 +883,37 @@ let mathLib _ = do
 		3 14 2000 18000 2000000
 	]
 	
-	List.forEach(fun base -> do
-		let power = Math.log(target base)
-		let result = Math.pow(base power)
-		ensure(Num.eq(result target 0.0000001))
+	List.forEach: fun base -> do
+		let power = Math.log: target base!
+		let result = Math.pow: base power!
+		ensure: (Num.eq: result target 0.0000001!)!
 	end
-    bases)
+    bases!
 	
 	## sqrt
-	ensure(Math.sqrt(256) is 16)
-	ensure(Math.pow(32 0.5) is Math.sqrt(32))
+	ensure: (Math.sqrt: 256!) is 16!
+	ensure: (Math.pow: 32 0.5!) is (Math.sqrt: 32!)!
 	
 	## min + max
-	ensure(Math.min(-1 1) is -1)
-	ensure(Math.max(-1 1) is 1)
+	ensure: (Math.min: -1 1!) is -1!
+	ensure: (Math.max: -1 1!) is 1!
 	
 	## clamp
 	let x = 2
-	ensure(Math.clamp(x 0 - 5 5) is x)
+	ensure: (Math.clamp: x 0 - 5 5!) is x!
 	
 	let x = 20
-	ensure(Math.clamp(x 1 4) is 4)
+	ensure: (Math.clamp: x 1 4!) is 4!
 	
 	let x = -12
-	ensure(Math.clamp(x 0 - 8 3) is -8)
+	ensure: (Math.clamp: x 0 - 8 3!) is -8!
 	
 	## lerp
-	ensure(Math.lerp(-10 10 0) is -10)
-	ensure(Math.lerp(-10 10 0.25) is -5)
-	ensure(Math.lerp(-10 10 0.5) is 0)
-	ensure(Math.lerp(-10 10 0.75) is 5)
-	ensure(Math.lerp(-10 10 1) is 10)
+	ensure: (Math.lerp: -10 10 0!) is -10!
+	ensure: (Math.lerp: -10 10 0.25!) is -5!
+	ensure: (Math.lerp: -10 10 0.5!) is 0!
+	ensure: (Math.lerp: -10 10 0.75!) is 5!
+	ensure: (Math.lerp: -10 10 1!) is 10!
 	
 	## floor + ceil + round
 	let checkRounding n = do
@@ -921,81 +921,81 @@ let mathLib _ = do
 		let mid = n + 0.5
 		let high = n + 0.8
 	
-		ensure(Math.floor(low) is n)
-		ensure(Math.floor(high) is n)
-		ensure(Math.ceil(low) is n + 1)
-		ensure(Math.ceil(high) is n + 1)
-		ensure(Math.round(low) is n)
-		ensure(Math.round(high) is n + 1)
+		ensure: (Math.floor: low!) is n!
+		ensure: (Math.floor: high!) is n!
+		ensure: (Math.ceil: low!) is n + 1!
+		ensure: (Math.ceil: high!) is n + 1!
+		ensure: (Math.round: low!) is n!
+		ensure: (Math.round: high!) is n + 1!
 	
-		ensure(Math.round(mid) is if n < 0 then n else n + 1)
+		ensure: (Math.round: mid!) is if n < 0 then n else n + 1!
 	end
 	
-	List.forEach(checkRounding [-1 0 1])
+	List.forEach: checkRounding [-1 0 1]!
 	
 	## rad + deg
-	ensure(Num.eq(Math.rad(1) 0.0175 0.001))
-	ensure(Num.eq(Math.deg(1) 57.296 0.001))
+	ensure: (Num.eq: (Math.rad: 1!) 0.0175 0.001!)!
+	ensure: (Num.eq: (Math.deg: 1!) 57.296 0.001!)!
 	
 	## sin + cos + tan
-	ensure(Num.eq(Math.sin(90) 0.8939 0.001))
-	ensure(Num.eq(Math.cos(90) 0 - 0.4480 0.001))
-	ensure(Num.eq(Math.tan(90) 0 - 1.9952 0.001))
+	ensure: (Num.eq: (Math.sin: 90!) 0.8939 0.001!)!
+	ensure: (Num.eq: (Math.cos: 90!) 0 - 0.4480 0.001!)!
+	ensure: (Num.eq: (Math.tan: 90!) 0 - 1.9952 0.001!)!
 			
 	## asin + acos + atan
-	ensure(Num.eq(Math.asin(1) 1.5708 0.001))
-	ensure(Num.eq(Math.acos(1) 0 0.001))
-	ensure(Num.eq(Math.atan(1) 0.785398 0.001))
+	ensure: (Num.eq: (Math.asin: 1!) 1.5708 0.001!)!
+	ensure: (Num.eq: (Math.acos: 1!) 0 0.001!)!
+	ensure: (Num.eq: (Math.atan: 1!) 0.785398 0.001!)!
 		
 	## sinh + cosh + tanh
-	ensure(Num.eq(Math.sinh(1) 1.1752 0.001))
-	ensure(Num.eq(Math.cosh(1) 1.5430 0.001))
-	ensure(Num.eq(Math.tanh(1) 0.7615 0.001))
+	ensure: (Num.eq: (Math.sinh: 1!) 1.1752 0.001!)!
+	ensure: (Num.eq: (Math.cosh: 1!) 1.5430 0.001!)!
+	ensure: (Num.eq: (Math.tanh: 1!) 0.7615 0.001!)!
 	
 	## asinh + acosh + atanh
-	ensure(Num.eq(Math.asinh(0.8) 0.7326 0.001))
-	ensure(Num.eq(Math.acosh(1.2) 0.6223 0.001))
-	ensure(Num.eq(Math.atanh(0.8) 1.0986 0.001))
+	ensure: (Num.eq: (Math.asinh: 0.8!) 0.7326 0.001!)!
+	ensure: (Num.eq: (Math.acosh: 1.2!) 0.6223 0.001!)!
+	ensure: (Num.eq: (Math.atanh: 0.8!) 1.0986 0.001!)!
 end
 
 let vec3Lib _ = do
     ## zero + one
-    ensure(Vec3.zero() is Vec3.scalar(0))
-    ensure(Vec3.one() is Vec3.scalar(1))
+    ensure: (Vec3.zero: !) is (Vec3.scalar: 0!)!
+    ensure: (Vec3.one: !) is (Vec3.scalar: 1!)!
 
     ## dot + cross
-    let a = Vec3.new(8 3 7)
-    let b = Vec3.new(5 4 10)
-    ensure(Vec3.dot(a b) is 122)
-    ensure(Vec3.cross(a b) is Vec3.new(2 0 - 45 17))
+    let a = Vec3.new: 8 3 7!
+    let b = Vec3.new: 5 4 10!
+    ensure: (Vec3.dot: a b!) is 122!
+    ensure: (Vec3.cross: a b!) is (Vec3.new: 2 0 - 45 17!)!
 
     ## sizeSquared + size
-    ensure(Vec3.sizeSquared(Vec3.new(10 0 0)) is 100)
-    ensure(Vec3.size(Vec3.new(10 0 0)) is 10)
+    ensure: (Vec3.sizeSquared: (Vec3.new(10 0 0!)!) is 100!
+    ensure: (Vec3.size(Vec3.new: 10 0 0!)!) is 10!
 
     ## norm
-    let norm = Vec3.norm(Vec3.new(10 5 2.5))
-    ensure(Num.eq(norm.x 0.8728 0.0001))
-    ensure(Num.eq(norm.y 0.4364 0.0001))
-    ensure(Num.eq(norm.z 0.2182 0.0001))
+    let norm = Vec3.norm: (Vec3.new: 10 5 2.5!)!
+    ensure: (Num.eq: norm.x 0.8728 0.0001)!
+    ensure: (Num.eq: norm.y 0.4364 0.0001)!
+    ensure: (Num.eq: norm.z 0.2182 0.0001)!
 
     ## dir
-    let a = Vec3.new(5 0 0)
-    let b = Vec3.new(0 0 0)
-    ensure(Vec3.dir(a b) is Vec3.new(-1 0 0))
+    let a = Vec3.new: 5 0 0!
+    let b = Vec3.new: 0 0 0!
+    ensure: (Vec3.dir: a b) is (Vec3.new: -1 0 0)!
 
     ## add + sub + mul + div
-    let vec = Vec3.add(Vec3.new(-2 8 5) Vec3.new(4 2 5))
-    ensure(vec is Vec3.new(2 10 10))
+    let vec = Vec3.add: (Vec3.new: -2 8 5!) (Vec3.new: 4 2 5!)!
+    ensure: vec is (Vec3.new: 2 10 10!)!
 
-    vec <- Vec3.sub(vec Vec3.new(1 4 8))
-    ensure(vec is Vec3.new(1 6 2))
+    vec <- Vec3.sub: vec (Vec3.new: 1 4 8!)!
+    ensure: vec is (Vec3.new: 1 6 2!)!
 
-    vec <- Vec3.mul(vec Vec3.new(2 3 4))
-    ensure(vec is Vec3.new(2 18 8))
+    vec <- Vec3.mul: vec (Vec3.new: 2 3 4!)!
+    ensure: vec is (Vec3.new: 2 18 8!)!
 
-    vec <- Vec3.div(vec Vec3.new(2 2 2))
-    ensure(vec is Vec3.new(1 9 4))
+    vec <- Vec3.div: vec (Vec3.new: 2 2 2!)!
+    ensure: vec is (Vec3.new: 1 9 4!)!
 end
 
 ## tests to run

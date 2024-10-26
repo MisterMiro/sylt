@@ -3693,31 +3693,18 @@ typedef struct {
  * from lowest to highest */
 typedef enum {
 	PREC_NONE,
-	/* assignment '<-' */
 	PREC_ASSIGN,
-	/* boolean 'or' */
 	PREC_OR,
-	/* boolean 'and' */
 	PREC_AND,
-	/* boolean 'not' in infix position */
 	PREC_NOT,
-	/* equality: is is not */
 	PREC_EQ,
-	/* comparison: < <= > >= */
 	PREC_CMP,
-	/* addition: + - */
 	PREC_TERM,
-	/* multiplication: * / % */
 	PREC_FACTOR,
-	/* unary prefix: - not # */
 	PREC_UNARY_PREFIX,
-	/* unary postfix: . */
+    PREC_UNARY_MINUS,
 	PREC_DOT,
-	/* function application: : () */
 	PREC_FUNC_CALL,
-	/* unary minus: - */
-	PREC_UNARY_MINUS,
-	/* unused */
 	PREC_PRIM,
 } prec_t;
 

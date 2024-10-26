@@ -710,10 +710,10 @@ let listLib _ = do
 	## all
 	let set = [5 7]
 	ensure: (List.all: fun n -> n >= 5 set!)!
-	ensure: (List.all: fun n -> not n < 5 set!)!
+	ensure: (List.all: fun n -> not (n < 5) set!)!
 	set <- set + 3
 	ensure: (not List.all: fun n -> n >= 5 set!)!
-	ensure: (not List.all: fun n -> not n < 5 set!)!
+	ensure: (not List.all: fun n -> not (n < 5) set!)!
 end
 
 let dictLib _ = do

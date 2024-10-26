@@ -225,68 +225,69 @@ let equality _ = do
 		List.iter: fun index other ->
             if index not skipIndex then ensure: value not other!
             values!
-	end values!
+	end
+    values!
 	
 	## perform more type-specific tests
 	ensure(true not false)
 	
-	ensure([] is [])
-	ensure([[]] is [[]])
-	ensure([0] not [1])
+	ensure: [] is []!
+	ensure: [[]] is [[]]!
+	ensure: [0] not [1]!
 	
-	ensure("" is "")
-	ensure("ABC" not "abc")
+	ensure: "" is ""!
+	ensure: "ABC" not "abc"!
 	
-	ensure(Math.pow not Math.sqrt)
+	ensure: Math.pow not Math.sqrt!
 end
 
 let boolNot _ = do
-	ensure(true is not false)
-	ensure(false is not true)
-    ensure(not true is false)
-    ensure(not false is true)
-	ensure(not not true is true)
+	ensure: true is not false!
+	ensure: false is not true!
+    ensure: not true is false!
+    ensure: not false is true!
+	ensure: not not true is true!
 end
 
 let boolAnd _ = do
-	ensure((false and false) is false)
-	ensure((false and true) is false)
-	ensure((true and false) is false)
-	ensure((true and true) is true)
+	ensure: (false and false) is false!
+	ensure: (false and true) is false!
+	ensure: (true and false) is false!
+	ensure: (true and true) is true!
 	
 	## short-circuit evaluation
-	let wouldCrash = fun -> ensure(false)
-	false and wouldCrash()
+	let wouldCrash = fun -> ensure: false!
+	false and wouldCrash: !
 end
 
 let boolOr _ = do
-	ensure((false or false) is false)
-	ensure((false or true) is true)
-	ensure((true or false) is true)
-	ensure((true or true) is true)
+	ensure: (false or false) is false!
+	ensure: (false or true) is true!
+	ensure: (true or false) is true!
+	ensure: (true or true) is true!
 	
 	## short-circuit evaluation
-	let wouldCrash = fun -> ensure(false)
-	true or wouldCrash()
+	let wouldCrash = fun -> ensure: false!
+	true or wouldCrash: !
 end
 
 let concat _ = do
     ## combining strings with other strings, or values of other types
-    ensure("str" + "str" is "strstr")
-    ensure(3 + "str" is "3str")
-    ensure("str" + 3 is "str3")
+    ensure: "str" + "str" is "strstr"!
+    ensure: 3 + "str" is "3str"!
+    ensure: "str" + 3 is "str3"!
 
     ## adding elements to the start or end of a list
-    ensure([1 2] + 3 is [1 2 3])
-    ensure(1 + [2 3] is [1 2 3])
+    ensure: [1 2] + 3 is [1 2 3]!
+    ensure: 1 + [2 3] is [1 2 3]!
 
     ## removing elements from the start or end of a list
-    ensure([1 2 3] - 1 is [1 2])
-    ensure(1 - [1 2 3] is [2 3])
+    ensure: [1 2 3] - 1 is [1 2]!
+    ensure: 1 - [1 2 3] is [2 3]!
 
     ## adding a list to another
-    ensure([1 2 3] + [4 5 6] is [1 2 3 4 5 6])
-    ensure([1 2 3] + [[4 5 6]] is [1 2 3 [4 5 6]])
+    ensure: [1 2 3] + [4 5 6] is [1 2 3 4 5 6]!
+    ensure: [1 2 3] + [[4 5 6]] is [1 2 3 [4 5 6]]!
 end
 
 let variables _ = do
@@ -294,48 +295,46 @@ let variables _ = do
 	let x = 70
 	
 	## accessing
-	ensure(x is 70)
+	ensure: x is 70!
 	
 	## shadowing
 	let x = x - 2
-	ensure(x is 68)
+	ensure: x is 68!
 	
 	## assigning local
 	x <- 14
-	ensure(x is 14)
+	ensure: x is 14!
 	
 	## assigning open upvalue
 	let y = 888
 	let func = fun -> y <- 333
-	func()
-	ensure(y is 333)
+	func: !
+	ensure: y is 333!
 	
 	## assigning closed upvalue
 	let out = fun -> do
 		let z = 4
-		let in = fun ->
-			z <- 900
-		in
+		fun -> z <- 900
 	end
-	let z = out()()
-	ensure(z is 900)
+	let z = out: !: !
+	ensure: z is 900!
 	
 	## chaining assignments
 	let a = null
 	let b = null
 	let c = null
 	a <- b <- c <- 32
-	ensure(a is 32 and b is 32 and c is 32)
+	ensure: a is 32 and b is 32 and c is 32!
 end
 
 let blocks _ = do
 	## empty block returns null
 	let result = do end
-	ensure(result is null)
+	ensure: result is null!
 	
 	## last expression is returned...
 	let result = do 123 end
-	ensure(result is 123)
+	ensure: result is 123!
 	
 	## ...variables do not break anything...
 	let result = do
@@ -343,7 +342,7 @@ let blocks _ = do
 		let v2 = 17
 		123
 	end
-	ensure(result is 123)
+	ensure: result is 123!
 	
 	## ...and neither do captured values
 	let c = 35
@@ -352,16 +351,16 @@ let blocks _ = do
 		let sum = c + v
 		123
 	end
-	ensure(result is 123)
+	ensure: result is 123!
 	
 	## assigning shadowed variable
 	let x = true
 	do
 		let x = true
 		x <- false
-		ensure(x is false)
+		ensure: x is false!
 	end
-	ensure(x is true)
+	ensure: x is true!
 end
 
 let lists _ = do
@@ -369,33 +368,33 @@ let lists _ = do
 	let list = [1 2 3]
 
 	## length
-	ensure(#[] is 0)
-	ensure(#[1] is 1)
-	ensure(#[1 2] is 2)
-	ensure(#list is 3)
+	ensure: #[] is 0!
+	ensure: #[1] is 1!
+	ensure: #[1 2] is 2!
+	ensure: #list is 3!
 
 	## concatenating
 	let x = []
 	x += 3
-	ensure(x is [3] and #x is 1)
+	ensure: x is [3] and #x is 1!
 	x += 7
-	ensure(x is [3 7] and #x is 2)
+	ensure: x is [3 7] and #x is 2!
 	
 	## shrinking
 	x -= 1
-	ensure(x is [3] and #x is 1)
+	ensure: x is [3] and #x is 1!
 	x -= 1
-	ensure(x is [] and #x is 0)
+	ensure: x is [] and #x is 0!
 end
 
 let dicts _ = do
 	let dict = {"a" = 1 "b" = 2 "c" = 3}
 	
 	## count operator
-	ensure(#dict is 3)
+	ensure: #dict is 3!
 
 	## dot access
-	ensure(Dict.get("a" dict) is dict.a)
+	ensure: (Dict.get: "a" dict!) is dict.a!
 end
 
 let functions _ = do

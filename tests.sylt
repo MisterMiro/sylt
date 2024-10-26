@@ -975,14 +975,14 @@ let vec3Lib _ = do
 
     ## norm
     let norm = Vec3.norm: (Vec3.new: 10 5 2.5!)!
-    ensure: (Num.eq: norm.x 0.8728 0.0001)!
-    ensure: (Num.eq: norm.y 0.4364 0.0001)!
-    ensure: (Num.eq: norm.z 0.2182 0.0001)!
+    ensure: (Num.eq: norm.x 0.8728 0.0001!)!
+    ensure: (Num.eq: norm.y 0.4364 0.0001!)!
+    ensure: (Num.eq: norm.z 0.2182 0.0001!)!
 
     ## dir
     let a = Vec3.new: 5 0 0!
     let b = Vec3.new: 0 0 0!
-    ensure: (Vec3.dir: a b) is (Vec3.new: -1 0 0)!
+    ensure: (Vec3.dir: a b!) is (Vec3.new: -1 0 0!)!
 
     ## add + sub + mul + div
     let vec = Vec3.add: (Vec3.new: -2 8 5!) (Vec3.new: 4 2 5!)!

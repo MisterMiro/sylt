@@ -45,13 +45,13 @@ let strings _ = do
 	let nullEscape = "\0"
 	
 	## ...translate properly
-	ensure(hex is "A")
-	ensure(backslash is "\x5c")
-	ensure(quote is "\x22")
-	ensure(tab is "\x09")
-	ensure(newline is "\x0a")
-	ensure(carriageReturn is "\x0d")
-	ensure(nullEscape is "\x00")
+	ensure: hex is "A"!
+	ensure: backslash is "\x5c"!
+	ensure: quote is "\x22"!
+	ensure: tab is "\x09"!
+	ensure: newline is "\x0a"!
+	ensure: carriageReturn is "\x0d"!
+	ensure: nullEscape is "\x00"!
 end
 
 let numbers _ = do

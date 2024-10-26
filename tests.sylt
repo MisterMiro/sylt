@@ -1052,7 +1052,7 @@ let tests = List.flatten([
 List.forEach: fun test ->
 	if typeOf: test! is "String" then printLn: test + ":"!
 	else do
-		let name = String.rightPad: 20 "." (toString: test!)!
+		let name = (String.rightPad: 20 "." (toString: test!))!
 		print: "  " + name!
 		
 		test: null!

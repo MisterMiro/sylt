@@ -61,25 +61,25 @@ end
 
 let precedence _ = do
 	## multiplication > addition
-	ensure(5 * 2 + 8 is 18)
-	ensure(5 / 2 + 8 is 10.5)
-	ensure(5 % 2 + 8 is 9)
+	ensure: 5 * 2 + 8 is 18!
+	ensure: 5 / 2 + 8 is 10.5!
+	ensure: 5 % 2 + 8 is 9!
 	
-	ensure(10 * 2 - 8 is 12)
-	ensure(10 / 2 - 8 is -3)
-	ensure(10 % 2 - 8 is -8)
+	ensure: 10 * 2 - 8 is 12!
+	ensure: 10 / 2 - 8 is -3!
+	ensure: 10 % 2 - 8 is -8!
 	
 	## addition > comparison
-	ensure(1 < 1 + 1)
-	ensure(1 <= 1 + 1)
-	ensure(2 > 1 - 1)
-	ensure(2 >= 1 - 1)
+	ensure: 1 < 1 + 1!
+	ensure: 1 <= 1 + 1!
+	ensure: 2 > 1 - 1!
+	ensure: 2 >= 1 - 1!
 	
 	## comparison > equality
-	ensure(true is 1 < 2)
-	ensure(true is 1 <= 2)
-	ensure(true not 1 > 2)
-	ensure(true not 1 >= 2)
+	ensure: true is 1 < 2!
+	ensure: true is 1 <= 2!
+	ensure: true not 1 > 2!
+	ensure: true not 1 >= 2!
 end
 
 let addition _ = do
@@ -88,11 +88,11 @@ let addition _ = do
 	
 	## correct result
 	let sum = 20
-	ensure(x + y is sum)
+	ensure: x + y is sum!
 	
 	## commutative
-	ensure(y + x is sum)
-	ensure(x + y is y + x)
+	ensure: y + x is sum!
+	ensure: x + y is y + x!
 end
 
 let subtraction _ = do
@@ -101,11 +101,11 @@ let subtraction _ = do
 	
 	## correct result
 	let difference = 8
-	ensure(x - y is difference)
+	ensure: x - y is difference!
 	
 	## not commutative
-	ensure(y - x not difference)
-	ensure(x - y not y - x)
+	ensure: y - x not difference!
+	ensure: x - y not y - x!
 end
 
 let multiplication _ = do
@@ -114,11 +114,11 @@ let multiplication _ = do
 	
 	## correct result
 	let product = 80
-	ensure(x * y is product)
+	ensure: x * y is product!
 	
 	## commutative
-	ensure(y * x is product)
-	ensure(x * y is y * x)
+	ensure: y * x is product!
+	ensure: x * y is y * x!
 end
 
 let division _ = do
@@ -127,11 +127,11 @@ let division _ = do
 	
 	## correct result
 	let quotient = 11
-	ensure(x / y is quotient)
+	ensure: x / y is quotient!
 	
 	## not commutative
-	ensure(y / x not quotient)
-	ensure(x / y not y / x)
+	ensure: y / x not quotient!
+	ensure: x / y not y / x!
 end
 
 let remainder _ = do
@@ -140,68 +140,68 @@ let remainder _ = do
 	
 	## correct result
 	let remainder = 5
-	ensure(x % y is remainder)
+	ensure: x % y is remainder!
 	
 	## not commutative
-	ensure(y % x not remainder)
-	ensure(x % y not y % x)
+	ensure: y % x not remainder!
+	ensure: x % y not y % x!
 	
 	## remainder is always positive
-	ensure(7 % 3 is 1)
-	ensure(7 % -3 is 1)
-	ensure(-7 % 3 is 2)
-	ensure(-7 % -3 is 2)
+	ensure: 7 % 3 is 1!
+	ensure: 7 % -3 is 1!
+	ensure: -7 % 3 is 2!
+	ensure: -7 % -3 is 2!
 end
 
 let compoundAssignment _ = do
     let x = 1
 
     x += 2
-    ensure(x is 3)
+    ensure: x is 3!
 
     x -= 1
-    ensure(x is 2)
+    ensure: x is 2!
 
     x *= 8
-    ensure(x is 16)
+    ensure: x is 16!
 
     x /= 2
-    ensure(x is 8)
+    ensure: x is 8!
 
     x %= 7
-    ensure(x is 1)
+    ensure: x is 1!
 end
 
 let unaryMinus _ = do
 	let x = 25
-	ensure(-x is 0 - x)
+	ensure: -x is 0 - x!
 	
 	## double negative
-	ensure(--x is x)
+	ensure: --x is x!
 	
 	## quadruple negative
-	ensure(----x is x)
+	ensure: ----x is x!
 end
 
 let arithmetic _ = do
 	let a = 1
 	let b = a + 2
-	ensure(a + b is a - (-b))
+	ensure: a + b is a - (-b)!
 end
 
 let comparison _ = do
 	let hi = 100
 	let lo = -100
 	
-	ensure(lo < hi)
-	ensure(lo <= hi)
+	ensure: lo < hi!
+	ensure: lo <= hi!
 	
-	ensure(hi > lo)
-	ensure(hi >= lo)
+	ensure: hi > lo!
+	ensure: hi >= lo!
 	
 	let same = 70
-	ensure(same <= same)
-	ensure(same >= same)
+	ensure: same <= same!
+	ensure: same >= same!
 end
 
 let equality _ = do
@@ -216,16 +216,16 @@ let equality _ = do
 		fun x -> x	## Func
 	]
 	
-	List.iter(fun skipIndex value -> do
+	List.iter: fun skipIndex value -> do
 		## equal to itself
-		ensure(value is value)
+		ensure: value is value!
 		
 		## not equal to a value of any other
 		## type
-		List.iter(fun index other ->
-            if index not skipIndex then ensure(value not other)
-            values)
-	end values)
+		List.iter: fun index other ->
+            if index not skipIndex then ensure: value not other!
+            values!
+	end values!
 	
 	## perform more type-specific tests
 	ensure(true not false)

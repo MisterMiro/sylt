@@ -3278,14 +3278,6 @@ value_t stdfile_del(sylt_t* ctx) {
 
 /* == math lib == */
 
-#ifndef M_PI
-#define M_PI 3.1415926535897932384626433832795
-#endif
-
-#ifndef M_E
-#define M_E 2.7182818284590452353602874713526
-#endif
-
 value_t stdmath_abs(sylt_t* ctx) {
 	argcheck(ctx, 0, TYPE_NUM, __func__);
 	sylt_num_t result =
@@ -3683,6 +3675,7 @@ typedef enum {
 	T_COMMA,
 	T_COLON,
     T_SEMICOLON,
+	T_BANG,
 	T_DOT,
 	T_HASH,
 	T_EOF,
@@ -4211,6 +4204,7 @@ token_t scan(comp_t* cmp) {
 	case ',': return token(T_COMMA);
 	case ':': return token(T_COLON);
 	case ';': return token(T_SEMICOLON);
+	case '!': return token(T_BANG);
 	case '.': return token(T_DOT);
 	case '#': return token(T_HASH);
 	case '\0': break;
@@ -4668,11 +4662,11 @@ void binary(comp_t* cmp) {
 				unreachable();
 			}
 				
-			expr(cmp, ANY_PREC, "argument or ';'");
+			expr(cmp, ANY_PREC, "argument or '!'");
 			argc++;
 		}
 		
-		eat(cmp, T_SEMICOLON, "expected ';' after call arguments");
+		eat(cmp, T_BANG, "expected '!' after call arguments");
 		emit_unary(cmp, OP_CALL, argc);
 		comp_simstack(cmp, -argc);
 		return;

@@ -971,7 +971,7 @@ let vec3Lib _ = do
 
     ## sizeSquared + size
     ensure: (Vec3.sizeSquared: (Vec3.new: 10 0 0!)!) is 100!
-    ensure: (Vec3.size: Vec3.new: 10 0 0!)!) is 10!
+    ensure: (Vec3.size: (Vec3.new: 10 0 0!)!) is 10!
 
     ## norm
     let norm = Vec3.norm: (Vec3.new: 10 5 2.5!)!

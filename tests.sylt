@@ -229,7 +229,7 @@ let equality _ = do
     values!
 	
 	## perform more type-specific tests
-	ensure(true not false)
+	ensure: true not false!
 	
 	ensure: [] is []!
 	ensure: [[]] is [[]]!
@@ -400,24 +400,24 @@ end
 let functions _ = do
 	## empty body returns null
 	let empty = fun -> do end
-	ensure(empty() is null)
+	ensure: (empty: !) is null!
 	
 	## argument passing
 	let add a b = a + b
-	ensure(add(3 4) is 7)
+	ensure: (add: 3 4!) is 7!
 	
 	## arguments + local variables
 	let add a b = do
 		let stackMate = 18
 		a + b
 	end
-	ensure(add(3 4) is 7)
+	ensure: (add: 3 4!) is 7!
 	
 	## accessing variable outside of
 	## a functions stack window
 	let outside = "outside"
 	let f = fun -> outside
-	ensure(f() is outside)
+	ensure: (f: !) is outside)
 	
 	## moving surrounding context to
 	## the heap if necessary
@@ -425,41 +425,41 @@ let functions _ = do
 		let keep = "jewel"
 		fun -> keep
 	end
-	ensure(f()() is "jewel")
+	ensure: (f: !: !) is "jewel"!
 	
 	## anonymous functions using 'fun'
 	let anon = fun r s t -> r * s * t
-	ensure(anon(2 4 8) is 64)
+	ensure: (anon: 2 4 8!) is 64!
 	
 	## recursion
 	let clear list = if list not [] then do
 		list -= 1
-		clear(list)
+		clear: list!
 	end
 		
 	let nums = [1 2 3]
-	clear(nums)
-	ensure(nums is [])
+	clear: nums!
+	ensure: nums is []!
 end
 
 let ifElse _ = do
 	## implicit nil
-	ensure((if false then do end) is null)
+	ensure: (if false then do end) is null!
 	
 	## if branch
 	let result = if true then "A" else "B"
-	ensure(result is "A")
+	ensure: result is "A"!
 	
 	## else branch
 	let result = if false then "A" else "B"
-	ensure(result is "B")
+	ensure: result is "B"!
 	
 	## else if / chaining
 	let i = 10
 	let result = if i < 0 then "A"
 		else if i > 0 then "B"
 		else "C"
-	ensure(result is "B")
+	ensure: result is "B"!
 end
 
 let whileLoop _ = do
@@ -469,67 +469,67 @@ let whileLoop _ = do
 		list += n
 		n += 1
 	end
-	ensure(result is null)
-	ensure(list is [1 2 3])
+	ensure: result is null!
+	ensure: list is [1 2 3]!
 end
 
 let preludeLib _ = do
 	## toString
-	ensure(toString(null) is "null")
-	ensure(toString(true) is "true" and toString(false) is "false")
-	ensure(toString(707) is "707")
-	ensure(toString(["bananas" 18 true]) is "[\"bananas\" 18 true]")
-    ##ensure(toString({"a" = "b"}) is "{\"a\" = \"b\"}")
-	ensure(toString(printLn) is "printLn")
+	ensure: (toString: null!) is "null"!
+	ensure: (toString: true!) is "true" and toString(false) is "false"!
+	ensure: (toString: 707!) is "707"!
+	ensure: (toString: ["bananas" 18 true]!) is "[\"bananas\" 18 true]"!
+    ##ensure: (toString: {"a" = "b"}!) is "{\"a\" = \"b\"}"!
+	ensure: (toString: printLn!) is "printLn"!
 	
 	## toNum
-	ensure(toNum(null) is 0)
-	ensure(toNum(true) is 1)
-	ensure(toNum(false) is 0)
-	ensure(toNum(112) is 112)
-    ensure(toNum([1 2 4]) is 0)
-    ensure(toNum({"a" = "b"}) is 0)
-	ensure(toNum("1337.25") is 1337.25)
-	ensure(toNum("") is 0)
-	ensure(toNum("error") is 0)
-	ensure(toNum(fun _ -> do end) is 0)
+	ensure: (toNum: null!) is 0!
+	ensure: (toNum: true!) is 1!
+	ensure: (toNum: false!) is 0!
+	ensure: (toNum: 112!) is 112!
+    ensure: (toNum: [1 2 4]!) is 0!
+    ensure: (toNum: {"a" = "b"}!) is 0!
+	ensure: (toNum: "1337.25"!) is 1337.25!
+	ensure: (toNum: ""!) is 0!
+	ensure: (toNum: "error"!) is 0!
+	ensure: (toNum: fun _ -> do end!) is 0!
 	
 	## typeOf
-	ensure(typeOf(null) is "Null")
-	ensure(typeOf(true) is "Bool")
-	ensure(typeOf(1) is "Number")
-	ensure(typeOf([]) is "List")
-    ensure(typeOf({}) is "Dict")
-	ensure(typeOf("") is "String")
-	ensure(typeOf(fun -> do end) is "Function")
+	ensure: (typeOf: null!) is "Null"!
+	ensure: (typeOf: true!) is "Bool"!
+	ensure: (typeOf: 1!) is "Number"!
+	ensure: (typeOf: []!) is "List"!
+    ensure: (typeOf: {}!) is "Dict"!
+	ensure: (typeOf: ""!) is "String"!
+	ensure: (typeOf: fun -> do end!) is "Function"!
 
     ## for
     let nums = []
-	for(fun i -> nums += i 3 6)
-	ensure(nums is [3 4 5])
+	for: fun i -> nums += i 3 6!
+	ensure: nums is [3 4 5]!
 
 	## rep
 	let nums = []
-	rep(fun i -> nums += i 3)
-	ensure(nums is [0 1 2])
+	rep: fun i -> nums += i 3!
+	ensure: nums is [0 1 2]!
 
     ## bitShiftLeft
-    ensure(bitShiftLeft(32 1) is 64)
+    ensure: (bitShiftLeft: 32 1!) is 64!
 
     ## bitShiftRight
-    ensure(bitShiftRight(32 1) is 16)
+    ensure: (bitShiftRight: 32 1!) is 16!
 
     ## bitAnd
-    ensure(bitAnd(4 32) is 0)
+    ensure: (bitAnd: 4 32!) is 0!
 
     ## bitOr
-    ensure(bitOr(16 32) is 48)
+    ensure: (bitOr: 16 32!) is 48!
 
     ## bitXor
-    ensure(bitXor(16 24) is 8)
+    ensure: (bitXor: 16 24!) is 8!
 
     ## bitNot
-    ensure(bitNot(40) is -41)
+    ensure: (bitNot: 40!) is -41!
 end
 
 let fileLib _ = do

@@ -4656,7 +4656,7 @@ void binary(comp_t* cmp) {
         int argc = 0;
 	
 		/* parse argument list */
-		while (!check(cmp, T_SEMICOLON) && !check(cmp, T_EOF)) {
+		while (!check(cmp, T_BANG) && !check(cmp, T_EOF)) {
 			if (argc >= MAX_PARAMS) {
 				halt(cmp->ctx, E_TOO_MANY_ARGS);
 				unreachable();

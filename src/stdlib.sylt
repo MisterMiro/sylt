@@ -48,7 +48,7 @@ module List is
     end
 
 	let iter fn list = do
-        let anon index = fn: index List.get: index list!!
+        let anon index = fn: index (List.get: index list!)!
         rep: anon #list!
     end
 

@@ -222,8 +222,8 @@ let equality _ = do
 		
 		## not equal to a value of any other
 		## type
-		List.iter: fun index other ->
-            if index not skipIndex then ensure: value not other!
+		List.iter: fun index other -> if index not skipIndex then
+                ensure: value not other!
             values!
 	end
     values!
@@ -767,59 +767,59 @@ let stringLib _ = do
 	ensure: (String.join: [1 "2" 34 "5"]!) is "12345"!
 		
 	## split
-	ensure(String.split([""] "lol") is ["lol"])
-	ensure(String.split([" "] "lol") is ["lol"])
-	ensure(String.split([" "] "abc rst xyz") is ["abc" "rst" "xyz"])
+	ensure: (String.split: [""] "lol"!) is ["lol"]!
+	ensure: (String.split: [" "] "lol"!) is ["lol"]!
+	ensure: (String.split: [" "] "abc rst xyz"!) is ["abc" "rst" "xyz"]!
 		
 	## lowercase + uppercase + swapCase
 	let str = "MiXeD!"
-	ensure(String.lowercase(str) is "mixed!")
-	ensure(String.uppercase(str) is "MIXED!")
-	ensure(String.swapcase(str) is "mIxEd!")
+	ensure: (String.lowercase: str!) is "mixed!"!
+	ensure: (String.uppercase: str!) is "MIXED!"!
+	ensure: (String.swapcase: str!) is "mIxEd!"!
 
 	## isLowercase + isUppercase + isWhitespace
-	ensure(String.isLowercase("x") and not String.isLowercase("X"))
-	ensure(String.isUppercase("X") and not String.isUppercase("x"))
-	ensure(String.isWhitespace(" \t\n\r"))
+	ensure: (String.isLowercase: "x"!) and not (String.isLowercase: "X"!)!
+	ensure: (String.isUppercase: "X"!) and not (String.isUppercase: "x"!)!
+	ensure: (String.isWhitespace: " \t\n\r"!)!
 	
 	## startsWith
-	ensure(String.startsWith("abc" String.letters))
-	ensure(not String.startsWith("xyz" String.letters))
+	ensure: (String.startsWith: "abc" String.letters!)!
+	ensure: (not String.startsWith: "xyz" String.letters!)!
 		
 	## endsWith
-	ensure(String.endsWith("xyz" String.letters))
-	ensure(not String.endsWith("abc" String.letters))
+	ensure: (String.endsWith: "xyz" String.letters!)!
+	ensure: (not String.endsWith: "abc" String.letters!)!
 		
 	## trimStart
-	ensure(String.trimStart("\t\n hi") is "hi")
-	ensure(String.trimStart("hi") is "hi")
+	ensure: (String.trimStart: "\t\n hi"!) is "hi"!
+	ensure: (String.trimStart: "hi"!) is "hi"!
 	
 	## trimEnd
-	ensure(String.trimEnd("hi \n\t") is "hi")
-	ensure(String.trimEnd("hi") is "hi")
+	ensure: (String.trimEnd: "hi \n\t"!) is "hi"!
+	ensure: (String.trimEnd: "hi"!) is "hi"!
 	
 	## trim
-	ensure(String.trim("\n\t hi \n\t") is "hi")
-	ensure(String.trim("hi") is "hi")
+	ensure: (String.trim: "\n\t hi \n\t"!) is "hi"!
+	ensure: (String.trim: "hi"!) is "hi"!
 	
 	## replace
 	let str = "Country: SE"
-	str <- String.replace("SE" "Sweden" str)
-	ensure(str is "Country: Sweden")
+	str <- String.replace: "SE" "Sweden" str!
+	ensure: str is "Country: Sweden"!
 	
-	str <- String.replace("Sweden" "SE" str)
-	ensure(str is "Country: SE")
+	str <- String.replace: "Sweden" "SE" str!
+	ensure: str is "Country: SE"!
 	
 	str <- "leet"
-	str <- String.replace("l" "1" str)
-	str <- String.replace("e" "3" str)
-	str <- String.replace("t" "7" str)
-	ensure(str is "1337")
+	str <- String.replace: "l" "1" str!
+	str <- String.replace: "e" "3" str!
+	str <- String.replace: "t" "7" str!
+	ensure: str is "1337"!
 	
 	## leftPad + rightPad + centerPad
-	ensure(String.leftPad(10 "-=" "test") is "-=-=-=test")
-	ensure(String.rightPad(10 "*" "test") is "test******")
-	ensure(String.centerPad(10 "|" "test") is "|||test|||")
+	ensure: (String.leftPad: 10 "-=" "test"!) is "-=-=-=test"!
+	ensure: (String.rightPad: 10 "*" "test"!) is "test******"!
+	ensure: (String.centerPad: 10 "|" "test"!) is "|||test|||"!
 end
 
 let numLib _ = do
@@ -1049,16 +1049,15 @@ let tests = List.flatten([
 ])
 
 ## let's go!
-List.forEach(fun test ->
-	if typeOf(test) is "String" then
-		printLn(test + ":")
+List.forEach: fun test ->
+	if typeOf: test! is "String" then printLn: test + ":"!
 	else do
-		let name = String.rightPad(20 "." toString(test))
-		print("  " + name)
+		let name = String.rightPad: 20 "." (toString: test!)!
+		print: "  " + name!
 		
-		test(null)
-		printLn("OK")
+		test: null!
+		printLn: "OK"!
 	end
-	tests)
+	tests!
 
 printLn("All tests passed!")

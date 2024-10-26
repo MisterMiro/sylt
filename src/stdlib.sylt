@@ -48,8 +48,10 @@ module List is
     end
 
 	let iter fn list = do
-        let anon index = fn: index (List.get: index list!)!
-        rep: anon #list!
+        let getter index = List.get: index list!
+        let anon index = fn: index getter!
+        let len = #list
+        rep: anon len!
     end
 
 	let forEach fn list =

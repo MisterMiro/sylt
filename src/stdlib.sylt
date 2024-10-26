@@ -48,10 +48,10 @@ module List is
     end
 
 	let iter fn list =
-        rep: (fun index -> fn: index (List.get: index list!)!) #list!
+        rep: fun index -> fn: index List.get: index list!! #list!
 
 	let forEach fn list =
-        rep: (fun index -> fn: (List.get: index list!)!) #list!
+        rep: fun index -> fn: List.get: index list!! #list!
 
     let copy original = do
         let new = []

@@ -985,16 +985,16 @@ let vec3Lib _ = do
     ensure: (Vec3.dir: a b!) is (Vec3.new: -1 0 0!)!
 
     ## add + sub + mul + div
-    let vec = Vec3.add: (Vec3.new: -2 8 5!) (Vec3.new: 4 2 5!)!
+    let vec = Vec3.add: Vec3.new: -2 8 5! Vec3.new: 4 2 5!!
     ensure: vec is (Vec3.new: 2 10 10!)!
 
-    vec <- Vec3.sub: vec (Vec3.new: 1 4 8!)!
+    vec <- Vec3.sub: vec Vec3.new: 1 4 8!!
     ensure: vec is (Vec3.new: 1 6 2!)!
 
-    vec <- Vec3.mul: vec (Vec3.new: 2 3 4!)!
+    vec <- Vec3.mul: vec Vec3.new: 2 3 4!!
     ensure: vec is (Vec3.new: 2 18 8!)!
 
-    vec <- Vec3.div: vec (Vec3.new: 2 2 2!)!
+    vec <- Vec3.div: vec Vec3.new: 2 2 2!!
     ensure: vec is (Vec3.new: 1 9 4!)!
 end
 

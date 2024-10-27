@@ -4315,7 +4315,7 @@ static parserule_t RULES[] = {
 	[T_GT] = {NULL, binary, PREC_CMP},
 	[T_GT_EQ] = {NULL, binary, PREC_CMP},
 	[T_EQ] = {NULL, NULL, PREC_NONE},
-	[T_LPAREN] = {grouping, binary, PREC_FUNC_CALL},
+	[T_LPAREN] = {grouping, NULL, PREC_NONE},
 	[T_RPAREN] = {NULL, NULL, PREC_NONE},
 	[T_LCURLY] = {dict, NULL, PREC_NONE},
 	[T_RCURLY] = {NULL, NULL, PREC_NONE},
@@ -4620,25 +4620,6 @@ void binary(comp_t* cmp) {
 		return; /* early return */
 	}
 	/* other special cases */
-	case T_LPAREN: {
-		int argc = 0;
-	
-		/* parse argument list */
-		while (!check(cmp, T_RPAREN) && !check(cmp, T_EOF)) {
-			if (argc >= MAX_PARAMS) {
-				halt(cmp->ctx, E_TOO_MANY_ARGS);
-				unreachable();
-			}
-				
-			expr(cmp, ANY_PREC, "argument or ')'");
-			argc++;
-		}
-		
-		eat(cmp, T_RPAREN, "expected ')' after call arguments");
-		emit_unary(cmp, OP_CALL, argc);
-		comp_simstack(cmp, -argc);
-		return;
-	}
 	case T_COLON: {
         int argc = 0;
 	

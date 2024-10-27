@@ -3,13 +3,15 @@
 let printDict dict indent = do
     if indent > 0 and dict is gdict then return null
 
-    Dict.iter(fun key value -> do
-        rep(fun _ -> print("  ") indent)
+    Dict.iter: fun key value -> do
+        rep: fun _ -> (print: "  "!) indent!
 
-        if typeOf(value) is "Dict" then
-            printDict(value indent + 1)
-        else printLn(key)
-    end dict)
+        if typeOf: value! is "Dict" then do
+            printLn: "==" + key + "=="!
+            printDict: value indent + 1!
+        end else printLn: key!
+    end
+    dict!
 end
 
-printDict(gdict 0)
+printDict: gdict 0!

@@ -939,8 +939,8 @@ let mathLib _ = do
 	
 	## sin + cos + tan
 	ensure: (Num.eq: (Math.sin: 90!) 0.8939 0.001!)!
-	ensure: (Num.eq: (Math.cos: 90!) 0 (-0.4480) 0.001!)!
-	ensure: (Num.eq: (Math.tan: 90!) 0 (-1.9952) 0.001!)!
+	ensure: (Num.eq: (Math.cos: 90!) (-0.4480) 0.001!)!
+	ensure: (Num.eq: (Math.tan: 90!) (-1.9952) 0.001!)!
 			
 	## asin + acos + atan
 	ensure: (Num.eq: (Math.asin: 1!) 1.5708 0.001!)!

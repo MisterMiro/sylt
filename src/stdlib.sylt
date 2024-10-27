@@ -10,157 +10,152 @@ let for fn from to = do
 	end
 end
 
-let rep fn n = for: fn 0 n!
+let rep fn n = for(fn 0 n)
 
 let makeEnum list = do
 	let enum = {}
-	List.iter: fun index name -> (Dict.set: name index enum!) list!
+	List.iter(fun index name -> Dict.set(name index enum) list)
 	enum
 end
 
 module List is
-    let first list = List.get: 0 list!
+    let first list = List.get(0 list)
 
-    let last list = List.get: -1 list!
+    let last list = List.get(-1 list)
 
     let pop list = do
-        let value = List.last: list!
+        let value = List.last(list)
         list -= 1
         value
     end
 
     let swap a b list = do
-        let temp = List.get: a list!
-        List.set: a (List.get: b list!) list!
-        List.set: b temp list!
+        let temp = List.get(a list)
+        List.set(a List.get(b list) list)
+        List.set(b temp list)
     end
 
     let init value n = do
         let list = []
-        rep: fun _ -> list += value n!
+        rep(fun _ -> list += value n)
         list
     end
 
     let range from to = do
         let list = []
-        for: fun num -> list += num from to + 1!
+        for(fun num -> list += num from to + 1)
         list
     end
 
-	let iter fn list = do
-        let getter index = List.get: index list!
-        let anon index = fn: index getter!
-        let len = #list
-        rep: anon len!
-    end
+	let iter fn list = rep(
+        fun index -> fn(index List.get(index list)) #list)
 
-	let forEach fn list =
-        rep: fun index -> fn: List.get: index list!! (#list)!
+	let forEach fn list = rep(
+        fun index -> fn(List.get(index list)) #list)
 
     let copy original = do
         let new = []
-        List.forEach: fun item -> new += item original!
+        List.forEach(fun item -> new += item original)
         new
     end
 
 	let map fn list = do
 		let mapped = []
-		List.forEach: fun item -> mapped += (fn: item!) list!
+		List.forEach(fun item -> mapped += fn(item) list)
 		mapped
 	end
 
 	let filter fn list = do
 		let filtered = []
-		List.forEach: fun item -> if (fn: item!) then filtered += item list!
+		List.forEach(fun item -> if fn(item) then filtered += item list)
 		filtered
 	end
 
 	let fold fn init list = do
 		let result = init
-		List.forEach: fun item -> result <- (fn: result item!) list!
+		List.forEach(fun item -> result <- fn(result item) list)
 		result
 	end
 
-	let sum list = List.fold: Math.add 0 list!
+	let sum list = List.fold(Math.add 0 list)
 
 	let average list = if list is [] then 0
         else List.sum(list) / #list
 
-	let mean list = if Num.isOdd: #list! then List.get: (Num.half: #list!) list!
-		else List.average: [
-			List.get: (Num.half: #list!) - 1 list!
-			List.get: (Num.half: #list!) list!]!
+	let mean list = if Num.isOdd(#list) then List.get(Num.half(#list) list)
+		else List.average([
+			List.get(Num.half(#list) - 1 list)
+			List.get(Num.half(#list) list)])
 
 	let sortBy fn list = do
         if #list <= 1 then return list
-        list <- List.copy: list!
+        list <- List.copy(list)
 
 		let bubbleSort list n = do
 			let swapped = 0
 
-			rep: fun i -> do
-				if fn: (List.get: i list!) (List.get: i + 1 list!)! then do
-					List.swap: i i + 1 list!
+			rep(fun i -> do
+				if fn(List.get(i list) List.get(i + 1 list)) then do
+					List.swap(i i + 1 list)
 					swapped += 1
 				end
-			end
-            n - 1!
+			end n - 1)
 
-			if not Num.isZero: swapped! then bubbleSort: list n - 1!
+			if not Num.isZero(swapped) then bubbleSort(list n - 1)
 		end
 
-		bubbleSort: list #list!
+		bubbleSort(list #list)
         list
 	end
 
-	let sort list = List.sortBy: fun a b -> a > b list!
+	let sort list = List.sortBy(fun a b -> a > b list)
 
 	let flatten list = do
 		let flat = []
-		List.forEach:
+		List.forEach(
             fun item -> flat +=
-                if typeOf: item! is "List" then List.flatten: item!
+                if typeOf(item) is "List" then List.flatten(item)
                 else item
-            list!
+            list)
 		flat
 	end
 
 	let dedup list = do
 		let deduped = []
-		List.forEach:
-            fun item -> if not List.contains: item deduped! then
+		List.forEach(
+            fun item -> if not List.contains(item deduped) then
                 deduped += item
-            list!
+            list)
 		deduped
 	end
 
-	let any fn list = List.fold:
-        fun any value -> any or fn: value!
+	let any fn list = List.fold(
+        fun any value -> any or fn(value)
         false
-        list!
+        list)
 
 	let all fn list = if list is [] then false
-        else List.fold:
-            fun all value -> all and fn: value!
+        else List.fold(
+            fun all value -> all and fn(value)
             true
-            list!
+            list)
 
     let count value list = do
         let count = 0
-        List.forEach:
+        List.forEach(
             fun item -> if item is value then count += 1
-            list!
+            list)
         count
     end
 
-    let contains value list = List.count: value list! > 0
+    let contains value list = List.count(value list) > 0
 
     let find value list = do
         let index = 0
         let found = false
 
         while not found do
-            if List.get: index list! is value then found <- true
+            if List.get(index list) is value then found <- true
             else index += 1
         end
 
@@ -170,22 +165,21 @@ end
 
 module Dict is
 	let getOrDefault key default dict =
-        if Dict.hasKey: key dict! then Dict.get: key dict!
+        if Dict.hasKey(key dict) then Dict.get(key dict)
         else default
 
-	let iter fn dict = List.forEach:
-        fun key -> fn: key (Dict.get: key dict!)
-        (Dict.keys: dict!)!
+	let iter fn dict = List.forEach(
+        fun key -> fn(key Dict.get(key dict)) Dict.keys(dict))
 
     let copy original = do
         let new = {}
-        Dict.iter: fun k v -> (Dict.set: k v new!) original!
+        Dict.iter(fun k v -> Dict.set(k v new) original)
         new
     end
 
 	let toList dict = do
 		let ls = []
-		Dict.iter: fun k v -> ls += [[k v]] dict!
+		Dict.iter(fun k v -> ls += [[k v]] dict)
 		ls
 	end
 end
@@ -200,7 +194,7 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = ""
-		rep: fun _ -> text += pattern n!
+		rep(fun _ -> text += pattern n)
 		text + str
 	end
 
@@ -208,7 +202,7 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = str
-		rep: fun _ -> text += pattern n!
+		rep(fun _ -> text += pattern n)
 		text
 	end
 
@@ -216,9 +210,9 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = ""
-		rep: fun _ -> text += pattern (Num.half: n!)!
+		rep(fun _ -> text += pattern Num.half(n))
 		text += str
-		rep: fun _ -> text += pattern (Num.half: n!)!
+		rep(fun _ -> text += pattern Num.half(n))
 		text
 	end
 end
@@ -262,7 +256,7 @@ end
 
 module Num is
     let eq a b epsilon = if a is b then true
-        else (Math.abs: a - b!) < epsilon
+        else Math.abs(a - b) < epsilon
 
     let half num = num / 2
     let twice num = num * 2
@@ -270,10 +264,10 @@ module Num is
 
     let isZero num = num is 0
     let isOne num = num is 1
-    let isEven num = Num.isZero: num % 2!
-    let isOdd num = Num.isOne: num % 2!
-    let isPositive num = Math.signum: num! is Math.Sign.Positive
-    let isNegative num = Math.signum: num! is Math.Sign.Negative
+    let isEven num = Num.isZero(num % 2)
+    let isOdd num = Num.isOne(num % 2)
+    let isPositive num = Math.signum(num) is Math.Sign.Positive
+    let isNegative num = Math.signum(num) is Math.Sign.Negative
 end
 
 module Vec3 is
@@ -283,49 +277,49 @@ module Vec3 is
 		"z" = z
 	}
 
-    let scalar s = Vec3.new: s s s!
+    let scalar s = Vec3.new(s s s)
 
-    let zero = fun -> Vec3.scalar: 0!
+    let zero = fun -> Vec3.scalar(0)
 
-    let one = fun -> Vec3.scalar: 1!
+    let one = fun -> Vec3.scalar(1)
 
 	let dot a b = a.x * b.x + a.y * b.y + a.z * b.z
 
-	let cross a b = Vec3.new:
+	let cross a b = Vec3.new(
 		a.y * b.z - a.z * b.y
 		a.z * b.x - a.x * b.z
-		a.x * b.y - a.y * b.x!
+		a.x * b.y - a.y * b.x)
 
-	let sizeSquared v = Vec3.dot: v v!
+	let sizeSquared v = Vec3.dot(v v)
 
-	let size v = Math.sqrt: (Vec3.sizeSquared: v!)!
+	let size v = Math.sqrt(Vec3.sizeSquared(v))
 
-	let norm v = Vec3.new:
-		v.x / (Vec3.size: v!)
-		v.y / (Vec3.size: v!)
-		v.z / (Vec3.size: v!)!
+	let norm v = Vec3.new(
+		v.x / Vec3.size(v)
+		v.y / Vec3.size(v)
+		v.z / Vec3.size(v))
 
-    let dir from to = Vec3.norm: (Vec3.sub: to from!)!
+    let dir from to = Vec3.norm(Vec3.sub(to from))
 
-	let add a b = Vec3.new:
+	let add a b = Vec3.new(
 		a.x + b.x
 		a.y + b.y
-		a.z + b.z!
+		a.z + b.z)
 
-	let sub a b = Vec3.new:
+	let sub a b = Vec3.new(
 		a.x - b.x
 		a.y - b.y
-		a.z - b.z!
+		a.z - b.z)
 
-	let mul a b = Vec3.new:
+	let mul a b = Vec3.new(
 		a.x * b.x
 		a.y * b.y
-		a.z * b.z!
+		a.z * b.z)
 
-	let div a b = Vec3.new:
+	let div a b = Vec3.new(
 		a.x / b.x
 		a.y / b.y
-		a.z / b.z!
+		a.z / b.z)
 end
 
 module Rand is

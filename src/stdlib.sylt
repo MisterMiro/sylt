@@ -95,7 +95,7 @@ module List is
 			let swapped = 0
 
 			rep: fun i -> do
-				if fn: List.get: i list! List.get: i + 1 list!! then do
+				if fn: (List.get: i list!) (List.get: i + 1 list!)! then do
 					List.swap: i i + 1 list!
 					swapped += 1
 				end
@@ -170,7 +170,7 @@ module Dict is
         else default
 
 	let iter fn dict = List.forEach:
-        fun key -> fn: key Dict.get: key dict!! Dict.keys: dict!!
+        fun key -> fn: key (Dict.get: key dict!)! Dict.keys: dict!!
 
     let copy original = do
         let new = {}

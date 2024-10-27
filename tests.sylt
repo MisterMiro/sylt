@@ -556,6 +556,7 @@ let fileLib _ = do
     ## writeString + readString
     File.writeString: str path!
     let contents = File.readString: path!
+    ensure: contents is str!
 	
 	## del
 	File.del: path!

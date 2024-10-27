@@ -1,8 +1,8 @@
 ## demonstrates looping by calling a function from inside itself
 
-let loop index = if index <= 3 then do
-        printLn(index)
-        loop(index + 1)
+let loop index upTo = if index <= upTo then do
+        printLn: index!
+        loop: Num.next: index!!
     end
 
-loop(1)
+loop: 1 5!

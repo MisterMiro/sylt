@@ -211,9 +211,9 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = ""
-		rep: fun _ -> text += pattern Num.half: n!!
+		rep: fun _ -> text += pattern (Num.half: n!)!
 		text += str
-		rep: fun _ -> text += pattern Num.half: n!!
+		rep: fun _ -> text += pattern (Num.half: n!)!
 		text
 	end
 end

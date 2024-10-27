@@ -1,7 +1,7 @@
 ## showcases basic arithmetic
 
-printLn(3 + 4 is 7)
-printLn(10 - 8 is 2)
-printLn(8 * 4 is 32)
-printLn(100 / 20 is 5)
-printLn(12 % 8 is 4)
+printLn: 3 + 4 is 7!
+printLn: 10 - 8 is 2!
+printLn: 8 * 4 is 32!
+printLn: 100 / 20 is 5!
+printLn: 12 % 8 is 4!

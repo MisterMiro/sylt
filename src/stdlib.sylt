@@ -219,14 +219,14 @@ module String is
 end
 
 module File is
-	let Mode = makeEnum([
+	let Mode = makeEnum: [
 		"Read"
 		"ReadBinary"
 		"Write"
 		"WriteBinary"
 		"Append"
 		"AppendBinary"
-	])
+	]!
 end
 
 module Math is

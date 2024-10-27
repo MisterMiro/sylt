@@ -619,8 +619,8 @@ let listLib _ = do
 	
 	## first + last
 	let list = ["first" "middle" "last"]
-	ensure: List.first(list) is "first"!
-	ensure: List.last(list) is "last"!
+	ensure: (List.first: list!) is "first"!
+	ensure: (List.last: list!) is "last"!
 	
 	## count
 	let bits = [1 0 0 1 0 1 1 1]

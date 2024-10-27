@@ -552,6 +552,10 @@ let fileLib _ = do
 	let contents = File.read: handle!
 	ensure: contents is str!
 	File.close: handle!
+
+    ## writeString + readString
+    File.writeString: str path!
+    let contents = File.readString: path!
 	
 	## del
 	File.del: path!

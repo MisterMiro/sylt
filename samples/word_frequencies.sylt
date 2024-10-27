@@ -14,9 +14,9 @@ let frequencies = {}
 ## build a dictionary from the text, with each word as the key,
 ## and the number of occurrences as the value
 List.forEach: fun word -> do 
-    let word = String.lowercase: word!
+    word <- String.lowercase: word!
     let prev = Dict.getOrDefault: word 0 frequencies!
-    Dict.set(word prev + 1 frequencies)
+    Dict.set: word prev + 1 frequencies!
 end
 words!
 

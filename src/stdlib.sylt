@@ -174,7 +174,7 @@ module Dict is
 
     let copy original = do
         let new = {}
-        Dict.iter: fun k v -> Dict.set: k v new! original!
+        Dict.iter: fun k v -> (Dict.set: k v new!) original!
         new
     end
 

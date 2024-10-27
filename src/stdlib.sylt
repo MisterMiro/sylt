@@ -263,8 +263,9 @@ end
 
 module Math is
     let pi = 3.14159265358979323846264338327950288
-    let e = 2.71828182845904523536028747135266250let add a b = a + b
+    let e = 2.71828182845904523536028747135266250
 
+    let add a b = a + b
     let sub a b = a - b
     let mul a b = a * b
     let div a b = a / b

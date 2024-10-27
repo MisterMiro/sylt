@@ -272,6 +272,9 @@ module Num is
     let eq a b epsilon = if a is b then true
         else Math.abs: a - b! < epsilon
 
+    let next num = num + 1
+    let prev num = num - 1
+
     let half num = num / 2
     let twice num = num * 2
     let squared num = num * num

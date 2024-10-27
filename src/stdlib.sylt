@@ -2,15 +2,13 @@
 ## note: most of the standard library is implemented in C
 ensure: System.version is "sylt 0.1"!
 
-let forStep fn from to step = do
+let for fn from to = do
     let i = from
 	while i < to do
 		fn: i!
-		i += step
+		i += 1
 	end
 end
-
-let for fn from to = forStep: fn from to 1!
 
 let rep fn n = for: fn 0 n!
 

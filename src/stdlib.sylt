@@ -1,6 +1,6 @@
 
 ## note: most of the standard library is implemented in C
-ensure(System.version is "sylt 0.1")
+ensure: System.version is "sylt 0.1"!
 
 let for fn from to = do
     let i = from
@@ -174,13 +174,13 @@ module Dict is
 
     let copy original = do
         let new = {}
-        Dict.iter(fun k v -> Dict.set(k v new) original)
+        Dict.iter: fun k v -> Dict.set: k v new! original!
         new
     end
 
 	let toList dict = do
 		let ls = []
-		Dict.iter(fun k v -> ls += [[k v]] dict)
+		Dict.iter: fun k v -> ls += [[k v]] dict!
 		ls
 	end
 end
@@ -195,7 +195,7 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = ""
-		rep(fun _ -> text += pattern n)
+		rep: fun _ -> text += pattern n!
 		text + str
 	end
 
@@ -203,7 +203,7 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = str
-		rep(fun _ -> text += pattern n)
+		rep: fun _ -> text += pattern n!
 		text
 	end
 
@@ -211,9 +211,9 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = ""
-		rep(fun _ -> text += pattern Num.half(n))
+		rep: fun _ -> text += pattern Num.half: n!!
 		text += str
-		rep(fun _ -> text += pattern Num.half(n))
+		rep: fun _ -> text += pattern Num.half: n!!
 		text
 	end
 end
@@ -257,7 +257,7 @@ end
 
 module Num is
     let eq a b epsilon = if a is b then true
-        else Math.abs(a - b) < epsilon
+        else Math.abs: a - b! < epsilon
 
     let half num = num / 2
     let twice num = num * 2
@@ -265,10 +265,10 @@ module Num is
 
     let isZero num = num is 0
     let isOne num = num is 1
-    let isEven num = Num.isZero(num % 2)
-    let isOdd num = Num.isOne(num % 2)
-    let isPositive num = Math.signum(num) is Math.Sign.Positive
-    let isNegative num = Math.signum(num) is Math.Sign.Negative
+    let isEven num = Num.isZero: num % 2!
+    let isOdd num = Num.isOne: num % 2!
+    let isPositive num = Math.signum: num! is Math.Sign.Positive
+    let isNegative num = Math.signum: num! is Math.Sign.Negative
 end
 
 module Vec3 is
@@ -278,57 +278,57 @@ module Vec3 is
 		"z" = z
 	}
 
-    let scalar s = Vec3.new(s s s)
+    let scalar s = Vec3.new: s s s!
 
-    let zero = fun -> Vec3.scalar(0)
+    let zero = fun -> Vec3.scalar: 0!
 
-    let one = fun -> Vec3.scalar(1)
+    let one = fun -> Vec3.scalar: 1!
 
 	let dot a b = a.x * b.x + a.y * b.y + a.z * b.z
 
-	let cross a b = Vec3.new(
+	let cross a b = Vec3.new:
 		a.y * b.z - a.z * b.y
 		a.z * b.x - a.x * b.z
-		a.x * b.y - a.y * b.x)
+		a.x * b.y - a.y * b.x!
 
-	let sizeSquared v = Vec3.dot(v v)
+	let sizeSquared v = Vec3.dot: v v!
 
-	let size v = Math.sqrt(Vec3.sizeSquared(v))
+	let size v = Math.sqrt: Vec3.sizeSquared: v!!
 
-	let norm v = Vec3.new(
-		v.x / Vec3.size(v)
-		v.y / Vec3.size(v)
-		v.z / Vec3.size(v))
+	let norm v = Vec3.new:
+		v.x / Vec3.size: v!
+		v.y / Vec3.size: v!
+		v.z / Vec3.size: v!!
 
-    let dir from to = Vec3.norm(Vec3.sub(to from))
+    let dir from to = Vec3.norm: Vec3.sub: to from!!
 
-	let add a b = Vec3.new(
+	let add a b = Vec3.new:
 		a.x + b.x
 		a.y + b.y
-		a.z + b.z)
+		a.z + b.z!
 
-	let sub a b = Vec3.new(
+	let sub a b = Vec3.new:
 		a.x - b.x
 		a.y - b.y
-		a.z - b.z)
+		a.z - b.z!
 
-	let mul a b = Vec3.new(
+	let mul a b = Vec3.new:
 		a.x * b.x
 		a.y * b.y
-		a.z * b.z)
+		a.z * b.z!
 
-	let div a b = Vec3.new(
+	let div a b = Vec3.new:
 		a.x / b.x
 		a.y / b.y
-		a.z / b.z)
+		a.z / b.z!
 end
 
 module Rand is
-	let oneIn n = Rand.range(0 n) < 1
+	let oneIn n = Rand.range: 0 n! < 1
 
-    let fiftyFifty = fun -> Rand.oneIn(2)
+    let fiftyFifty = fun -> Rand.oneIn: 2!
 
-	let item list = List.get(Rand.range(0 #list) list)
+	let item list = List.get: Rand.range: 0 #list! list!
 
-	let scramble list = List.sortBy(fun _ _ -> Rand.fiftyFifty() list)
+	let scramble list = List.sortBy: fun _ _ -> Rand.fiftyFifty: ! list!
 end

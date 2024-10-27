@@ -939,8 +939,8 @@ let mathLib _ = do
 	
 	## sin + cos + tan
 	ensure: (Num.eq: (Math.sin: 90!) 0.8939 0.001!)!
-	ensure: (Num.eq: (Math.cos: 90!) 0 - 0.4480 0.001!)!
-	ensure: (Num.eq: (Math.tan: 90!) 0 - 1.9952 0.001!)!
+	ensure: (Num.eq: (Math.cos: 90!) 0 (-0.4480) 0.001!)!
+	ensure: (Num.eq: (Math.tan: 90!) 0 (-1.9952) 0.001!)!
 			
 	## asin + acos + atan
 	ensure: (Num.eq: (Math.asin: 1!) 1.5708 0.001!)!
@@ -1052,7 +1052,7 @@ let tests = List.flatten: [
 List.forEach: fun test ->
 	if typeOf: test! is "String" then printLn: test + ":"!
 	else do
-		let name = String.rightPad: 20 "." toString: test!!
+		let name = String.rightPad: 20 "." (toString: test!)!
 		print: "  " + name!
 		
 		test: null!

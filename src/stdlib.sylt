@@ -31,7 +31,7 @@ module List is
 
     let swap a b list = do
         let temp = List.get: a list!
-        List.set: a List.get: b list! list!
+        List.set: a (List.get: b list!) list!
         List.set: b temp list!
     end
 

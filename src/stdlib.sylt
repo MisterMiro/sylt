@@ -82,7 +82,7 @@ module List is
 	let average list = if list is [] then 0
         else List.sum: list! / #list
 
-	let mean list = if Num.isOdd: #list! then (List.get: Num.half: #list!) list!
+	let mean list = if Num.isOdd: #list! then List.get: (Num.half: #list!) list!
 		else List.average: [
 			List.get: (Num.half: #list!) - 1 list!
 			List.get: (Num.half: #list!) list!]!

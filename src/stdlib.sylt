@@ -10,7 +10,7 @@ let for fn from to = do
 	end
 end
 
-let rep fn n = for(fn 0 n)
+let rep fn n = for: fn 0 n!
 
 let makeEnum list = do
 	let enum = {}
@@ -47,8 +47,8 @@ module List is
         list
     end
 
-	let iter fn list = rep(
-        fun index -> fn(index List.get(index list)) #list)
+	let iter fn list = rep:
+        fun index -> fn(index List.get(index list)) #list!
 
 	let forEach fn list = rep(
         fun index -> fn(List.get(index list)) #list)

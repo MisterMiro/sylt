@@ -12,26 +12,26 @@ let binary_split a b = do
     end
     else do
         let m = (a + b) / 2
-        let split1 = binary_split(a m)
-        let split2 = binary_split(m b)
+        let split1 = binary_split: a m!
+        let split2 = binary_split: m b!
         
-        pab <- List.get(0 split1) * List.get(0 split2)
-        qab <- List.get(1 split1) * List.get(1 split2)
-        rab <- List.get(1 split2) * List.get(2 split1)
-            + List.get(0 split1) * List.get(2 split2)
+        pab <- List.get: 0 split1! * List.get: 0 split2!
+        qab <- List.get: 1 split1! * List.get: 1 split2!
+        rab <- List.get: 1 split2! * List.get: 2 split1!
+            + List.get: 0 split1! * List.get: 2 split2!
     end
 
     [pab qab rab]
 end
 
 let chudnovsky n = do
-    let split = binary_split(1 n)
-    let p1n = List.get(0 split)
-    let q1n = List.get(1 split)
-    let r1n = List.get(2 split)
+    let split = binary_split: 1 n!
+    let p1n = List.get: 0 split!
+    let q1n = List.get: 1 split!
+    let r1n = List.get: 2 split!
     426880 * Math.sqrt(10005) * q1n / (13591409 * q1n + r1n)
 end
 
-let pi = chudnovsky(5)
-printLn(pi)
-printLn(floatEq(pi Math.pi 0.00001))
+let pi = chudnovsky: 5!
+printLn: pi!
+printLn: floatEq: pi Math.pi 0.00001!!

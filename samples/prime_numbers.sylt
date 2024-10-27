@@ -4,10 +4,10 @@ let isPrime n = do
     if n < 2 then return false
     let check index = if n is index then true
         else if n % index is 0 then false
-        else check(index + 1)
-    check(2)
+        else check: index + 1!
+    check: 2!
 end
 
-let numbers = List.range(0 101)
-numbers <- List.filter(isPrime numbers)
+let numbers = List.range: 0 101!
+numbers <- List.filter: isPrime numbers!
 printLn(numbers)

@@ -7,22 +7,22 @@ let text = "However, word overuse is a style issue; there's nothing 'incorrect'
     bad practice. In fact, if used properly, a little bit of repetition can create a parallel
     structure that is easy to follow and almost poetic to read: - J.R. @ stackexchange"
 
-let sep = String.chars(String.whitespace + String.punctuation)
-let words = String.split(sep text)
+let sep = String.chars: String.whitespace + String.punctuation!
+let words = String.split: sep text!
 let frequencies = {}
 
 ## build a dictionary from the text, with each word as the key,
 ## and the number of occurrences as the value
-List.forEach(fun word -> do 
-    let word = String.lowercase(word)
-    let prev = Dict.getOrDefault(word 0 frequencies)
+List.forEach: fun word -> do 
+    let word = String.lowercase: word!
+    let prev = Dict.getOrDefault: word 0 frequencies!
     Dict.set(word prev + 1 frequencies)
 end
-words)
+words!
 
 ## convert dictionary into a list of key/value pairs
-let pairs = Dict.toList(frequencies)
+let pairs = Dict.toList: frequencies!
 
 ## sort the list by most occurrences
-List.sortBy(fun a b -> List.get(1 a) < List.get(1 b) pairs)
-List.forEach(fun pair -> printLn(List.first(pair) + ": " + List.last(pair)) pairs)
+List.sortBy: fun a b -> List.get: 1 a! < List.get: 1 b! pairs!
+List.forEach: fun pair -> printLn: List.first: pair! + ": " + List.last: pair!! pairs!

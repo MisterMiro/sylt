@@ -67,95 +67,96 @@ module List is
 
 	let filter fn list = do
 		let filtered = []
-		List.forEach(fun item -> if fn(item) then filtered += item list)
+		List.forEach: fun item -> if fn: item! then filtered += item list!
 		filtered
 	end
 
 	let fold fn init list = do
 		let result = init
-		List.forEach(fun item -> result <- fn(result item) list)
+		List.forEach: fun item -> result <- fn: result item! list!
 		result
 	end
 
-	let sum list = List.fold(Math.add 0 list)
+	let sum list = List.fold: Math.add 0 list!
 
 	let average list = if list is [] then 0
-        else List.sum(list) / #list
+        else List.sum: list! / #list
 
-	let mean list = if Num.isOdd(#list) then List.get(Num.half(#list) list)
-		else List.average([
-			List.get(Num.half(#list) - 1 list)
-			List.get(Num.half(#list) list)])
+	let mean list = if Num.isOdd: #list! then List.get: Num.half: #list! list!
+		else List.average: [
+			List.get: Num.half: #list! - 1 list!
+			List.get: Num.half: #list! list!]!
 
 	let sortBy fn list = do
         if #list <= 1 then return list
-        list <- List.copy(list)
+        list <- List.copy: list!
 
 		let bubbleSort list n = do
 			let swapped = 0
 
-			rep(fun i -> do
-				if fn(List.get(i list) List.get(i + 1 list)) then do
-					List.swap(i i + 1 list)
+			rep: fun i -> do
+				if fn: List.get: i list! List.get: i + 1 list!! then do
+					List.swap: i i + 1 list!
 					swapped += 1
 				end
-			end n - 1)
+			end
+            n - 1!
 
-			if not Num.isZero(swapped) then bubbleSort(list n - 1)
+			if not Num.isZero: swapped! then bubbleSort: list n - 1!
 		end
 
-		bubbleSort(list #list)
+		bubbleSort: list #list!
         list
 	end
 
-	let sort list = List.sortBy(fun a b -> a > b list)
+	let sort list = List.sortBy: fun a b -> a > b list!
 
 	let flatten list = do
 		let flat = []
-		List.forEach(
+		List.forEach:
             fun item -> flat +=
-                if typeOf(item) is "List" then List.flatten(item)
+                if typeOf: item! is "List" then List.flatten: item!
                 else item
-            list)
+            list!
 		flat
 	end
 
 	let dedup list = do
 		let deduped = []
-		List.forEach(
-            fun item -> if not List.contains(item deduped) then
+		List.forEach:
+            fun item -> if not List.contains: item deduped! then
                 deduped += item
-            list)
+            list!
 		deduped
 	end
 
-	let any fn list = List.fold(
-        fun any value -> any or fn(value)
+	let any fn list = List.fold:
+        fun any value -> any or fn: value!
         false
-        list)
+        list!
 
 	let all fn list = if list is [] then false
-        else List.fold(
-            fun all value -> all and fn(value)
+        else List.fold:
+            fun all value -> all and fn: value!
             true
-            list)
+            list!
 
     let count value list = do
         let count = 0
-        List.forEach(
+        List.forEach:
             fun item -> if item is value then count += 1
-            list)
+            list!
         count
     end
 
-    let contains value list = List.count(value list) > 0
+    let contains value list = List.count: value list! > 0
 
     let find value list = do
         let index = 0
         let found = false
 
         while not found do
-            if List.get(index list) is value then found <- true
+            if List.get: index list! is value then found <- true
             else index += 1
         end
 
@@ -165,11 +166,11 @@ end
 
 module Dict is
 	let getOrDefault key default dict =
-        if Dict.hasKey(key dict) then Dict.get(key dict)
+        if Dict.hasKey: key dict! then Dict.get: key dict!
         else default
 
-	let iter fn dict = List.forEach(
-        fun key -> fn(key Dict.get(key dict)) Dict.keys(dict))
+	let iter fn dict = List.forEach:
+        fun key -> fn: key Dict.get: key dict!! Dict.keys: dict!!
 
     let copy original = do
         let new = {}

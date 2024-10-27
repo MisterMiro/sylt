@@ -227,6 +227,19 @@ module File is
 		"Append"
 		"AppendBinary"
 	]!
+
+    let readString path = do
+        let handle = File.open: File.Mode.Read path!
+        let result = File.read: handle!
+        File.close: handle!
+        result
+    end
+
+    let writeString str path = do
+        let handle = File.open: File.Mode.Write path!
+        File.write: str handle!
+        File.close: handle!
+    end
 end
 
 module Math is

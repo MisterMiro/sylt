@@ -871,9 +871,9 @@ let mathLib _ = do
 	ensure: (Num.eq: Math.e 2.718281 0.00001!)!
 	
 	## signum
-	ensure: (Math.signum: -80!) is Math.Sign.Negative!
-	ensure: (Math.signum: 0!) is Math.Sign.Zero!
-	ensure: (Math.signum: 80!) is Math.Sign.Positive!
+	ensure: (Math.signum: -80!) is (-1)!
+	ensure: (Math.signum: 0!) is 0!
+	ensure: (Math.signum: 80!) is 1!
 	
 	## abs
 	ensure: (Math.abs: -8!) is 8 and (Math.abs: 8!) is 8!

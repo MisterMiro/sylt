@@ -1,12 +1,12 @@
 ## this program generates a string consisting of a random series of letters and digits
 
 let length = 12
-let chars = String.chars(String.letters + String.digits)
+let chars = String.chars: String.letters + String.digits!
 
 ## seed the RNG using the current time so we get different random values
 ## every time we run the program
-Rand.seed(System.timeStamp())
+Rand.seed: System.timeStamp: !!
 
 let str = ""
-rep(fun _ -> str += Rand.item(chars) length)
-printLn(str)
+rep: fun _ -> str += Rand.item: chars! length!
+printLn: str!

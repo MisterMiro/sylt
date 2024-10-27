@@ -1,6 +1,6 @@
 ## implementation of a calculator using a stack
 
-let OpCode = makeEnum([
+let OpCode = makeEnum: [
     "Push"
     "Add"
     "Sub"
@@ -9,56 +9,56 @@ let OpCode = makeEnum([
     "Eq"
     "Print"
     "Ret"
-])
+]!
 
 let exec program = do
-    ensure(List.last(program) is OpCode.Ret)
+    ensure: List.last: program! is OpCode.Ret!
     
     let ip = 0
     let stack = []
 
     let read = fun -> do
         ip += 1
-        List.get(ip - 1 program)
+        List.get: ip - 1 program!
     end
 
     let push value = stack += value
-    let pop = fun -> List.pop(stack)
+    let pop = fun -> List.pop: stack!
 
     let run = true
     while run do
-        let code = read()
+        let code = read: !
 
         if code is OpCode.Push then
-            push(read())
+            push: read: !!
         else if code is OpCode.Add then do
-            let b = pop()
-            let a = pop()
-            push(a + b)
+            let b = pop: !
+            let a = pop: !
+            push: a + b!
         end
         else if code is OpCode.Sub then do
-            let b = pop()
-            let a = pop()
-            push(a - b)
+            let b = pop: !
+            let a = pop: !
+            push: a - b!
         end
         else if code is OpCode.Mul then do
-            let b = pop()
-            let a = pop()
-            push(a * b)
+            let b = pop: !
+            let a = pop: !
+            push: a * b!
         end
         else if code is OpCode.Div then do
-            let b = pop()
+            let b = pop: !
             if b is 0 then return "tried to divide a number by zero"
-            let a = pop()
-            push(a / b)
+            let a = pop: !
+            push: a / b!
         end
         else if code is OpCode.Eq then do
-            let b = pop()
-            let a = pop()
-            push(a is b)
+            let b = pop: !
+            let a = pop: !
+            push: a is b!
         end
         else if code is OpCode.Print then
-            printLn(List.last(stack))
+            printLn: List.last: stack!!
         else if code is OpCode.Ret then
             run <- false
     end
@@ -90,5 +90,5 @@ let program = [
     OpCode.Ret
 ]
 
-let result = exec(program)
-printLn(result)
+let result = exec: program!
+printLn: result!

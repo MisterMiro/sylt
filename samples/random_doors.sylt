@@ -1,15 +1,15 @@
 ## demonstrates how to use the Rand.oneIn function to implement probability
 
-Rand.seed(System.timeStamp())
+Rand.seed: System.timeStamp: !!
 
 let n = 300000
 let states = []
-rep(fun _ -> states += if Rand.oneIn(20): "open" else "closed" n)
+rep: fun _ -> states += if Rand.oneIn: 20!: "open" else "closed" n!
 
-let closed = List.count("closed" states)
-let open = List.count("open" states)
+let closed = List.count: "closed" states!
+let open = List.count: "open" states!
 
-printLn("Checking " + n + " doors...")
-printLn("Open: " + open)
-printLn("Closed: " + closed)
-printLn(toString((open / closed) * 100) + "% of the doors are open")
+printLn: "Checking " + n + " doors..."!
+printLn: "Open: " + open!
+printLn: "Closed: " + closed!
+printLn: toString: (open / closed) * 100! + "% of the doors are open"!

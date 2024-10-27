@@ -242,14 +242,32 @@ module File is
     end
 end
 
+module Num is
+    let eq a b epsilon = if a is b then true
+        else Math.abs: a - b! < epsilon
+
+    let next num = num + 1
+    let prev num = num - 1
+
+    let half num = num / 2
+    let twice num = num * 2
+    let squared num = num * num
+
+    let isZero num = num is 0
+    let isOne num = num is 1
+    let isEven num = Num.isZero: num % 2!
+    let isOdd num = Num.isOne: num % 2!
+    let isPositive num = Math.signum: num! is 1
+    let isNegative num = Math.signum: num! is -1
+end
+
 module Math is
     let pi = 3.14159265358979323846264338327950288
     let e = 2.71828182845904523536028747135266250
-	let Sign = makeEnum: ["Negative" "Zero" "Positive"]!
 
-	let signum n = if n < 0 then Math.Sign.Negative
-		else if n is 0 then Math.Sign.Zero
-		else Math.Sign.Positive
+	let signum n = if n < 0 then -1
+		else if n is 0 then 0
+		else 1
 
     let min a b = if a < b then a else b
 
@@ -266,25 +284,6 @@ module Math is
     let mul a b = a * b
     let div a b = a / b
     let rem a b = a % b
-end
-
-module Num is
-    let eq a b epsilon = if a is b then true
-        else Math.abs: a - b! < epsilon
-
-    let next num = num + 1
-    let prev num = num - 1
-
-    let half num = num / 2
-    let twice num = num * 2
-    let squared num = num * num
-
-    let isZero num = num is 0
-    let isOne num = num is 1
-    let isEven num = Num.isZero: num % 2!
-    let isOdd num = Num.isOne: num % 2!
-    let isPositive num = Math.signum: num! is Math.Sign.Positive
-    let isNegative num = Math.signum: num! is Math.Sign.Negative
 end
 
 module Vec3 is

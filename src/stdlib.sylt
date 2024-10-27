@@ -5,7 +5,7 @@ ensure(System.version is "sylt 0.1")
 let for fn from to = do
     let i = from
 	while i < to do
-		fn(i)
+		fn: i!
 		i += 1
 	end
 end
@@ -14,54 +14,54 @@ let rep fn n = for: fn 0 n!
 
 let makeEnum list = do
 	let enum = {}
-	List.iter(fun index name -> Dict.set(name index enum) list)
+	List.iter: fun index name -> Dict.set: name index enum! list!
 	enum
 end
 
 module List is
-    let first list = List.get(0 list)
+    let first list = List.get: 0 list!
 
-    let last list = List.get(-1 list)
+    let last list = List.get: -1 list!
 
     let pop list = do
-        let value = List.last(list)
+        let value = List.last: list!
         list -= 1
         value
     end
 
     let swap a b list = do
-        let temp = List.get(a list)
-        List.set(a List.get(b list) list)
-        List.set(b temp list)
+        let temp = List.get: a list!
+        List.set: a List.get: b list! list!
+        List.set: b temp list!
     end
 
     let init value n = do
         let list = []
-        rep(fun _ -> list += value n)
+        rep: fun _ -> list += value n!
         list
     end
 
     let range from to = do
         let list = []
-        for(fun num -> list += num from to + 1)
+        for: fun num -> list += num from to + 1!
         list
     end
 
 	let iter fn list = rep:
         fun index -> fn: index List.get: index list!! #list!
 
-	let forEach fn list = rep(
-        fun index -> fn(List.get(index list)) #list)
+	let forEach fn list = rep:
+        fun index -> fn: List.get: index list!! #list!
 
     let copy original = do
         let new = []
-        List.forEach(fun item -> new += item original)
+        List.forEach: fun item -> new += item original!
         new
     end
 
 	let map fn list = do
 		let mapped = []
-		List.forEach(fun item -> mapped += fn(item) list)
+		List.forEach: fun item -> mapped += fn: item! list!
 		mapped
 	end
 

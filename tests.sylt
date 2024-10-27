@@ -871,7 +871,7 @@ let mathLib _ = do
 	ensure: (Num.eq: Math.e 2.718281 0.00001!)!
 	
 	## signum
-	ensure: (Math.signum: -80!) is (-1)!
+	ensure: (Math.signum: -80!) is -1!
 	ensure: (Math.signum: 0!) is 0!
 	ensure: (Math.signum: 80!) is 1!
 	

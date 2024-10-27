@@ -904,7 +904,7 @@ let mathLib _ = do
 	
 	## clamp
 	let x = 2
-	ensure: (Math.clamp: x 0 - 5 5!) is x!
+	ensure: (Math.clamp: x (-5) 5!) is x!
 	
 	let x = 20
 	ensure: (Math.clamp: x 1 4!) is 4!

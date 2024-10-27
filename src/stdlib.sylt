@@ -155,12 +155,11 @@ module List is
         let i = 0
         let found = false
 
-        while not found do
+        while not found
             if List.get: i list! is value then found <- true
-            else index += 1
-        end
+            else i += 1
 
-        index
+        i
     end
 end
 

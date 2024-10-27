@@ -261,7 +261,12 @@ end
 
 module Math is
     let pi = 3.14159265358979323846264338327950288
-    let e = 2.71828182845904523536028747135266250
+    let e = 2.71828182845904523536028747135266250let add a b = a + b
+
+    let sub a b = a - b
+    let mul a b = a * b
+    let div a b = a / b
+    let rem a b = a % b
 
 	let signum n = if n < 0 then -1
 		else if n is 0 then 0
@@ -276,12 +281,6 @@ module Math is
         else x
 
     let lerp a b t = a * (1 - t) + b * t
-
-    let add a b = a + b
-    let sub a b = a - b
-    let mul a b = a * b
-    let div a b = a / b
-    let rem a b = a % b
 end
 
 module Vec3 is

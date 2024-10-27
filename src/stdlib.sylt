@@ -340,7 +340,7 @@ module Rand is
 
     let fiftyFifty = fun -> Rand.oneIn: 2!
 
-	let item list = List.get: Rand.range: 0 #list! list!
+	let item list = List.get: (Rand.range: 0 #list!) list!
 
 	let scramble list = List.sortBy: fun _ _ -> (Rand.fiftyFifty: !) list!
 end

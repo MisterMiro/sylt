@@ -49,11 +49,11 @@ module List is
         list
     end
 
-	let iter fn list = rep:
-        fun i -> (fn: i List.get: i list!!) #list!
+	let iter fn list =
+        rep: (fun i -> fn: i List.get: i list!!) #list!
 
-	let forEach fn list = rep:
-        fun i -> (fn: List.get: i list!!) #list!
+	let forEach fn list =
+        rep: (fun i -> fn: List.get: i list!!) #list!
 
     let copy original = do
         let new = []

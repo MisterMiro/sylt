@@ -2603,7 +2603,7 @@ value_t std_to_string(sylt_t* ctx) {
 	return wrapstring(str);
 }
 
-value_t std_to_num(sylt_t* ctx) {
+value_t std_to_number(sylt_t* ctx) {
 	sylt_num_t num;
 	
 	switch (arg(0).tag) {
@@ -3493,7 +3493,7 @@ void std_init(sylt_t* ctx) {
 	std_addf(ctx, "printLn", std_print_ln, 1);
 	std_addf(ctx, "readIn", std_read_in, 0);
 	std_addf(ctx, "toString", std_to_string, 1);
-	std_addf(ctx, "toNum", std_to_num, 1);
+	std_addf(ctx, "toNumber", std_to_number, 1);
 	std_addf(ctx, "typeOf", std_type_of, 1);
 	std_addf(ctx, "ensure", std_ensure, 1);
 	std_addf(ctx, "todo", std_todo, 0);

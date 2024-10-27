@@ -158,7 +158,6 @@ module List is
         while not found
             if List.get: i list! is value then found <- true
             else i += 1
-
         i
     end
 end

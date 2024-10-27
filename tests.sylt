@@ -1038,10 +1038,10 @@ let tests = List.flatten([
 	"Standard library"
 	[
 		preludeLib
+        fileLib
 		listLib
 		dictLib
 		stringLib
-        fileLib
         numLib
 		mathLib
         vec3Lib
@@ -1060,4 +1060,4 @@ List.forEach: fun test ->
 	end
 	tests!
 
-printLn("All tests passed!")
+printLn: "All tests passed!"!

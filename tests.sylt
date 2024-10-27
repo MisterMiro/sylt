@@ -1000,7 +1000,7 @@ end
 
 ## tests to run
 
-let tests = List.flatten([
+let tests = List.flatten: [
 	"Parsing"	## category name
 	[			## functions to test
 		names
@@ -1046,7 +1046,7 @@ let tests = List.flatten([
 		mathLib
         vec3Lib
 	]
-])
+]!
 
 ## let's go!
 List.forEach: fun test ->

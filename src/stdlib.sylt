@@ -155,7 +155,7 @@ module List is
         let i = 0
         let found = false
 
-        while not found
+        while not found and i < #list
             if List.get: i list! is value then found <- true
             else i += 1
 

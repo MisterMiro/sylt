@@ -10,4 +10,4 @@ end
 
 let numbers = List.range: 0 100!
 numbers <- List.filter: isPrime numbers!
-printLn(numbers)
+printLn: numbers!

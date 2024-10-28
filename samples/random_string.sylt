@@ -8,5 +8,5 @@ let chars = String.chars: String.letters + String.digits!
 Rand.seed: System.timeStamp: !!
 
 let str = ""
-rep: fun _ -> str += Rand.item: chars! length!
+rep: fun _ -> str += (Rand.item: chars!) length!
 printLn: str!

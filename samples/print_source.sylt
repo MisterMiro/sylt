@@ -4,4 +4,4 @@ let src = System.src: !.text
 let lines = String.split: ["\n"] src!
 if String.endsWith: "\n" src! then lines += ""
 
-List.iter: fun i code -> printLn: String.rightPad: (toString: i + 1!) 5 " "! + " " + code! lines!
+List.iter: fun i code -> (printLn: String.rightPad: (toString: i + 1!) 5 " "! + " " + code!) lines!

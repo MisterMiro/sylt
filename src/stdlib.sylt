@@ -170,9 +170,6 @@ module Dict is
 	let iter fn dict = List.forEach:
         fun key -> (fn: key (Dict.get: key dict!)!) (Dict.keys: dict!)!
 
-    let forEach fn dict = List.forEach:
-        fun key -> (fn: (Dict.get: key dict!)!) (Dict.keys: dict!)!
-
     let copy original = do
         let new = {}
         Dict.iter: fun k v -> (Dict.set: k v new!) original!

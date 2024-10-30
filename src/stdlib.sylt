@@ -48,32 +48,32 @@ module List is
     end
 
 	let iter fn list =
-        rep: (fun i -> fn: i (List.get: i list!)!) #list!
+        rep: (fun i -> fn: (List.get: i list!)!) #list!
 
-	let forEach fn list =
-        rep: (fun i -> fn: List.get: i list!!) #list!
+	let iteri fn list =
+        rep: (fun i -> fn: i (List.get: i list!)!) #list!
 
     let copy original = do
         let new = []
-        List.forEach: (fun item -> new += item) original!
+        List.iter: (fun item -> new += item) original!
         new
     end
 
 	let map fn list = do
 		let mapped = []
-		List.forEach: (fun item -> mapped += fn: item!) list!
+		List.iter: (fun item -> mapped += fn: item!) list!
 		mapped
 	end
 
 	let filter fn list = do
 		let filtered = []
-		List.forEach: (fun item -> if fn: item! then filtered += item) list!
+		List.iter: (fun item -> if fn: item! then filtered += item) list!
 		filtered
 	end
 
 	let fold fn init list = do
 		let result = init
-		List.forEach: (fun item -> result <- fn: result item!) list!
+		List.iter: (fun item -> result <- fn: result item!) list!
 		result
 	end
 
@@ -113,39 +113,33 @@ module List is
 
 	let flatten list = do
 		let flat = []
-		List.forEach:
-            fun item -> flat +=
+		List.iter:
+            (fun item -> flat +=
                 if typeOf: item! is "List" then List.flatten: item!
-                else item
+                else item)
             list!
 		flat
 	end
 
 	let dedup list = do
 		let deduped = []
-		List.forEach:
-            fun item -> if not List.contains: item deduped! then
-                deduped += item
+		List.iter:
+            (fun item -> if not List.contains: item deduped! then
+                deduped += item)
             list!
 		deduped
 	end
 
 	let any fn list = List.fold:
-        (fun any value -> any or fn: value!)
-        false
-        list!
+        (fun any value -> any or fn: value!) false list!
 
 	let all fn list = if list is [] then false
         else List.fold:
-            (fun all value -> all and fn: value!)
-            true
-            list!
+            (fun all value -> all and fn: value!) true list!
 
     let count value list = do
         let count = 0
-        List.forEach:
-            (fun item -> if item is value then count += 1)
-            list!
+        List.iter: (fun item -> if item is value then count += 1) list!
         count
     end
 
@@ -167,7 +161,7 @@ module Dict is
 	let getOrDefault key default dict = if Dict.hasKey: key dict! then Dict.get: key dict!
         else default
 
-	let iter fn dict = List.forEach:
+	let iter fn dict = List.iter:
         (fun key -> fn: key (Dict.get: key dict!)!) (Dict.keys: dict!)!
 
     let copy original = do

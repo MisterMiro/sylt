@@ -216,7 +216,7 @@ let equality _ = do
 		fun x -> x	## Func
 	]
 	
-	List.iter: (fun skipIndex value -> do
+	List.iteri: (fun skipIndex value -> do
 		## equal to itself
 		ensure: value is value!
 		

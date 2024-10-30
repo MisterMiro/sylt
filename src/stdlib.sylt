@@ -134,8 +134,7 @@ module List is
         (fun any value -> any or fn: value!) false list!
 
 	let all fn list = if list is [] then false
-        else List.fold:
-            (fun all value -> all and fn: value!) true list!
+        else List.fold: (fun all value -> all and fn: value!) true list!
 
     let count value list = do
         let count = 0

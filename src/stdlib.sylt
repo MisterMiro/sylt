@@ -14,7 +14,7 @@ let rep fn n = for: fn 0 n!
 
 let makeEnum list = do
 	let enum = {}
-	List.iter: fun i name -> (Dict.set: name i enum!) list!
+	List.iter: (fun i name -> Dict.set: name i enum!) list!
 	enum
 end
 
@@ -37,43 +37,43 @@ module List is
 
     let init value n = do
         let list = []
-        rep: fun _ -> list += value n!
+        rep: (fun _ -> list += value) n!
         list
     end
 
     let range from to = do
         let list = []
-        for: fun num -> list += num from to + 1!
+        for: (fun num -> list += num) from to + 1!
         list
     end
 
 	let iter fn list =
-        rep: fun i -> (fn: i (List.get: i list!)!) #list!
+        rep: (fun i -> fn: i (List.get: i list!)!) #list!
 
 	let forEach fn list =
-        rep: fun i -> (fn: List.get: i list!!) #list!
+        rep: (fun i -> fn: List.get: i list!!) #list!
 
     let copy original = do
         let new = []
-        List.forEach: fun item -> new += item original!
+        List.forEach: (fun item -> new += item) original!
         new
     end
 
 	let map fn list = do
 		let mapped = []
-		List.forEach: fun item -> mapped += (fn: item!) list!
+		List.forEach: (fun item -> mapped += fn: item!) list!
 		mapped
 	end
 
 	let filter fn list = do
 		let filtered = []
-		List.forEach: fun item -> if fn: item! then filtered += item list!
+		List.forEach: (fun item -> if fn: item! then filtered += item) list!
 		filtered
 	end
 
 	let fold fn init list = do
 		let result = init
-		List.forEach: fun item -> result <- (fn: result item!) list!
+		List.forEach: (fun item -> result <- fn: result item!) list!
 		result
 	end
 
@@ -109,7 +109,7 @@ module List is
         list
 	end
 
-	let sort list = List.sortBy: fun a b -> a > b list!
+	let sort list = List.sortBy: (fun a b -> a > b) list!
 
 	let flatten list = do
 		let flat = []
@@ -131,20 +131,20 @@ module List is
 	end
 
 	let any fn list = List.fold:
-        fun any value -> any or (fn: value!)
+        (fun any value -> any or fn: value!)
         false
         list!
 
 	let all fn list = if list is [] then false
         else List.fold:
-            fun all value -> all and (fn: value!)
+            (fun all value -> all and fn: value!)
             true
             list!
 
     let count value list = do
         let count = 0
         List.forEach:
-            fun item -> if item is value then count += 1
+            (fun item -> if item is value then count += 1)
             list!
         count
     end
@@ -168,17 +168,17 @@ module Dict is
         else default
 
 	let iter fn dict = List.forEach:
-        fun key -> (fn: key (Dict.get: key dict!)!) (Dict.keys: dict!)!
+        (fun key -> fn: key (Dict.get: key dict!)!) (Dict.keys: dict!)!
 
     let copy original = do
         let new = {}
-        Dict.iter: fun k v -> (Dict.set: k v new!) original!
+        Dict.iter: (fun k v -> Dict.set: k v new!) original!
         new
     end
 
 	let toList dict = do
 		let ls = []
-		Dict.iter: fun k v -> ls += [[k v]] dict!
+		Dict.iter: (fun k v -> ls += [[k v]]) dict!
 		ls
 	end
 end
@@ -193,7 +193,7 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = ""
-		rep: fun _ -> text += pattern n!
+		rep: (fun _ -> text += pattern) n!
 		text + str
 	end
 
@@ -201,7 +201,7 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = str
-		rep: fun _ -> text += pattern n!
+		rep: (fun _ -> text += pattern) n!
 		text
 	end
 
@@ -209,9 +209,9 @@ module String is
 		let n = (width - #str) / #pattern
 
         let text = ""
-		rep: fun _ -> text += pattern (Num.half: n!)!
+		rep: (fun _ -> text += pattern) (Num.half: n!)!
 		text += str
-		rep: fun _ -> text += pattern (Num.half: n!)!
+		rep: (fun _ -> text += pattern) (Num.half: n!)!
 		text
 	end
 end

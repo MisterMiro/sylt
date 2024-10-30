@@ -216,7 +216,7 @@ let equality _ = do
 		fun x -> x	## Func
 	]
 	
-	List.iter: fun skipIndex value -> do
+	List.iter: (fun skipIndex value -> do
 		## equal to itself
 		ensure: value is value!
 		
@@ -225,7 +225,7 @@ let equality _ = do
 		List.iter: fun index other -> if index not skipIndex then
                 ensure: value not other!
             values!
-	end
+	end)
     values!
 	
 	## perform more type-specific tests
@@ -650,24 +650,24 @@ let listLib _ = do
 	ensure: (List.rev: normal!) is [3 2 1]!
 	ensure: (List.rev: []!) is []!
 	ensure: (List.rev: [1]!) is [1]!
-	
-	## iter
+
+    ## iter
+	let items = [1 2 3]
+	let copy = []
+	List.iter: fun index -> copy += index items!
+	ensure: items is copy!
+
+	## iteri
 	let indices = [0 1 2]
 	let copy = []
 
-	List.iter: fun index value -> do
-		ensure: index is (List.get: index indices!)!
+	List.iteri: (fun i value -> do
+		ensure: i is (List.get: i indices!)!
 		copy += value
-	end
+	end)
 	indices!
 
 	ensure: indices is copy!
-	
-	## forEach
-	let items = [1 2 3]
-	let copy = []
-	List.forEach: fun index -> copy += index items!
-	ensure: items is copy!
 	
 	## map
 	let list = List.map: fun n -> n * 2 [4 8 16]!
@@ -888,11 +888,11 @@ let mathLib _ = do
 		3 14 2000 18000 2000000
 	]
 	
-	List.forEach: fun base -> do
+	List.iter: (fun base -> do
 		let power = Math.log: target base!
 		let result = Math.pow: base power!
 		ensure: (Num.eq: result target 0.0000001!)!
-	end
+	end)
     bases!
 	
 	## sqrt
@@ -936,7 +936,7 @@ let mathLib _ = do
 		ensure: (Math.round: mid!) is if n < 0 then n else n + 1!
 	end
 	
-	List.forEach: checkRounding [-1 0 1]!
+	List.iter: checkRounding [-1 0 1]!
 	
 	## rad + deg
 	ensure: (Num.eq: (Math.rad: 1!) 0.0175 0.001!)!
@@ -1054,7 +1054,7 @@ let tests = List.flatten: [
 ]!
 
 ## let's go!
-List.forEach: fun test ->
+List.iter: fun test ->
 	if typeOf: test! is "String" then printLn: test + ":"!
 	else do
 		let name = String.rightPad: 20 "." (toString: test!)!

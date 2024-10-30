@@ -1054,7 +1054,7 @@ let tests = List.flatten: [
 ]!
 
 ## let's go!
-List.iter: fun test ->
+List.iter: (fun test ->
 	if typeOf: test! is "String" then printLn: test + ":"!
 	else do
 		let name = String.rightPad: 20 "." (toString: test!)!
@@ -1062,7 +1062,7 @@ List.iter: fun test ->
 		
 		test: null!
 		printLn: "OK"!
-	end
+	end)
 	tests!
 
 printLn: "All tests passed!"!

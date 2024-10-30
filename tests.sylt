@@ -492,7 +492,7 @@ let preludeLib _ = do
 	ensure: (toNumber: "1337.25"!) is 1337.25!
 	ensure: (toNumber: ""!) is 0!
 	ensure: (toNumber: "error"!) is 0!
-	ensure: (toNumber: fun _ -> do end!) is 0!
+	ensure: (toNumber: fun -> do end!) is 0!
 	
 	## typeOf
 	ensure: (typeOf: null!) is "Null"!

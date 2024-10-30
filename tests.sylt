@@ -222,8 +222,8 @@ let equality _ = do
 		
 		## not equal to a value of any other
 		## type
-		List.iter: fun index other -> if index not skipIndex then
-                ensure: value not other!
+		List.iteri: (fun i other -> if i not skipIndex then
+                ensure: value not other!)
             values!
 	end)
     values!

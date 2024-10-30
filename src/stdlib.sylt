@@ -14,7 +14,7 @@ let rep fn n = for: fn 0 n!
 
 let makeEnum list = do
 	let enum = {}
-	List.iter: (fun i name -> Dict.set: name i enum!) list!
+	List.iteri: (fun i name -> Dict.set: name i enum!) list!
 	enum
 end
 

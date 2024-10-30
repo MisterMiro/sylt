@@ -654,7 +654,7 @@ let listLib _ = do
     ## iter
 	let items = [1 2 3]
 	let copy = []
-	List.iter: fun index -> copy += index items!
+	List.iter: (fun i -> copy += i) items!
 	ensure: items is copy!
 
 	## iteri

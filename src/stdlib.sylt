@@ -109,7 +109,15 @@ module List is
         list
 	end
 
-	let sort list = List.sortBy: (fun a b -> a > b) list!
+	let sort list = List.sortBy: (fun a b -> do
+            let type1 = typeOf: a!
+            let type2 = typeOf: b!
+            if type1 is "Number" and type2 is "Number" then
+                a > b
+            else if type1 is "String" and type2 is "String" then
+                String.compareAlpha: a b!
+             end
+        end) list!
 
 	let flatten list = do
 		let flat = []

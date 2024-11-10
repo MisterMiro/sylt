@@ -207,6 +207,16 @@ module String is
 		rep: (fun _ -> text += pattern) (Num.half: n!)!
 		text
 	end
+
+    let compareAlpha word1 word2 = do
+        let i = 0
+        while i < Math.min: #word1 #word2 do
+            let a = List.get: i (String.ascii: word1!)!
+            let b = List.get: i (String.ascii: word2!)!
+            if a > b then return word1
+            else if a < b then return word2
+        end
+    end
 end
 
 module File is

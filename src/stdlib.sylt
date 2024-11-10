@@ -116,7 +116,6 @@ module List is
                 a > b
             else if type1 is "String" and type2 is "String" then
                 String.compareAlpha: a b!
-             end
         end) list!
 
 	let flatten list = do

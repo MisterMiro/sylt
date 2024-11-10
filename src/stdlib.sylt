@@ -220,8 +220,8 @@ module String is
         while i < Math.min: #word1 #word2! do
             let a = List.get: i (String.ascii: word1!)!
             let b = List.get: i (String.ascii: word2!)!
-            if a > b then return word1
-            else if a < b then return word2
+            if a > b then return true
+            else if a < b then return false
         end
     end
 end

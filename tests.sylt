@@ -644,7 +644,10 @@ let listLib _ = do
     let list = [2 3 1]
     ensure: (List.sort: list!) is [1 2 3]!
     ensure: list is [2 3 1]!
-	
+
+    let list = ["Jamie" "Bob"]
+    ensure: (List.sort: list!) is ["Bob" "Jamie"]!
+
 	## rev
 	let normal = [1 2 3]
 	ensure: (List.rev: normal!) is [3 2 1]!

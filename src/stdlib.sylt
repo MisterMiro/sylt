@@ -94,7 +94,9 @@ module List is
 			let swapped = 0
 
 			rep: (fun i -> do
-				if fn: (List.get: i list!) (List.get: i + 1 list!)! then do
+                let a = List.get: i list!
+                let b = List.get: i + 1 list!
+				if fn: a b is b then do
 					List.swap: i i + 1 list!
 					swapped += 1
 				end
@@ -111,10 +113,8 @@ module List is
 	let sort list = List.sortBy: (fun a b -> do
             let type1 = typeOf: a!
             let type2 = typeOf: b!
-            if type1 is "Number" and type2 is "Number" then
-                a > b
-            else if type1 is "String" and type2 is "String" then
-                String.compareAlpha: a b!
+            if (type1 is "Number") and (type2 is "Number") then Math.max: a b!
+            else if (type1 is "String") and (type2 is "String") then String.compareAlpha: a b!
         end) list!
 
 	let flatten list = do
@@ -212,13 +212,12 @@ module String is
 		text
 	end
 
-    let compareAlpha word1 word2 = do
+    let compareAlpha a b = do
         let i = 0
-        while i < Math.min: #word1 #word2! do
-            let a = List.get: i (String.ascii: word1!)!
-            let b = List.get: i (String.ascii: word2!)!
-            if a > b then return true
-            else if a < b then return false
+        while i < Math.min: #a #b! do
+            let a = List.get: i (String.ascii: a!)!
+            let b = List.get: i (String.ascii: b!)!
+            if a not b then return Math.max: a b!
         end
     end
 end

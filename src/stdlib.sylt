@@ -212,11 +212,11 @@ module String is
 		text
 	end
 
-    let compareAlpha a b = do
+    let compareAlpha wordA wordB = do
         let i = 0
-        while i < Math.min: #a #b! do
-            let a = List.get: i (String.ascii: a!)!
-            let b = List.get: i (String.ascii: b!)!
+        while i < Math.min: #wordA #wordB! do
+            let a = List.get: i (String.ascii: wordA!)!
+            let b = List.get: i (String.ascii: wordB!)!
             if a not b then return Math.max: a b!
         end
     end

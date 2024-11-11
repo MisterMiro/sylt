@@ -96,7 +96,7 @@ module List is
 			rep: (fun i -> do
                 let a = List.get: i list!
                 let b = List.get: i + 1 list!
-				if fn: a b is b then do
+				if fn: a b! is b then do
 					List.swap: i i + 1 list!
 					swapped += 1
 				end

@@ -137,8 +137,7 @@ module List is
 		deduped
 	end
 
-	let any fn list = List.fold:
-        (fun any value -> any or fn: value!) false list!
+	let any fn list = List.fold: (fun any value -> any or fn: value!) false list!
 
 	let all fn list = if list is [] then false
         else List.fold: (fun all value -> all and fn: value!) true list!

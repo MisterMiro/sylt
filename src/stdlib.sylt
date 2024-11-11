@@ -351,5 +351,5 @@ module Rand is
 
 	let item list = List.get: (Rand.range: 0 #list!) list!
 
-	let scramble list = List.sortBy: fun _ _ -> (Rand.fiftyFifty: !) list!
+	let scramble list = List.sortBy: (fun _ _ -> Rand.fiftyFifty: !) list!
 end

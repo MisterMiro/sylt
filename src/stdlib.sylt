@@ -157,7 +157,7 @@ module List is
             if List.get: i list! is value then found <- true
             else i += 1
 
-        if not found then -1 else i
+        if not found then null else i
     end
 end
 

@@ -130,8 +130,7 @@ module List is
 	let dedup list = do
 		let deduped = []
 		List.iter:
-            (fun item -> if not List.contains: item deduped! then
-                deduped += item)
+            (fun item -> if not List.contains: item deduped! then deduped += item)
             list!
 		deduped
 	end
